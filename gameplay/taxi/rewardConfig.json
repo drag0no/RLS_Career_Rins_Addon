@@ -1,0 +1,15 @@
+{
+  "globalRewardMultiplier": 0.7,
+  "skill": {
+    "attributeKey": "careerSkills-passenger",
+    "rewardLaneIndex": 2,
+    "rewardLaneCount": 2,
+    "moneyPercentPerLevel": 0.02,
+    "xpReward": {
+      "mode": "money",
+      "multiplier": 1.0,
+      "minimum": 1,
+      "rounding": "floor"
+    }
+  }
+}

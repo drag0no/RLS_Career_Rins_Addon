@@ -1,0 +1,95 @@
+<link rel="stylesheet" type="text/css" href="/ui/modModules/overhaulManager/overhaulManager.css?v=8" />
+
+<div class="overhaul-container">
+    <section class="overhaul-panel">
+        <header class="overhaul-header">
+            <div class="overhaul-eyebrow">RLS Career Overhaul</div>
+            <h1>Overhaul Manager</h1>
+            <p>Choose which systems are active for your career.</p>
+        </header>
+
+        <div class="overhaul-content">
+            <div class="settings-grid">
+                <article class="setting-card">
+                    <div class="setting-copy">
+                        <h2>Map Dev Mode</h2>
+                        <p>Enable developer tools for map editing and testing.</p>
+                    </div>
+                    <button type="button" class="toggle-switch" ng-class="{'active': toggles.mapDevMode}" ng-click="toggleMapDevMode()" ng-disabled="!isLoaded || isSaving" aria-label="Toggle Map Dev Mode" aria-pressed="{{toggles.mapDevMode}}">
+                        <span class="toggle-knob"></span>
+                    </button>
+                </article>
+
+                <article class="setting-card">
+                    <div class="setting-copy">
+                        <h2>No Parked Mode</h2>
+                        <p>Remove parked vehicles from the world.</p>
+                    </div>
+                    <button type="button" class="toggle-switch" ng-class="{'active': toggles.noParkedMode}" ng-click="toggleNoParkedMode()" ng-disabled="!isLoaded || isSaving" aria-label="Toggle No Parked Mode" aria-pressed="{{toggles.noParkedMode}}">
+                        <span class="toggle-knob"></span>
+                    </button>
+                </article>
+
+                <article class="setting-card">
+                    <div class="setting-copy">
+                        <h2>Realistic Vehicle Entry</h2>
+                        <p>Walk up, open the door, and board before entering.</p>
+                    </div>
+                    <button type="button" class="toggle-switch" ng-class="{'active': toggles.realisticVehicleEntry}" ng-click="toggleRealisticVehicleEntry()" ng-disabled="!isLoaded || isSaving" aria-label="Toggle Realistic Vehicle Entry" aria-pressed="{{toggles.realisticVehicleEntry}}">
+                        <span class="toggle-knob"></span>
+                    </button>
+                </article>
+
+                <article class="setting-card">
+                    <div class="setting-copy">
+                        <h2>Realistic Walking Camera</h2>
+                        <p>Head bob and sway while walking or sprinting on foot.</p>
+                    </div>
+                    <button type="button" class="toggle-switch" ng-class="{'active': toggles.realisticWalkingCamera}" ng-click="toggleRealisticWalkingCamera()" ng-disabled="!isLoaded || isSaving" aria-label="Toggle Realistic Walking Camera" aria-pressed="{{toggles.realisticWalkingCamera}}">
+                        <span class="toggle-knob"></span>
+                    </button>
+                </article>
+            </div>
+
+            <section class="developer-section" ng-if="devKeyValid">
+                <div class="section-heading">
+                    <span>Developer tools</span>
+                    <span class="developer-badge">Dev key active</span>
+                </div>
+
+                <div class="settings-grid developer-grid">
+                    <article class="setting-card">
+                        <div class="setting-copy">
+                            <h2>Phone Tutorial</h2>
+                            <p>Ignore completion and allow the tutorial to run again.</p>
+                            <button type="button" class="btn-secondary" ng-click="replayPhoneTutorial()">Replay now</button>
+                        </div>
+                        <button type="button" class="toggle-switch" ng-class="{'active': toggles.forcePhoneTutorial}" ng-click="toggleForcePhoneTutorial()" ng-disabled="!isLoaded || isSaving" aria-label="Toggle Phone Tutorial" aria-pressed="{{toggles.forcePhoneTutorial}}">
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </article>
+
+                    <article class="setting-card">
+                        <div class="setting-copy">
+                            <h2>Racing Team Console</h2>
+                            <p>Show the Dev Console tab on the racing team computer.</p>
+                        </div>
+                        <button type="button" class="toggle-switch" ng-class="{'active': toggles.racingTeamDevConsole}" ng-click="toggleRacingTeamDevConsole()" ng-disabled="!isLoaded || isSaving" aria-label="Toggle Racing Team Console" aria-pressed="{{toggles.racingTeamDevConsole}}">
+                            <span class="toggle-knob"></span>
+                        </button>
+                    </article>
+                </div>
+            </section>
+        </div>
+
+        <footer class="overhaul-footer">
+            <div class="save-status" ng-class="{'save-status--error': saveError}">{{saveStatus}}</div>
+            <div class="footer-actions">
+                <button type="button" class="btn-back" ng-click="goBack()">Back</button>
+                <button type="button" class="btn-save" ng-click="saveSettings()" ng-disabled="!isDirty || isSaving">
+                    {{isSaving ? 'Saving…' : 'Save changes'}}
+                </button>
+            </div>
+        </footer>
+    </section>
+</div>

@@ -1,0 +1,414 @@
+{
+  "fastAutomotive": {
+    "associatedOrganization": "fastAutomotive",
+    "nonTrailerSpots": [
+      "fastAutomotive_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "exhaustShop": {
+    "associatedOrganization": "belascoCityExhaust",
+    "nonTrailerSpots": [
+      "exhaustShop_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "torresTires": {
+    "associatedOrganization": "torresTires",
+    "nonTrailerSpots": [
+      "torresTires_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "smashAutoRepairs": {
+    "associatedOrganization": "smashAutoRepairs",
+    "nonTrailerSpots": [
+      "smashAutoRepairs_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "jerryRigs": {
+    "associatedOrganization": "jerryRiggs",
+    "nonTrailerSpots": [
+      "jerryRigs_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "shuffleboardGarage": {
+    "associatedOrganization": "shuffleboardLogistics",
+    "nonTrailerSpots": [
+      "shuffleboardGarage_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "quarrysideAutoSales": {
+    "associatedOrganization": "quarrysideAutoSales",
+    "nonTrailerSpots": [
+      "quarrysideAutoSales_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "belascoAuto": {
+    "associatedOrganization": "belascoAuto",
+    "nonTrailerSpots": [
+      "belascoAuto_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "jeffersonMotors": {
+    "associatedOrganization": "jeffersonMotors",
+    "nonTrailerSpots": [
+      "jeffersonMotors_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "richsMotorCompany": {
+    "associatedOrganization": "richsMotorCompany",
+    "nonTrailerSpots": [
+      "richsMotorCompany_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "policeStation": {
+    "associatedOrganization": "localDeliveryAssociation",
+    "nonTrailerSpots": [
+      "policeStation_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "snoozeNews": {
+    "associatedOrganization": "localDeliveryAssociation",
+    "nonTrailerSpots": [
+      "snoozeNews_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "turboBurger": {
+    "associatedOrganization": "localDeliveryAssociation",
+    "nonTrailerSpots": [
+      "turboBurger_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "diner": {
+    "associatedOrganization": "localDeliveryAssociation",
+    "nonTrailerSpots": [
+      "diner_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "chinatownRestaurant": {
+    "associatedOrganization": "localDeliveryAssociation",
+    "nonTrailerSpots": [
+      "chinatownRestaurant_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "greenPier": {
+    "associatedOrganization": "localDeliveryAssociation",
+    "nonTrailerSpots": [
+      "greenPier_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "cargoservicevan872426",
+        "reputationLvl": -1,
+        "deliveryLvl": 0,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "lensflareLogistics": {
+    "associatedOrganization": "lensflareStudios",
+    "nonTrailerSpots": [
+      "lensflareLogistics_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "smallboxvan751523",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      },
+      {
+        "model": "md_series",
+        "config": "mediumboxtruck196979",
+        "reputationLvl": 0,
+        "deliveryLvl": 2,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "sealbrik": {
+    "associatedOrganization": "sealbrikPlant",
+    "nonTrailerSpots": [
+      "sealbrikPlant_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "us_semi",
+        "config": "rigidtankertruck443910",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      },
+      {
+        "model": "us_semi",
+        "config": "cementmixer817238",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "sketchyPickup": {
+    "associatedOrganization": "sketchyLogistics",
+    "nonTrailerSpots": [
+      "sketchyPickup_loaner"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "md_series",
+        "config": "small_money_transport_career",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      },
+      {
+        "model": "md_series",
+        "config": "large_money_transport_career",
+        "reputationLvl": 2,
+        "deliveryLvl": 2,
+        "mileage": 241401600
+      },
+      {
+        "model": "md_series",
+        "config": "smalldumptruck767436",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      },
+      {
+        "model": "us_semi",
+        "config": "mediumdumptruck159523",
+        "reputationLvl": 1,
+        "deliveryLvl": 2,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "industrialWarehouse": {
+    "associatedOrganization": "industrialWarehouse",
+    "nonTrailerSpots": [
+      "industrialWarehouse_loaner"
+    ],
+    "trailerSpots": [
+      "industrialWarehouse_loanerTrailer"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "smallboxvan751523",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      },
+      {
+        "model": "md_series",
+        "config": "mediumboxtruck196979",
+        "reputationLvl": 0,
+        "deliveryLvl": 2,
+        "mileage": 241401600
+      },
+      {
+        "model": "us_semi",
+        "config": "semidaycab035558",
+        "reputationLvl": 1,
+        "deliveryLvl": 3,
+        "mileage": 241401600
+      },
+      {
+        "model": "dryvan",
+        "config": "parceldryvantrailer428142",
+        "reputationLvl": 1,
+        "deliveryLvl": 3,
+        "mileage": 241401600
+      }
+    ]
+  },
+  "spearleafLogistics": {
+    "associatedOrganization": "spearleafLogistics",
+    "nonTrailerSpots": [
+      "spearleafLogistics_loaner"
+    ],
+    "trailerSpots": [
+      "spearleafLogistics_loanerTrailer"
+    ],
+    "loanableVehicles": [
+      {
+        "model": "van",
+        "config": "smallboxvan751523",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      },
+      {
+        "model": "md_series",
+        "config": "mediumboxtruck196979",
+        "reputationLvl": 0,
+        "deliveryLvl": 2,
+        "mileage": 241401600
+      },
+      {
+        "model": "us_semi",
+        "config": "semidaycab035558",
+        "reputationLvl": 1,
+        "deliveryLvl": 3,
+        "mileage": 241401600
+      },
+      {
+        "model": "dryvan",
+        "config": "parceldryvantrailer428142",
+        "reputationLvl": 1,
+        "deliveryLvl": 3,
+        "mileage": 241401600
+      },
+      {
+        "model": "md_series",
+        "config": "smalldumptruck767436",
+        "reputationLvl": -1,
+        "deliveryLvl": 1,
+        "mileage": 241401600
+      },
+      {
+        "model": "us_semi",
+        "config": "mediumdumptruck159523",
+        "reputationLvl": 1,
+        "deliveryLvl": 2,
+        "mileage": 241401600
+      }
+    ]
+  }
+}

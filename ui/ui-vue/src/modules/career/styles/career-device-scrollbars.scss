@@ -1,0 +1,13 @@
+@use 'career-webkit-scrollbar' as sb;
+
+.phone-wrapper {
+  @include sb.career-webkit-scrollbar-tree(6px);
+}
+
+.business-computer-wrapper {
+  @include sb.career-webkit-scrollbar-tree(8px);
+}
+
+[bng-ui-scope='computer'] {
+  @include sb.career-webkit-scrollbar-tree(8px);
+}

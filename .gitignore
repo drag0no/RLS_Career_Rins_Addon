@@ -1,0 +1,12 @@
+# VS Code
+.vscode/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Add back IntelliJ run configurations
+!.idea/runConfigurations
+
+# Package Files
+/*.zip
