@@ -235,10 +235,44 @@ local function updateVehicleMaps()
 end
 
 -- TODO could even update once every time before removing a part
-local function updatePartConditionsInInventory()
-  for partId, part in pairs(partInventory) do
-    if part.location > 0 and career_modules_inventory.getVehicles()[part.location].partConditions[part.partPath] then
-      part.partCondition = career_modules_inventory.getVehicles()[part.location].partConditions[part.partPath]
+local function updatePartConditionsInInventory(inventoryId)
+  local vehicles = career_modules_inventory.getVehicles()
+  local function updatePart(part)
+    local vehicle = part and vehicles[part.location]
+    local condition = vehicle and vehicle.partConditions and vehicle.partConditions[part.partPath]
+    if condition then
+      part.partCondition = condition
+    end
+  end
+
+  local requestedInventoryId = inventoryId
+  inventoryId = tonumber(inventoryId)
+  if inventoryId then
+    local partIdsBySlot = slotToPartIdMap[inventoryId]
+    if partIdsBySlot then
+      for _, partId in pairs(partIdsBySlot) do
+        updatePart(partInventory[partId])
+      end
+      return
+    end
+
+    -- Maps can briefly be unavailable while a newly added vehicle is being
+    -- reconciled. Limit that fallback scan to the affected vehicle.
+    for _, part in pairs(partInventory) do
+      if tonumber(part.location) == inventoryId then
+        updatePart(part)
+      end
+    end
+    return
+  end
+
+  if requestedInventoryId ~= nil then
+    return
+  end
+
+  for _, part in pairs(partInventory) do
+    if tonumber(part.location) and tonumber(part.location) > 0 then
+      updatePart(part)
     end
   end
 end

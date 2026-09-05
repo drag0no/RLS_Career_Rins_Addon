@@ -239,6 +239,7 @@ local function getDealership(id) return getFacility("dealership", id) end
 
 
 local function getAverageDoorPositionForFacility(facility)
+  if not facility then return nil end
   local center, count = vec3(0,0,0), 0
 
   for _, pair in ipairs(facility.doors or {}) do
@@ -287,6 +288,7 @@ end
 
 
 local function getParkingSpotsForFacility(facility)
+  if not facility then return end
   if not facility.sitesFile then log("E","","Facility has not sites file: " .. dumpsz(facility,1)) return end
   local spots = {}
 
@@ -699,7 +701,8 @@ local function onGetRawPoiListForLevel(levelIdentifier, elements)
   local facilities = getFacilities(levelIdentifier)
   if career_career.isActive() then
     for i, dealership in ipairs(facilities.dealerships or {}) do
-      if not dealership.remotePurchaseOnly then
+      local channel = dealership.salesChannel
+      if not dealership.remotePurchaseOnly and channel ~= "factory" and channel ~= "remanufactured" then
         M.walkingMarkerFormatFacility(dealership, elements)
       end
     end

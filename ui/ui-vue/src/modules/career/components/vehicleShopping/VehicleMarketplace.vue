@@ -63,14 +63,14 @@
             <div class="spec-actions">
               <BngButton
                 class="part-button"
-                @click="declineOffer(listing.id, index)"
+                @click="declineOffer(listing, offer, index)"
                 :accent="ACCENTS.attention"
               >
                 {{offer.expiredViewCounter ? 'Discard' : 'Deny'}}
               </BngButton>
               <BngButton
                 class="part-button negotiate-button"
-                @click="startNegotiateBuyingOffer(listing.id, index)"
+                @click="startNegotiateBuyingOffer(listing, offer, index)"
                 :accent="ACCENTS.secondary"
                 :disabled="!offer.negotiationPossible || offer.value >= listing.value || listing.disabled || listing.damagedAfterListing"
                 v-if="!offer.expiredViewCounter"
@@ -80,7 +80,7 @@
               <BngButton
                 v-if="!offer.expiredViewCounter"
                 class="part-button"
-                @click="acceptOffer(listing.id, index)"
+                @click="acceptOffer(listing, offer, index)"
                 :disabled="listing.disabled || offer.disabled || listing.damagedAfterListing"
                 :accent="ACCENTS.main"
               >
@@ -172,16 +172,27 @@ const getNewData = () => {
   lua.career_modules_marketplace.getListings().then(handleListings)
 }
 
-const acceptOffer = (inventoryId, offerIndex) => {
-  lua.career_modules_marketplace.acceptOffer(inventoryId, offerIndex + 1).then(getNewData)
+// getListings() reverses offers and pushes disabled ones to the end, so a row index does not
+// match listing.offers on the Lua side. Resolve by stable offer id when one is available.
+const acceptOffer = (listing, offer, offerIndex) => {
+  const call = offer.id != null
+    ? lua.career_modules_marketplace.acceptOfferById(offer.id)
+    : lua.career_modules_marketplace.acceptOffer(listing.id, offerIndex + 1)
+  call.then(getNewData)
 }
 
-const declineOffer = (inventoryId, offerIndex) => {
-  lua.career_modules_marketplace.declineOffer(inventoryId, offerIndex + 1).then(getNewData)
+const declineOffer = (listing, offer, offerIndex) => {
+  const call = offer.id != null
+    ? lua.career_modules_marketplace.declineOfferById(offer.id)
+    : lua.career_modules_marketplace.declineOffer(listing.id, offerIndex + 1)
+  call.then(getNewData)
 }
 
-const startNegotiateBuyingOffer = (inventoryId, offerIndex) => {
-  lua.career_modules_marketplace.startNegotiateBuyingOffer(inventoryId, offerIndex + 1).then(getNewData)
+const startNegotiateBuyingOffer = (listing, offer, offerIndex) => {
+  const call = offer.id != null
+    ? lua.career_modules_marketplace.startNegotiateBuyingOfferById(offer.id, false)
+    : lua.career_modules_marketplace.startNegotiateBuyingOffer(listing.id, offerIndex + 1)
+  call.then(getNewData)
 }
 
 const removeVehicleListing = (inventoryId) => {

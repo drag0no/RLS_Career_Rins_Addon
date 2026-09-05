@@ -676,46 +676,96 @@ local function clearVehicleAuctionListing(inventoryId)
   end
 end
 
-local function updatePartConditionsOfSpawnedVehicles(callback)
-  local vehicleCount = tableSize(vehIdToInventoryId)
-  local callbackCounter = 0
-  for vehId, inventoryId in pairs(vehIdToInventoryId) do
-    setVehicleDirty(inventoryId)
+local nextPartConditionBatch = 0
+local cancelledPartConditionBatches = {}
 
-    -- update part conditions and call the callback when all vehicles have been processed
-    M.updatePartConditions(vehId, inventoryId, callback and
-    function()
-      callbackCounter = callbackCounter + 1
-      if callbackCounter >= tableSize(vehIdToInventoryId) then
-        callback()
-      end
-    end)
-  end
-  if callback and tableIsEmpty(vehIdToInventoryId) then
-    callback()
+local function beginPartConditionBatch()
+  nextPartConditionBatch = nextPartConditionBatch + 1
+  return nextPartConditionBatch
+end
+
+local function cancelPartConditionBatch(batchToken)
+  if batchToken then
+    cancelledPartConditionBatches[batchToken] = true
   end
 end
 
+local function isLivePartConditionBatch(batchToken)
+  if batchToken == nil then return true end
+  return cancelledPartConditionBatches[batchToken] ~= true
+end
+
+local function updatePartConditionsOfSpawnedVehicles(callback)
+  local batchToken
+  if callback then
+    batchToken = beginPartConditionBatch()
+  end
+  local expectedCount = tableSize(vehIdToInventoryId)
+  local callbackCounter = 0
+  local function maybeFinish()
+    if callback and callbackCounter >= expectedCount then
+      callback()
+    end
+  end
+  for vehId, inventoryId in pairs(vehIdToInventoryId) do
+    setVehicleDirty(inventoryId)
+
+    M.updatePartConditions(vehId, inventoryId, callback and function()
+      if not isLivePartConditionBatch(batchToken) then return end
+      callbackCounter = callbackCounter + 1
+      maybeFinish()
+    end, batchToken)
+  end
+  if callback and expectedCount == 0 then
+    callback()
+  end
+  return batchToken
+end
+
+-- Vehicle switching only needs a condition snapshot from the car the player is
+-- leaving. Waiting for every other spawned inventory vehicle makes the switch
+-- scale with the number and complexity of cars around the garage. Full saves
+-- still use updatePartConditionsOfSpawnedVehicles so background vehicle damage
+-- is persisted without holding up normal entry/exit.
+local function updatePartConditionsOfCurrentVehicle(callback)
+  local inventoryId = currentVehicle
+  if not inventoryId then
+    if callback then callback() end
+    return
+  end
+
+  setVehicleDirty(inventoryId)
+  M.updatePartConditions(inventoryIdToVehId[inventoryId], inventoryId, callback)
+end
+
 local extensionName = "inventory"
-local function inventorySaveFinished(currentSavePath)
+local finishedSaveTasks = {}
+
+local function inventorySaveFinished(currentSavePath, generation)
+  if not career_saveSystem.isAsyncSaveExtensionCurrent(extensionName, generation) then
+    return
+  end
   -- if there are more async saving steps waiting for the vehicle save to finish, we need to call registerAsyncSaveExtension inside their onVehicleSaveFinished function first
   extensions.hook("onVehicleSaveFinished", currentSavePath)
-  career_saveSystem.asyncSaveExtensionFinished(extensionName)
+  career_saveSystem.asyncSaveExtensionFinished(extensionName, generation)
   guihooks.trigger("saveFinished")
 end
 
 local function onSaveCurrentProfileAsyncStart()
-  career_saveSystem.registerAsyncSaveExtension(extensionName)
+  cancelPartConditionBatch(finishedSaveTasks.partConditionsBatch)
+  finishedSaveTasks = {
+    generation = career_saveSystem.registerAsyncSaveExtension(extensionName)
+  }
 end
 
-local finishedSaveTasks = {}
-local function checkSaveFinished(currentSavePath)
-  for _, fin in pairs(finishedSaveTasks) do
-    if not fin then
-      return --not finished
+local function checkSaveFinished(currentSavePath, task)
+  task = task or finishedSaveTasks
+  for key, fin in pairs(task) do
+    if key ~= "generation" and key ~= "partConditionsBatch" and not fin then
+      return
     end
   end
-  inventorySaveFinished(currentSavePath)
+  inventorySaveFinished(currentSavePath, task.generation)
 end
 
 -- Stock takeThumbnailScreenshot hardcodes one render view ("thumbnail").
@@ -761,7 +811,8 @@ local function isPersonalInventoryId(inventoryId)
   return false
 end
 
-local function saveVehiclesData(currentSavePath, vehiclesThumbnailUpdate)
+local function saveVehiclesData(currentSavePath, vehiclesThumbnailUpdate, task)
+  task = task or finishedSaveTasks
   local vehiclesCopy = deepcopy(vehicles)
   local currentDate = os.date("!%Y-%m-%dT%H:%M:%SZ")
 
@@ -795,10 +846,10 @@ local function saveVehiclesData(currentSavePath, vehiclesThumbnailUpdate)
 
       local thumbnailFilename = currentSavePath .. "/career/vehicles/" .. id .. ".jpg"
       if vehiclesThumbnailUpdate and tableContains(vehiclesThumbnailUpdate, id) and inventoryIdToVehId[id] then
-        finishedSaveTasks["thumbnail" .. id] = false
+        task["thumbnail" .. id] = false
         enqueueThumbnailCapture(id, thumbnailFilename, function()
-          finishedSaveTasks["thumbnail" .. id] = true
-          checkSaveFinished(currentSavePath)
+          task["thumbnail" .. id] = true
+          checkSaveFinished(currentSavePath, task)
         end)
         vehicle.defaultThumbnail = nil
         vehicles[id].defaultThumbnail = nil
@@ -878,13 +929,24 @@ local function onSaveCurrentProfile(currentSavePath, vehiclesThumbnailUpdate)
     career_modules_usedCarAuction.applyInventorySpawnOverrides(data)
   end
 
-  table.clear(finishedSaveTasks)
-
-  finishedSaveTasks.updatePartConditions = false
-  updatePartConditionsOfSpawnedVehicles(function()
-    saveVehiclesData(currentSavePath, vehiclesThumbnailUpdate)
-    finishedSaveTasks.updatePartConditions = true
-    checkSaveFinished(currentSavePath)
+  local task = finishedSaveTasks
+  task.updatePartConditions = false
+  local function finishPartConditionsStep()
+    if task.updatePartConditions then
+      return
+    end
+    task.updatePartConditions = true
+    saveVehiclesData(currentSavePath, vehiclesThumbnailUpdate, task)
+    checkSaveFinished(currentSavePath, task)
+  end
+  task.partConditionsBatch = updatePartConditionsOfSpawnedVehicles(finishPartConditionsStep)
+  core_jobsystem.create(function(job)
+    job.sleep(30)
+    if not task.updatePartConditions then
+      log("W", "inventory", "updatePartConditions timed out during save; continuing without fresh part data")
+      cancelPartConditionBatch(task.partConditionsBatch)
+      finishPartConditionsStep()
+    end
   end)
 
   career_saveSystem.jsonWriteFileSafe(currentSavePath .. "/career/inventory.json", data, true)
@@ -1098,7 +1160,10 @@ local function seedInitialMaintenanceStateForVehicle(inventoryId)
   return true
 end
 
-local function getPartConditionsCallback(partConditions, inventoryId)
+local function getPartConditionsCallback(partConditions, inventoryId, batchToken)
+  if not isLivePartConditionBatch(batchToken) then
+    return
+  end
   local conditionsType = type(partConditions)
   if conditionsType ~= "table" then
     onPartConditionsUpdateFinished()
@@ -1115,10 +1180,10 @@ local function getPartConditionsCallback(partConditions, inventoryId)
   seedInitialMaintenanceStateForVehicle(inventoryId)
   extensions.hook("onVehiclePartConditionsChanged", inventoryId)
   onPartConditionsUpdateFinished()
-  career_modules_partInventory.updatePartConditionsInInventory()
+  career_modules_partInventory.updatePartConditionsInInventory(inventoryId)
 end
 
-local function updatePartConditions(vehId, inventoryId, callback)
+local function updatePartConditions(vehId, inventoryId, callback, batchToken)
   if inventoryId and isVehicleListedForAuction(inventoryId) then
     if callback then callback() end
     return
@@ -1138,7 +1203,7 @@ local function updatePartConditions(vehId, inventoryId, callback)
   core_vehicleBridge.requestValue(
     veh,
     function(res)
-      getPartConditionsCallback(res.result, inventoryId)
+      getPartConditionsCallback(res.result, inventoryId, batchToken)
       if callback then callback() end
     end,
     'getPartConditions'
@@ -1378,7 +1443,7 @@ local function enterVehicle(newInventoryId, loadOption, callback)
     return
   end
   if currentVehicle then
-    updatePartConditionsOfSpawnedVehicles(function() enterVehicleActual(newInventoryId, loadOption) end)
+    updatePartConditionsOfCurrentVehicle(function() enterVehicleActual(newInventoryId, loadOption) end)
   else
     enterVehicleActual(newInventoryId, loadOption)
   end
@@ -2173,6 +2238,12 @@ local function getVehicleUiData(inventoryId, inventoryIdsInGarage, localRetrieva
   vehicleData.retrievalCost = retrievalQuote.cost
   vehicleData.retrievalCoveredByInsurance = retrievalQuote.coveredByInsurance
   vehicleData.retrievalFree = storedAtCurrentGarage
+  local storageTowQuote = (inventoryIdToVehId[inventoryId] and not vehicleData.inGarage)
+    and getVehicleRetrievalQuote(inventoryId, localRetrievalRoutePrice)
+    or {cost = 0, coveredByInsurance = false}
+  vehicleData.storageTowCost = storageTowQuote.cost
+  vehicleData.storageTowCoveredByInsurance = storageTowQuote.coveredByInsurance
+  vehicleData.storageTowRequired = storageTowQuote.cost > 0 or storageTowQuote.coveredByInsurance
   vehicleData.licensePlateChangePermission = career_modules_permissions.getStatusForTag({"vehicleLicensePlate", "vehicleModification"}, {inventoryId = inventoryId})
   vehicleData.returnLoanerPermission = career_modules_permissions.getStatusForTag("returnLoanedVehicle", {inventoryId = inventoryId})
 
@@ -3017,9 +3088,9 @@ local function storeVehicleAtClosestGarage(inventoryId)
   local garage = getInventoryMenuGarage()
   if not garage or not garage.id then return false end
 
+  local inGarage = getVehiclesInGarage(garage, true)[inventoryId]
   local alreadyAssigned = veh.location == garage.id
   if not alreadyAssigned then
-    local inGarage = getVehiclesInGarage(garage, true)[inventoryId]
     if not inGarage then
       ui_message("Vehicle must be in the current garage to store it.", nil, "vehicleInventory")
       return false
@@ -3037,6 +3108,11 @@ local function storeVehicleAtClosestGarage(inventoryId)
       ui_message("This garage is full.", nil, "vehicleInventory")
       return false
     end
+  elseif inventoryIdToVehId[inventoryId] and not inGarage then
+    useVehicleRetrievalService(
+      inventoryId,
+      getLocalGarageRetrievalRoutePrice(),
+      "Towed vehicle into storage")
   end
 
   removeVehicleObject(inventoryId)

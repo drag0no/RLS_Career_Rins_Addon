@@ -28,6 +28,17 @@ local runtimeOwnersByVehId = {}
 local groundModelsCache
 local groundModelsCacheSource
 
+local function configureProviderCommand(context)
+  local serializedContext = serialize(context)
+  return "if not rlsTireProvider then extensions.load('rlsTireProvider') end; " ..
+    "if rlsTireProvider and rlsTireProvider.configure then " ..
+    "rlsTireProviderLoadErrorReported=nil; " ..
+    "rlsTireProvider.configure(" .. serializedContext .. ") " ..
+    "elseif not rlsTireProviderLoadErrorReported then " ..
+    "rlsTireProviderLoadErrorReported=true; " ..
+    "log('E','rlsTireProvider','Unable to load the RLS tire provider') end"
+end
+
 local function deepCopy(value)
   if type(deepcopy) == "function" then
     return deepcopy(value)
@@ -470,7 +481,7 @@ function M.sendContextForVehicle(vehId, force)
     return true
   end
   lastContextSignatures[vehId] = signature
-  vehObj:queueLuaCommand("rlsTireProvider.configure(" .. serialize(context) .. ")")
+  vehObj:queueLuaCommand(configureProviderCommand(context))
   return true
 end
 
@@ -512,7 +523,7 @@ function M.sendContextForBusinessVehicle(businessId, vehicleId, force)
     context.wetGripMultipliers, context.wetGroundModels}) or tostring(os.time())
   if not force and lastContextSignatures[vehId] == signature then return true end
   lastContextSignatures[vehId] = signature
-  vehObj:queueLuaCommand("rlsTireProvider.configure(" .. serialize(context) .. ")")
+  vehObj:queueLuaCommand(configureProviderCommand(context))
   return true
 end
 
@@ -569,7 +580,7 @@ function M.sendContextForInspectionVehicle(vehId, force)
     context.wetGripMultipliers, context.wetGroundModels}) or tostring(os.time())
   if not force and lastContextSignatures[vehId] == signature then return true end
   lastContextSignatures[vehId] = signature
-  vehObj:queueLuaCommand("rlsTireProvider.configure(" .. serialize(context) .. ")")
+  vehObj:queueLuaCommand(configureProviderCommand(context))
   return true
 end
 
@@ -770,7 +781,7 @@ local function buildAxleGroups(inventoryId, vehicleData, isBusiness)
         flat = flat or wheel.flat == true
         table.insert(wheelStates, {
           name = wheel.name,
-          remainingPercent = math.floor(tireModel.clamp(wheel.remaining, 0, 1) * 100 + 0.5),
+          remainingPercent = round(tireModel.clamp(wheel.remaining, 0, 1) * 100, 1),
           flat = wheel.flat == true,
         })
       end
@@ -780,7 +791,7 @@ local function buildAxleGroups(inventoryId, vehicleData, isBusiness)
         label = groupLabel(index, group.wheels),
         tireName = table.concat(names, ", "),
         tireCount = #group.wheels,
-        remainingPercent = math.floor(remainingTotal / math.max(#group.wheels, 1) * 100 + 0.5),
+        remainingPercent = round(remainingTotal / math.max(#group.wheels, 1) * 100, 1),
         flat = flat,
         subtotal = round(subtotal, 2),
         perTirePrice = round(subtotal / math.max(#group.wheels, 1), 2),

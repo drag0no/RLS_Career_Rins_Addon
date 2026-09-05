@@ -179,9 +179,9 @@ local defaultConfig = {
     offerExpiryMinutes = 5,
     offerRefreshMinutes = 2,
     contractVehiclePickWeights = {
-      experiencedOwned = 0.55,
-      otherOwned = 0.35,
-      notOwned = 0.1
+      experiencedOwned = 0.5,
+      otherOwned = 0.3,
+      notOwned = 0.2
     },
     contractVehicleRewardMultipliers = {
       experiencedOwned = 1,
@@ -204,9 +204,9 @@ local defaultConfig = {
     },
     nonLoopEventTimeMultiplier = 1.66,
     contractPbTimeMultipliersByTier = {
-      easy = {min = 1.035, max = 1.100},
-      medium = {min = 1.015, max = 1.035},
-      hard = {min = 0.995, max = 1.015}
+      easy = {min = 1.025, max = 1.1},
+      medium = {min = 0.975, max = 1.025},
+      hard = {min = 0.925, max = 0.975}
     },
     disciplinesUsingEventCountOverride = {"crawling"},
     eventCountOverrideByTier = {
@@ -222,10 +222,10 @@ local defaultConfig = {
     slotUnlockLevels = {baseLevel = 7, baseSlots = 2, extraLevels = {30, 40, 50}},
     offerExpiryMinutes = 5,
     offerRefreshMinutes = 2,
-    upkeepMinutesByTier = {easy = 120, medium = 105, hard = 90, master = 90},
-    probationMinutesByTier = {easy = 60, medium = 60, hard = 60, master = 30},
-    graceMinutes = 15,
-    droppedSlotCooldownMinutes = 5,
+    upkeepMinutesByTier = {easy = 60, medium = 45, hard = 30, master = 30},
+    probationMinutesByTier = {easy = 30, medium = 30, hard = 30, master = 15},
+    graceMinutes = 5,
+    droppedSlotCooldownMinutes = 15,
     bonusRangeByTier = {
       easy = {min = 0.01, max = 0.10},
       medium = {min = 0.10, max = 0.18},

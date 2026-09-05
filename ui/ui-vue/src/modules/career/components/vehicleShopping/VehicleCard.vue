@@ -123,7 +123,7 @@
             <span v-if="!vehicleShoppingData.currentSeller" class="seller-label">
               Seller: <span class="seller-name">{{ vehicle.sellerName }}</span>
             </span>
-            <span v-if="!vehicleShoppingData.currentSeller" class="distance">
+            <span v-if="!vehicleShoppingData.currentSeller && !isOnlineSeller" class="distance">
               Distance: <span class="distance-value">{{ formatDistance(vehicle.distance) }}</span>
             </span>
             <span class="insurance">
@@ -141,7 +141,7 @@
           <div v-else class="action-buttons">
             <!-- Route/Inspect Button -->
             <BngButton
-              v-if="!phoneMode && (!isOnlineSeller || vehicle.sellerId === vehicleShoppingData.currentSeller)"
+              v-if="!phoneMode && !isOnlineSeller"
               :accent="ACCENTS.menu"
               size="sm"
               @click="vehicle.sellerId === vehicleShoppingData.currentSeller ? showVehicle(getVehicleId()) : navigateToPos(vehicle.pos, getVehicleId())"

@@ -32,6 +32,15 @@ local configuredInventoryId
 local configuredStateRevision
 local configured = false
 local gripApplied = false
+local telemetrySequence = 0
+local telemetrySession = tostring(obj:getID()) .. ":" .. tostring(os.clock())
+
+local function sendTelemetry(payload)
+  telemetrySequence = telemetrySequence + 1
+  payload.session = telemetrySession
+  payload.sequence = telemetrySequence
+  gui.send("RlsTireWearThermals", payload)
+end
 
 local function deepCopy(value)
   if type(deepcopy) == "function" then return deepcopy(value) end
@@ -511,7 +520,7 @@ local function updateBundled(dt, emitTelemetry)
     end
   end
   if stream then
-    gui.send("RlsTireWearThermals", stream)
+    sendTelemetry(stream)
   end
 end
 
@@ -520,7 +529,7 @@ local function reportState(force)
   local info = providerInfo()
   local providerKey = table.concat({tostring(info.id), tostring(info.version), tostring(info.apiVersion)}, ":")
   if selectedProvider ~= "bundled" then
-    gui.send("RlsTireWearThermals", {data = {}, provider = info, enabled = context.enabled == true})
+    sendTelemetry({data = {}, provider = info, enabled = context.enabled == true})
   end
   if selectedProvider == "external" then
     local api = externalApi(externalExtension())
@@ -590,7 +599,7 @@ function M.configure(nextContext)
   end
   if selectedProvider == "bundled" and context.enabled ~= true then
     resetTemperatures()
-    gui.send("RlsTireWearThermals", {data = {}, provider = info, enabled = false})
+    sendTelemetry({data = {}, provider = info, enabled = false})
   end
   telemetryTimer = TELEMETRY_INTERVAL
   reportState(lastProviderKey == nil)
@@ -696,9 +705,9 @@ end
 
 function M.updateGFX(dt)
   dt = math.min(math.max(tonumber(dt) or 0, 0), 0.1)
-  -- This is an auto extension, so it is present on traffic too. Only career-
-  -- owned/preview vehicles receive configure(); keeping the other VMs dormant
-  -- avoids multiplying tire work by the entire traffic pool.
+  -- The GE tire system loads this extension only for managed/preview vehicles.
+  -- Keep it dormant until configure() arrives so initialization cannot apply
+  -- grip or wear before ownership and maintenance state are known.
   if not configured then return end
   providerCheckTimer = providerCheckTimer + dt
   reportTimer = reportTimer + dt

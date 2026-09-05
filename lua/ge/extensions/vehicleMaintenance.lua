@@ -375,7 +375,7 @@ local function applyMaintenancePartConditions(inventoryId, partConditions, vehId
     inventory.setVehicleDirty(inventoryId)
   end
   if career_modules_partInventory and career_modules_partInventory.updatePartConditionsInInventory then
-    career_modules_partInventory.updatePartConditionsInInventory()
+    career_modules_partInventory.updatePartConditionsInInventory(inventoryId)
   end
 
   return true

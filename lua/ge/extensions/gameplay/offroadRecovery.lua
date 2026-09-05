@@ -56,6 +56,7 @@ local initialized = false
 local returnToOfferBoardAfterMap = false
 local pendingCareerSave
 local saveRegistered = false
+local saveGenerationToken
 local nextSaveToken = 0
 local trackedRouteKey
 local trackedRouteActive = false
@@ -730,7 +731,7 @@ local function buildCompletionBreakdown(job, finalCash, finalXp, penalty)
 end
 
 local function fixedSkillXp(offer, distance)
-  return math.max(1, math.floor((5 + (tonumber(offer.baseXp) or 0) + math.floor((distance or 0) / 2000 + 0.5)) * 2 + 0.5))
+  return math.max(1, math.floor((5 + (tonumber(offer.baseXp) or 0) + math.floor((distance or 0) / 2000 + 0.5)) * 4 + 0.5))
 end
 
 local function pickVehicleAndSpot(rewardType)
@@ -977,8 +978,10 @@ local function finishCareerSave(timedOut)
   saveStateToPath(pending.savePath)
   pendingCareerSave = nil
   saveRegistered = false
+  local generation = saveGenerationToken
+  saveGenerationToken = nil
   if career_saveSystem and career_saveSystem.asyncSaveExtensionFinished then
-    career_saveSystem.asyncSaveExtensionFinished(ASYNC_SAVE_EXTENSION)
+    career_saveSystem.asyncSaveExtensionFinished(ASYNC_SAVE_EXTENSION, generation)
   end
 end
 
@@ -2216,8 +2219,9 @@ end
 
 local function onSaveCurrentProfileAsyncStart()
   saveRegistered = false
+  saveGenerationToken = nil
   if hasSpawnedCurrentMapJob() and career_saveSystem and career_saveSystem.registerAsyncSaveExtension then
-    career_saveSystem.registerAsyncSaveExtension(ASYNC_SAVE_EXTENSION)
+    saveGenerationToken = career_saveSystem.registerAsyncSaveExtension(ASYNC_SAVE_EXTENSION)
     saveRegistered = true
   end
 end

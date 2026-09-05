@@ -1,0 +1,118 @@
+{
+  "label": "v2.7.1",
+  "continueLabel": "Continue",
+  "loadingLabel": "Loading career...",
+  "dontShowLabel": "Don't show again",
+  "slides": [
+    {
+      "kind": "intro",
+      "image": "hero.jpg",
+      "eyebrow": "Update log",
+      "title": "RLS Career Overhaul v2.7.1",
+      "subtitle": "The Ownership Update · September 2026",
+      "summary": "Every part wears, every tire heats up, and help is one call away.",
+      "contentsLabel": "In this update"
+    },
+    {
+      "image": "maintenance.jpg",
+      "textSide": "top-left",
+      "kicker": "Ownership",
+      "title": "Maintenance, tires and roadside repair",
+      "summary": "Wear now follows each component's own mileage, tires heat, wear and lose grip in the wet, and help is available on the road.",
+      "facts": [
+        "Wear tracks each component; systems your car doesn't have never fail",
+        "Tire heat, compound, rain, terrain and water cooling all change grip; condition saved per vehicle",
+        "Gas stations and service spots repair, maintain or tune without sending the car to storage",
+        "New Tyre Heat & Wear HUD tile; sell tires through My Parts"
+      ]
+    },
+    {
+      "image": "recovery.jpg",
+      "textSide": "top-left",
+      "kicker": "Recovery",
+      "title": "A full Off Road Recovery career",
+      "summary": "Own or finance a Recovery Yard and take contracts for stranded cars, trailers, fleet vehicles and heavy equipment.",
+      "facts": [
+        "Multiple offers, pay based on distance, vehicle rewards",
+        "New recovery lot by the island refinery; job summary screen",
+        "Universal winch restored: Alt+W, smoother and less elastic"
+      ]
+    },
+    {
+      "image": "engine.jpg",
+      "textSide": "top-left",
+      "kicker": "Garage",
+      "title": "Complete Engine Packages",
+      "summary": "Capture an installed engine with its connected parts, then store, swap, install or dismantle the complete package.",
+      "facts": [
+        "Create, store, install or dismantle at the garage computer",
+        "Vehicle selection at tuning tents and improved previews",
+        "Isolated engine thumbnails and clearer vehicle context"
+      ]
+    },
+    {
+      "image": "events.jpg",
+      "textSide": "top-left",
+      "kicker": "Progression",
+      "title": "Twenty skills and bigger events",
+      "summary": "Twenty career skills with a redesigned Skills app, and freeroam events grew up.",
+      "facts": [
+        "New skills: Mayhem, Operator, Emergency, Recovery, Speed, Circuit Racing",
+        "Licenses, sponsors and major unlocks in the Skills app; existing XP migrates",
+        "Burnout competitions and the Tough Truck beach course; sharper AI racers",
+        "Profile browser with search, sorting and filters; Career, Story and Custom starts"
+      ]
+    },
+    {
+      "image": "garages.jpg",
+      "textSide": "bottom-left",
+      "kicker": "West Coast",
+      "title": "More West Coast to own and explore",
+      "summary": "Eleven new homes, a Travel Journal with five scenic destinations, and living weather with a real forecast.",
+      "facts": [
+        "Horizon Estate houses, three townhouses, 43rd Alley Compound, budget lots; Move Out option",
+        "Travel Journal routes lead into Photo Mode scenes and build an album for Photography XP",
+        "Weather app: current conditions, hourly and seven-day forecasts, alerts, day and night settings"
+      ]
+    },
+    {
+      "kind": "list",
+      "image": "everything-else.jpg",
+      "title": "And everything else",
+      "lead": "The smaller changes that add up.",
+      "columns": [
+        {
+          "heading": "Work and Market Watch",
+          "items": [
+            "Civil Service, Logistics and Gig Work surge into high demand, shown in Market Watch",
+            "Material contracts can need several materials",
+            "Reworked parcel sizes and payouts; B-train trailer jobs",
+            "Expanded loaner fleets at logistics sites",
+            "BeamEats more reliable on big maps, double Logistics XP"
+          ]
+        },
+        {
+          "heading": "Phone and Marketplace",
+          "items": [
+            "App Store: install career apps early, with a new phone tutorial",
+            "Lock screen and banner notifications, per-app settings, Do Not Disturb",
+            "Searchable Guide",
+            "Redesigned Marketplace: private sales happen at the seller, dynamic buyer behavior",
+            "Edit listings; damaged vehicles can be sold again"
+          ]
+        },
+        {
+          "heading": "Reliability",
+          "items": [
+            "Five-minute autosaves are back",
+            "Police pursue only at 10+ over the limit",
+            "Standard BeamNG taxi restored; faster loads around vanilla missions",
+            "Faster vehicle entry and parts switching",
+            "Car meet membership persists; 55 mph drag return road"
+          ]
+        }
+      ],
+      "imageBlur": 6
+    }
+  ]
+}

@@ -22,7 +22,6 @@ angular.module("beamng.apps")
       link: function (scope, element) {
         var streamNames = ["RlsTireWearThermals", "TyreWearThermals"];
         StreamsManager.add(streamNames);
-        scope.$on("$destroy", function () { StreamsManager.remove(streamNames); });
 
         scope.detailed = false;
         scope.providerLabel = "Waiting for vehicle";
@@ -38,6 +37,25 @@ angular.module("beamng.apps")
         var ctx = canvas.getContext("2d");
         var lastStreams = null;
         var toolbarHeight = 34;
+        var lastTelemetryAt = 0;
+        var lastRlsPayload = null;
+        var lastLegacyPayload = null;
+        var lastRlsSession = null;
+        var lastRlsSequence = null;
+        var telemetryStale = false;
+        var staleAfterMs = 3000;
+        var staleTimer = window.setInterval(function () {
+          if (!lastTelemetryAt || Date.now() - lastTelemetryAt <= staleAfterMs) return;
+          lastTelemetryAt = 0;
+          telemetryStale = true;
+          draw({});
+          if (!scope.$$phase) scope.$evalAsync();
+        }, 500);
+
+        scope.$on("$destroy", function () {
+          window.clearInterval(staleTimer);
+          StreamsManager.remove(streamNames);
+        });
 
         function syncCanvasSize(width, height) {
           var w = Math.max(1, Math.floor(width || root.clientWidth || 260));
@@ -361,10 +379,48 @@ angular.module("beamng.apps")
           });
         }
 
+        function drawCachedTelemetry() {
+          var streams = {};
+          if (lastRlsPayload) streams.RlsTireWearThermals = lastRlsPayload;
+          if (lastLegacyPayload) streams.TyreWearThermals = lastLegacyPayload;
+          draw(telemetryStale ? {} : streams);
+        }
+
         scope.$on("streamsUpdate", function (event, streams) {
+          var rls = streams && streams.RlsTireWearThermals;
+          var legacy = streams && streams.TyreWearThermals;
+          var acceptedRls = false;
+          var acceptedLegacy = false;
+          if (rls) {
+            var sequence = Number(rls.sequence);
+            var session = String(rls.session || "legacy");
+            var sequenced = Number.isFinite(sequence);
+            if (!sequenced || session !== lastRlsSession || lastRlsSequence == null || sequence > lastRlsSequence) {
+              lastRlsPayload = rls;
+              lastRlsSession = session;
+              lastRlsSequence = sequenced ? sequence : null;
+              lastTelemetryAt = Date.now();
+              telemetryStale = false;
+              acceptedRls = true;
+            }
+          }
+          // StreamsManager may retain an empty/cached legacy entry even while
+          // the bundled provider is selected. Only let the legacy stream act
+          // as a heartbeat when it is actually the selected data source.
+          var selectedRls = acceptedRls ? rls : lastRlsPayload;
+          var externalSelected = selectedRls && selectedRls.provider && selectedRls.provider.source === "external";
+          if (legacy && (externalSelected || !selectedRls)) {
+            lastLegacyPayload = legacy;
+            lastTelemetryAt = Date.now();
+            telemetryStale = false;
+            acceptedLegacy = true;
+          }
+          // streamsUpdate also carries unrelated stream frames. Redrawing those
+          // as an empty tire payload made the canvas flash between valid packets.
+          if (!acceptedRls && !acceptedLegacy) return;
           var previousLabel = scope.providerLabel;
           var previousWarn = scope.providerWarn;
-          draw(streams || {});
+          drawCachedTelemetry();
           if ((scope.providerLabel !== previousLabel || scope.providerWarn !== previousWarn) && !scope.$$phase) {
             scope.$digest();
           }

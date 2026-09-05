@@ -111,6 +111,8 @@ local ratingSaveFile = "beamEatsRating.json"
 local playerRating = 0.0 
 local ratingCount = 0
 local ratingSum = 0
+local loadedRatingProfilePath = nil
+local locationsLevelKey = nil
 
 M.deliveryData = {}
 
@@ -244,10 +246,11 @@ local function savePlayerRating(currentSavePath)
     career_saveSystem.jsonWriteFileSafe(dirPath .. "/" .. ratingSaveFile, data, true)
 end
 
-local function loadPlayerRating()
+local function loadPlayerRating(force)
     if not career_career or not career_career.isActive() then return end
     local _, path = career_saveSystem.getCurrentProfile()
     if not path then return end
+    if not force and loadedRatingProfilePath == path then return end
     local filePath = path .. "/career/rls_career/" .. ratingSaveFile
     local data = jsonReadFile(filePath) or {}
     ratingSum = tonumber(data.sum or 0) or 0
@@ -260,6 +263,7 @@ local function loadPlayerRating()
     local effectiveCount = ratingCount + virtualStartCount
     
     playerRating = math.max(0.0, math.min(5.0, effectiveSum / effectiveCount))
+    loadedRatingProfilePath = path
 end
 
 local function isBeamEatsDisabled()
@@ -524,6 +528,25 @@ local function findAllDeliveryParkingSpots()
     allDeliverySpots = {
         objects = allParkingSpots
     }
+end
+
+local function getLocationsLevelKey()
+    if getCurrentLevelIdentifier then
+        local level = getCurrentLevelIdentifier()
+        if level and level ~= "" then return level end
+    end
+    return getMissionFilename and getMissionFilename() or ""
+end
+
+local function refreshLocations(force)
+    local levelKey = getLocationsLevelKey()
+    if not force and locationsLevelKey == levelKey and allDeliverySpots then
+        return false
+    end
+    findRestaurants()
+    findAllDeliveryParkingSpots()
+    locationsLevelKey = levelKey
+    return true
 end
 
 -- ================================
@@ -1455,9 +1478,20 @@ end
 -- EVENT HANDLERS
 -- ================================
 local function onEnterVehicleFinished()
-    findRestaurants()
-    findAllDeliveryParkingSpots()
+    refreshLocations(false)
     loadPlayerRating()
+end
+
+local function onClientStartMission()
+    restaurants = {}
+    allDeliverySpots = nil
+    locationsLevelKey = nil
+    local ok, err = pcall(function()
+        refreshLocations(true)
+    end)
+    if not ok then
+        log('E', 'beamEats', "Error refreshing BeamEats locations on mission start: " .. tostring(err))
+    end
 end
 
 local function onVehicleSwitched()
@@ -1494,9 +1528,8 @@ local function onExtensionLoaded()
     if be:getPlayerVehicle(0) then
         -- Use pcall to prevent extension load failure if initialization fails
         local status, err = pcall(function()
-            findRestaurants()
-            findAllDeliveryParkingSpots()
-            loadPlayerRating()
+            refreshLocations(true)
+            loadPlayerRating(true)
             jobOfferInterval = calculateJobOfferInterval()
         end)
         if not status then
@@ -1517,6 +1550,7 @@ end
 -- MODULE EXPORTS
 -- ================================
 M.onExtensionLoaded = onExtensionLoaded
+M.onClientStartMission = onClientStartMission
 M.onEnterVehicleFinished = onEnterVehicleFinished
 M.onUpdate = update
 M.onVehicleSwitched = onVehicleSwitched

@@ -31,9 +31,11 @@ local playerRating = 2.5
 local ratingSum = 0
 local ratingCount = 0
 local lastPassengerRating = nil
+local loadedRatingProfilePath = nil
 
 local parkingSpots = nil
 local validPickupSpots = nil
+local parkingSpotsLevelKey = nil
 local currentReservationToken = nil
 local reservedPickupSpot = nil
 local reservedDropoffSpot = nil
@@ -230,10 +232,11 @@ local function savePlayerRating(currentSavePath)
     career_saveSystem.jsonWriteFileSafe(dirPath .. "/" .. ratingSaveFile, data, true)
 end
 
-local function loadPlayerRating()
+local function loadPlayerRating(force)
     if not career_career or not career_career.isActive() then return end
     local slot, path = career_saveSystem.getCurrentProfile()
     if not path then return end
+    if not force and loadedRatingProfilePath == path then return end
     local filePath = path .. "/career/rls_career/" .. ratingSaveFile
     local data = jsonReadFile(filePath) or {}
     ratingSum = tonumber(data.sum or 0) or 0
@@ -243,6 +246,7 @@ local function loadPlayerRating()
     else
         playerRating = 2.5
     end
+    loadedRatingProfilePath = path
 end
 
 local function selectRandomPassengerType(valueMultiplier, availableSeats)
@@ -441,12 +445,35 @@ end
 -- ================================
 -- LOCATION AND SITE MANAGEMENT
 -- ================================
-local function findParkingSpots()
+local function getParkingSpotsLevelKey()
+    if getCurrentLevelIdentifier then
+        local level = getCurrentLevelIdentifier()
+        if level and level ~= "" then return level end
+    end
+    return getMissionFilename and getMissionFilename() or ""
+end
+
+local function findParkingSpots(force)
+    local levelKey = getParkingSpotsLevelKey()
+    if not force and parkingSpots and parkingSpotsLevelKey == levelKey then
+        return parkingSpots
+    end
     local sitePath = gameplay_sites_sitesManager.getCurrentLevelSitesFileByName('city')
     if sitePath then
         local siteData = gameplay_sites_sitesManager.loadSites(sitePath, true, true)
-        parkingSpots = siteData and siteData.parkingSpots
+        local loadedParkingSpots = siteData and siteData.parkingSpots
+        if loadedParkingSpots and loadedParkingSpots.objects then
+            parkingSpots = loadedParkingSpots
+            parkingSpotsLevelKey = levelKey
+        else
+            parkingSpots = nil
+            parkingSpotsLevelKey = nil
+        end
+    else
+        parkingSpots = nil
+        parkingSpotsLevelKey = nil
     end
+    return parkingSpots
 end
 
 local function findValidPickupSpots()
@@ -456,6 +483,9 @@ local function findValidPickupSpots()
 
     if not parkingSpots then
         findParkingSpots()
+    end
+    if not parkingSpots or not parkingSpots.objects then
+        return validPickupSpots
     end
     for _, spot in pairs(parkingSpots.objects) do
         if spot.pos and (spot.pos - playerPos):length() < 500 then
@@ -1285,8 +1315,14 @@ end
 -- EVENT HANDLERS
 -- ================================
 local function onEnterVehicleFinished()
-    validPickupSpots = findParkingSpots()
+    findParkingSpots(false)
     loadPlayerRating()
+end
+
+local function onClientStartMission()
+    parkingSpots = nil
+    validPickupSpots = nil
+    parkingSpotsLevelKey = nil
 end
 
 local function onVehicleSwitched()
@@ -1358,7 +1394,7 @@ end
 local function onExtensionLoaded()
     print("Taxi module loaded, initializing passenger types...")
     loadPassengerModules()
-    loadPlayerRating()
+    loadPlayerRating(true)
 end
 
 local function isTaxiJobActive()
@@ -1373,6 +1409,7 @@ end
 -- MODULE EXPORTS
 -- ================================
 M.onExtensionLoaded = onExtensionLoaded
+M.onClientStartMission = onClientStartMission
 M.onEnterVehicleFinished = onEnterVehicleFinished
 M.onUpdate = update
 M.onVehicleSwitched = onVehicleSwitched

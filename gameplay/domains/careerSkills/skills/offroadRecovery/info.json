@@ -1,6 +1,6 @@
 {
   "name": "Off-Road Recovery",
-  "description": "Progress a dedicated 1-50 recovery track, unlock harder targets, and grow cash payouts from entry-level work to elite recovery contracts.",
+  "description": "Unlock harder targets and bigger payouts. Keep recovered vehicles at level 10.",
   "order": 73,
     "isSkill": false,
   "attributeKey": "careerSkills-offroadRecovery",
@@ -28,7 +28,13 @@
           "type": "unlockCard",
           "icon": "tow",
           "heading": "Trail Recovery",
-          "description": "Unlock low-value off-road recovery targets."
+          "description": "Factory cars $1k–25k."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "car",
+          "heading": "Keep Recovered Vehicles",
+          "description": "Unlocks at level 10."
         }
       ]
     },
@@ -78,7 +84,7 @@
           "type": "unlockCard",
           "icon": "tow",
           "heading": "Backcountry Recovery",
-          "description": "Unlock budget recovery targets."
+          "description": "Factory cars $25k–50k."
         },
         {
           "type": "unlockCard",
@@ -144,13 +150,13 @@
           "type": "unlockCard",
           "icon": "tow",
           "heading": "Technical Recovery",
-          "description": "Unlock standard vehicles and standalone trailers."
+          "description": "Factory cars $40k–100k and Trailers."
         },
         {
           "type": "unlockCard",
           "icon": "car",
-          "heading": "Recover It, Keep It",
-          "description": "Recovery offers now have a chance equal to your skill level to award the recovered vehicle instead of cash."
+          "heading": "Keep Recovered Vehicles",
+          "description": "Some jobs award the vehicle."
         },
         {
           "type": "unlockCard",
@@ -216,7 +222,7 @@
           "type": "unlockCard",
           "icon": "tow",
           "heading": "Specialist Recovery",
-          "description": "Unlock high-end recovery targets."
+          "description": "Factory cars $100k–200k."
         },
         {
           "type": "unlockCard",
@@ -282,7 +288,7 @@
           "type": "unlockCard",
           "icon": "tow",
           "heading": "Extreme Recovery",
-          "description": "Unlock exotic recovery targets."
+          "description": "Factory cars $200k+."
         },
         {
           "type": "unlockCard",
@@ -348,7 +354,7 @@
           "type": "unlockCard",
           "icon": "tow",
           "heading": "Heavy Recovery",
-          "description": "Unlock heavy trucks and buses."
+          "description": "Factory T-Series, citybus, MD Series, and midtruck."
         },
         {
           "type": "unlockCard",

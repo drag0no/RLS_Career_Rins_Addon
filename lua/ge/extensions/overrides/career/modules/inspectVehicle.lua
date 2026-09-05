@@ -273,6 +273,11 @@ local function leaveSaleCallback(despawnPreviousVehMode, freezePreviousVeh, chec
 end
 
 local function startInspection(vehicleInfo, teleportToVehicle)
+  if not vehicleInfo then return end
+  if career_modules_vehicleShopping and career_modules_vehicleShopping.isOnlineSellerId
+      and career_modules_vehicleShopping.isOnlineSellerId(vehicleInfo.sellerId) then
+    return
+  end
   core_jobsystem.create(function(job)
     if testDriveInfo then
       leaveSaleCallback("despawn")

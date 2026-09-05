@@ -27,7 +27,19 @@ local FFB_RESTORE_DELAY = 10
 
 local AUTOSAVE_INTERVAL_S = 300
 local AUTOSAVE_MAX_SPEED = 2
+local SAVE_IN_FLIGHT_TIMEOUT_S = 45
 local lastAutosaveAt = 0
+local saveStartedAt = 0
+local preSaveInfoBackup = nil
+local preSaveInfoExisted = false
+local simPaused = false
+
+local DEFER_AUTOSAVE_ROUTES = {
+  ["career.computer.partShopping"] = true,
+  ["career.computer.tuning"] = true,
+  ["career.computer.painting"] = true,
+  ["career.computer.partInventory"] = true,
+}
 -- Captured when a save begins so a late async completion cannot overwrite
 -- the active profile's currentSavePath after a profile switch.
 local saveInFlightProfile = nil
@@ -52,6 +64,42 @@ local function playerIsNearlyStopped()
     return false
   end
   return playerVeh:getVelocity():length() < AUTOSAVE_MAX_SPEED
+end
+
+local function getCurrentUiRouteName()
+  if not (ui_router and ui_router.getState) then return nil end
+  local ok, state = pcall(ui_router.getState)
+  if not ok or type(state) ~= "table" or type(state.currentRoute) ~= "table" then
+    return nil
+  end
+  local entry = state.currentRoute
+  if entry.request and type(entry.request.name) == "string" then
+    return entry.request.name
+  end
+  if entry.resolved and type(entry.resolved.screenId) == "string" then
+    return entry.resolved.screenId
+  end
+  return nil
+end
+
+local function shouldDeferAutosave()
+  if simPaused then
+    return true
+  end
+  if career_modules_partShopping and career_modules_partShopping.isShoppingSessionActive
+      and career_modules_partShopping.isShoppingSessionActive() then
+    return true
+  end
+  local routeName = getCurrentUiRouteName()
+  if routeName and DEFER_AUTOSAVE_ROUTES[routeName] then
+    return true
+  end
+  if core_gamestate then
+    if core_gamestate.getLoadingStatus("careerLoading") or core_gamestate.getLoadingStatus("careerActivate") then
+      return true
+    end
+  end
+  return false
 end
 
 local function getAllSaveFolders(profile)
@@ -283,6 +331,11 @@ end
 
 local syncSaveExtensionsDone
 local asyncSaveExtensions = {}
+local saveGeneration = 0
+local activeSaveGeneration = 0
+local inFlightSaveName = nil
+local inFlightForceSave = false
+local inFlightVehiclesThumbnailUpdate
 local infoData
 local saveDate
 local oldestSave
@@ -385,6 +438,45 @@ end
 local saveCurrentActual
 local tryStartPendingSave
 local mergeVehiclesThumbnailUpdate
+local restorePreSaveInfo
+local abortSaveInFlight
+
+restorePreSaveInfo = function()
+  if oldestSave then
+    local infoPath = oldestSave .. "/info.json"
+    if preSaveInfoBackup then
+      jsonWriteFileSafe(infoPath, preSaveInfoBackup, true)
+    elseif not preSaveInfoExisted and FS:fileExists(infoPath) then
+      FS:removeFile(infoPath)
+    end
+  end
+  preSaveInfoBackup = nil
+  preSaveInfoExisted = false
+end
+
+abortSaveInFlight = function(reason)
+  log("E", "saveSystem", "Aborting stuck save: " .. tostring(reason))
+  restorePreSaveInfo()
+  saveGeneration = saveGeneration + 1
+  table.clear(asyncSaveExtensions)
+  saveInProgress = false
+  saveStartedAt = 0
+  infoData = nil
+  syncSaveExtensionsDone = false
+  mergeVehiclesThumbnailUpdate(inFlightVehiclesThumbnailUpdate)
+  inFlightVehiclesThumbnailUpdate = nil
+  if inFlightSaveName then
+    pendingSaveName = inFlightSaveName
+    pendingForceSave = true
+  elseif inFlightForceSave then
+    pendingForceSave = true
+  end
+  inFlightSaveName = nil
+  inFlightForceSave = false
+  queueSave = true
+  restoreFFB()
+  extensions.hook("onCareerSaveFailed", oldestSave)
+end
 
 local function isSaveBusy()
   return saveInProgress or queueSave or ffbSettleFrames > 0
@@ -401,6 +493,8 @@ local function saveCompleted()
   end
 
   saveInProgress = false
+  saveStartedAt = 0
+  inFlightVehiclesThumbnailUpdate = nil
 
   if infoData then
     infoData.corrupted = nil
@@ -419,6 +513,8 @@ local function saveCompleted()
           tostring(currentProfile), tostring(currentSavePath)))
       end
       markAutosaveDone()
+      preSaveInfoBackup = nil
+      preSaveInfoExisted = false
       if startFollowUpNow then
         tryStartPendingSave()
         if not saveInProgress and ffbSettleFrames == 0 then
@@ -436,6 +532,7 @@ local function saveCompleted()
   end
 
   restoreFFB()
+  restorePreSaveInfo()
   guihooks.trigger("toastrMsg", {type="error", title=_tr("ui.career.save.toast.failed.title"), msg=_tr("ui.career.save.toast.failed.msg")})
   log("E", "Saving to " .. oldestSave ..  " failed!")
   extensions.hook("onCareerSaveFailed", oldestSave)
@@ -445,12 +542,20 @@ local function saveCompleted()
 end
 
 local function registerAsyncSaveExtension(extName)
-  asyncSaveExtensions[extName] = true
+  asyncSaveExtensions[extName] = activeSaveGeneration
+  return activeSaveGeneration
 end
 
-local function asyncSaveExtensionFinished(extName)
+local function isAsyncSaveExtensionCurrent(extName, generation)
+  return generation ~= nil and generation == activeSaveGeneration and asyncSaveExtensions[extName] == generation
+end
+
+local function asyncSaveExtensionFinished(extName, generation)
+  if not isAsyncSaveExtensionCurrent(extName, generation) then
+    return
+  end
   asyncSaveExtensions[extName] = nil
-  if syncSaveExtensionsDone and tableIsEmpty(asyncSaveExtensions) then
+  if saveInProgress and syncSaveExtensionsDone and tableIsEmpty(asyncSaveExtensions) then
     saveCompleted()
   end
 end
@@ -469,18 +574,22 @@ end
 
 local function beginQueuedSave()
   local name = pendingSaveName
+  local force = pendingForceSave
   local vehiclesThumbnailUpdate = pendingVehiclesThumbnailUpdate
   pendingVehiclesThumbnailUpdate = nil
   pendingSaveName = nil
   pendingForceSave = false
   queueSave = false
-  saveCurrentActual(vehiclesThumbnailUpdate, name)
+  saveCurrentActual(vehiclesThumbnailUpdate, name, force or name ~= nil)
 end
 
 tryStartPendingSave = function()
   if not queueSave or saveInProgress or ffbSettleFrames > 0 then return end
   if pendingForceSave or pendingSaveName then
     beginQueuedSave()
+    return
+  end
+  if shouldDeferAutosave() then
     return
   end
   if playerIsNearlyStopped() then
@@ -495,7 +604,7 @@ local function isTutorialBlockingSave()
   return false
 end
 
-saveCurrentActual = function(vehiclesThumbnailUpdate, saveName)
+saveCurrentActual = function(vehiclesThumbnailUpdate, saveName, forceSave)
   if not currentProfile or isTutorialBlockingSave() then return end
   if saveInProgress then
     queueSave = true
@@ -503,15 +612,27 @@ saveCurrentActual = function(vehiclesThumbnailUpdate, saveName)
     if saveName then
       pendingSaveName = saveName
       pendingForceSave = true
+    elseif forceSave then
+      pendingForceSave = true
     end
     return
   end
   saveInProgress = true
+  saveStartedAt = os.time()
+  saveGeneration = saveGeneration + 1
+  activeSaveGeneration = saveGeneration
+  table.clear(asyncSaveExtensions)
+  inFlightSaveName = saveName
+  inFlightForceSave = forceSave == true or saveName ~= nil
+  inFlightVehiclesThumbnailUpdate = vehiclesThumbnailUpdate
   if saveName then
     oldestSave = saveRoot .. currentProfile .. "/" .. saveName
   else
     oldestSave = getOldestAutosave(saveRoot .. currentProfile)
   end
+  local infoPath = oldestSave .. "/info.json"
+  preSaveInfoExisted = FS:fileExists(infoPath)
+  preSaveInfoBackup = preSaveInfoExisted and jsonReadFile(infoPath) or nil
   saveInFlightProfile = currentProfile
   saveInFlightPath = oldestSave
   saveDate = os.date("!%Y-%m-%dT%H:%M:%SZ")
@@ -593,7 +714,7 @@ local function saveCurrent(vehiclesThumbnailUpdate, arg2, arg3)
     pendingSaveName = nil
     pendingForceSave = false
     queueSave = false
-    saveCurrentActual(vehiclesThumbnailUpdate, saveName)
+    saveCurrentActual(vehiclesThumbnailUpdate, saveName, true)
     return
   end
 
@@ -602,7 +723,16 @@ local function saveCurrent(vehiclesThumbnailUpdate, arg2, arg3)
   end
 end
 
-local function onUpdate()
+local function onUpdate(dt, dtSim)
+  if dtSim ~= nil then
+    simPaused = dtSim == 0
+  end
+
+  if saveInProgress and saveStartedAt > 0 and (os.time() - saveStartedAt) >= SAVE_IN_FLIGHT_TIMEOUT_S then
+    abortSaveInFlight("timed out after " .. tostring(SAVE_IN_FLIGHT_TIMEOUT_S) .. "s")
+    return
+  end
+
   if ffbRestoreFrames > 0 then
     ffbRestoreFrames = ffbRestoreFrames - 1
     if ffbRestoreFrames == 0 then
@@ -618,7 +748,7 @@ local function onUpdate()
         queueSave = true
         return
       end
-      if pendingForceSave or pendingSaveName or playerIsNearlyStopped() then
+      if pendingForceSave or pendingSaveName or (playerIsNearlyStopped() and not shouldDeferAutosave()) then
         beginQueuedSave()
       else
         queueSave = true
@@ -633,7 +763,7 @@ local function onUpdate()
     if career_career and career_career.isAutosaveEnabled then
       autosaveOn = career_career.isAutosaveEnabled()
     end
-    if autosaveOn and (not career_career or not career_career.isActive or career_career.isActive()) and autosaveIntervalReady() then
+    if autosaveOn and (not career_career or not career_career.isActive or career_career.isActive()) and autosaveIntervalReady() and not shouldDeferAutosave() then
       queueSave = true
     end
   end
@@ -641,7 +771,7 @@ local function onUpdate()
   if queueSave and not saveInProgress then
     if pendingForceSave or pendingSaveName then
       tryStartPendingSave()
-    elseif autosaveIntervalReady() then
+    elseif autosaveIntervalReady() and not shouldDeferAutosave() then
       if playerIsNearlyStopped() then
         disableFFBForSave()
       end
@@ -758,6 +888,7 @@ M.getSaveSystemVersion = getSaveSystemVersion
 M.getBackwardsCompVersion = getBackwardsCompVersion
 M.saveFailed = saveFailed
 M.registerAsyncSaveExtension = registerAsyncSaveExtension
+M.isAsyncSaveExtensionCurrent = isAsyncSaveExtensionCurrent
 M.asyncSaveExtensionFinished = asyncSaveExtensionFinished
 M.jsonWriteFileSafe = jsonWriteFileSafe
 M.onUpdate = onUpdate

@@ -1,6 +1,6 @@
 {
   "name": "Recovery",
-  "description": "Recover, tow, and get the job done.",
+  "description": "Recover, tow, and get the job done. Keep recovered vehicles at level 10.",
   "order": 80,
   "isSkill": true,
   "attributeKey": "careerSkills-recovery",
@@ -14,12 +14,21 @@
         "heading": "Level 1",
         "description": "Reach Recovery level 1."
       },
+      "unlockFlags": [
+        "repoJunkerVeh"
+      ],
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "keys1",
           "heading": "Base Activities Available",
-          "description": "Repo work is available. Off-Road Recovery unlocks at Recovery level 5."
+          "description": "Repo work is available. Off-Road Recovery unlocks at level 5. Keep recovered vehicles at level 10."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "car",
+          "heading": "Low Value Repo",
+          "description": "Joe's Junk configs and Factory cars $1k–25k."
         }
       ]
     },
@@ -75,12 +84,21 @@
         "heading": "Level 5",
         "description": "Reach Recovery level 5."
       },
+      "unlockFlags": [
+        "repoSmallVeh"
+      ],
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "keys1",
           "heading": "Off-Road Recovery Unlocked",
-          "description": "Off-Road Recovery work is now available."
+          "description": "Off-Road Recovery work is now available. Factory cars $1k–50k."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "car",
+          "heading": "Budget Repo",
+          "description": "Factory cars $25k–50k."
         }
       ]
     },
@@ -160,12 +178,33 @@
         "heading": "Level 10",
         "description": "Reach Recovery level 10."
       },
+      "unlockFlags": [
+        "repoFleetVeh"
+      ],
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
           "heading": "Repo Reward Increase",
           "description": "Increases money earned from Repo. Recovery reaches up to +400% Repo and +800% Off-Road Recovery."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "car",
+          "heading": "Standard Repo",
+          "description": "Factory cars $40k–100k."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "tow",
+          "heading": "Technical Recovery",
+          "description": "Factory cars $40k–100k and Trailers."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "car",
+          "heading": "Keep Recovered Vehicles",
+          "description": "Some Off-Road Recovery jobs award the vehicle."
         }
       ]
     },
@@ -245,12 +284,21 @@
         "heading": "Level 15",
         "description": "Reach Recovery level 15."
       },
+      "unlockFlags": [
+        "repoHighEndVeh"
+      ],
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
           "heading": "Off-Road Recovery Reward Increase",
           "description": "Increases money earned from Off-Road Recovery. Recovery reaches up to +400% Repo and +800% Off-Road Recovery."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "car",
+          "heading": "Luxury Targets",
+          "description": "Repo and Recovery: Factory cars $100k–200k."
         }
       ]
     },
@@ -330,12 +378,21 @@
         "heading": "Level 20",
         "description": "Reach Recovery level 20."
       },
+      "unlockFlags": [
+        "repoExoticVeh"
+      ],
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
           "heading": "Repo Reward Increase",
           "description": "Increases money earned from Repo. Recovery reaches up to +400% Repo and +800% Off-Road Recovery."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "car",
+          "heading": "Exotic Targets",
+          "description": "Repo and Recovery: Factory cars $200k+."
         }
       ]
     },
@@ -415,12 +472,21 @@
         "heading": "Level 25",
         "description": "Reach Recovery level 25."
       },
+      "unlockFlags": [
+        "repoHeavyVeh"
+      ],
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
           "heading": "Off-Road Recovery Reward Increase",
           "description": "Increases money earned from Off-Road Recovery. Recovery reaches up to +400% Repo and +800% Off-Road Recovery."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "deliveryTruck",
+          "heading": "Heavy Targets",
+          "description": "Repo and Recovery: Factory T-Series, citybus, MD Series, and midtruck."
         }
       ]
     },

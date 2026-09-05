@@ -265,13 +265,13 @@
                 <FilterSection :active="mileageMin !== mileageBounds.min || mileageMax !== mileageBounds.max">
                   <template #title>Mileage</template>
                   <div class="range-pill">
-                    <input class="range-input" type="number" v-model.lazy.number="mileageMin" step="5000" placeholder="Min" v-bng-text-input />
+                    <input class="range-input" type="number" v-model.lazy.number="mileageMin" step="1" placeholder="Min" v-bng-text-input />
                     <span class="sep">-</span>
-                    <input class="range-input" type="number" v-model.lazy.number="mileageMax" step="5000" placeholder="Max" v-bng-text-input />
+                    <input class="range-input" type="number" v-model.lazy.number="mileageMax" step="1" placeholder="Max" v-bng-text-input />
                   </div>
                   <div class="dual-slider vertical compact" v-if="mileageBoundsReady">
-                    <BngSlider class="stacked" :style="{ '--bng-slider-margin': '.35em' }" v-model="mileageMin" :min="mileageBounds.min" :max="mileageMax" :step="5000" />
-                    <BngSlider class="stacked" :style="{ '--bng-slider-margin': '.35em' }" v-model="mileageMax" :min="mileageMin" :max="mileageBounds.max" :step="5000" />
+                    <BngSlider class="stacked" :style="{ '--bng-slider-margin': '.35em' }" v-model="mileageMin" :min="mileageBounds.min" :max="mileageMax" :step="1" />
+                    <BngSlider class="stacked" :style="{ '--bng-slider-margin': '.35em' }" v-model="mileageMax" :min="mileageMin" :max="mileageBounds.max" :step="1" />
                   </div>
                   <template #action>
                     <div class="action-container" :class="{ active: mileageMin !== mileageBounds.min || mileageMax !== mileageBounds.max }" @click="addMileageFilter">
@@ -337,6 +337,7 @@ import { BngIcon, BngButton, BngSelect, BngSlider, BngInput, ACCENTS, icons } fr
 import { lua } from "@/bridge"
 import { useVehicleShoppingStore } from "../../stores/vehicleShoppingStore"
 import FilterSection from "./FilterSection.vue"
+import { METERS_PER_MILE } from "../../utils/units"
 
 // Props
 const props = defineProps({
@@ -413,9 +414,8 @@ const rawMileageBounds = getBounds('Mileage', 0, 300000)
 const mileageBounds = computed(() => {
   const minM = Number(rawMileageBounds.value.min)
   const maxM = Number(rawMileageBounds.value.max)
-  const unit = 1609 // meters per mile
-  const roundedMin = Number.isFinite(minM) ? Math.floor(minM / unit) : 0
-  const roundedMax = Number.isFinite(maxM) ? Math.ceil(maxM / unit) : 0
+  const roundedMin = Number.isFinite(minM) ? Math.floor(minM / METERS_PER_MILE) : 0
+  const roundedMax = Number.isFinite(maxM) ? Math.ceil(maxM / METERS_PER_MILE) : 0
   return { min: roundedMin, max: roundedMax }
 })
 const yearBoundsReady = computed(() => Number.isFinite(Number(yearBounds.value.min)) && Number.isFinite(Number(yearBounds.value.max)))
@@ -643,7 +643,11 @@ const activeFilters = computed(() => {
       if (key === 'hideSold') {
         displayValue = 'Hide Sold'
       } else if (value.min !== undefined && value.max !== undefined) {
-        displayValue = `${value.min} - ${value.max}`
+        if (key === 'Mileage') {
+          displayValue = `${formatNumber(value.min)} - ${formatNumber(value.max)} mi`
+        } else {
+          displayValue = `${value.min} - ${value.max}`
+        }
       } else if (value.values && value.values.length > 0) {
         // Don't show "true" for boolean values
         if (value.values[0] === true || value.values[0] === 'true') {
@@ -742,6 +746,8 @@ const addYearFilter = () => {
 const addMileageFilter = () => {
   const [min, max] = Array.isArray(mileageRange.value) ? mileageRange.value : [0, Number(mileageRange.value) || 0]
   addFilter('Mileage', 'range', 'Mileage Range', [min, max], `${formatNumber(min)} - ${formatNumber(max)} mi`)
+  mileageMin.value = mileageBounds.value.min
+  mileageMax.value = mileageBounds.value.max
 }
 
 const addPowerFilter = () => {

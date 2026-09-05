@@ -2,6 +2,7 @@ import { computed, ref, watch } from "vue"
 import { defineStore } from "pinia"
 import { lua } from "@/bridge"
 import "../utils/installLuaBridgeFallbacks"
+import { METERS_PER_MILE } from "../utils/units"
 
 export const useVehicleShoppingStore = defineStore("vehicleShopping", () => {
   // States
@@ -223,6 +224,16 @@ export const useVehicleShoppingStore = defineStore("vehicleShopping", () => {
     return map
   })
 
+  const getFilterRangeBounds = (field, range) => {
+    let min = range.min
+    let max = range.max
+    if (field === 'Mileage') {
+      if (!isNaN(min)) min = min * METERS_PER_MILE
+      if (!isNaN(max)) max = max * METERS_PER_MILE
+    }
+    return { min, max }
+  }
+
   const getFieldValue = (veh, field) => {
     const v = veh && veh[field]
     if (typeof v === 'number') return v
@@ -256,8 +267,9 @@ export const useVehicleShoppingStore = defineStore("vehicleShopping", () => {
         }
         if (range.min !== undefined || range.max !== undefined) {
           const val = getFieldValue(v, key)
-          if (!isNaN(range.min) && val < range.min) return false
-          if (!isNaN(range.max) && val > range.max) return false
+          const bounds = getFilterRangeBounds(key, range)
+          if (!isNaN(bounds.min) && val < bounds.min) return false
+          if (!isNaN(bounds.max) && val > bounds.max) return false
         }
       }
       return true

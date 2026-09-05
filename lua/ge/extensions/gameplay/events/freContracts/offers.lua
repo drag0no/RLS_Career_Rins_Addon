@@ -94,9 +94,9 @@ end
 
 local function buildContractTargetFromPlayerPb(tier, pbSeconds, contractCfg, helpers)
   local defaults = {
-    easy = {min = 1.035, max = 1.100},
-    medium = {min = 1.015, max = 1.035},
-    hard = {min = 0.995, max = 1.015}
+    easy = {min = 1.025, max = 1.1},
+    medium = {min = 0.975, max = 1.025},
+    hard = {min = 0.925, max = 0.975}
   }
   local cfgTbl = type(contractCfg) == "table" and contractCfg.contractPbTimeMultipliersByTier or nil
   local tbl = type(cfgTbl) == "table" and cfgTbl[tier] or nil

@@ -4,7 +4,8 @@ M.dependencies = {"gameplay_walk"}
 
 local cfg = {
   arrive = 0.42, approachTimeout = 14, stallWindow = 2, stallPath = 0.75,
-  boardDuration = 0.74, boardTimeout = 1.25,
+  approachSpeedCoef = 0.45,
+  boardDuration = 0.58, boardTimeout = 1.05,
   boardCollision = 0.35, boardStall = 1.05,
   entryCloseClearance = 0.28, entryPocketLength = 0.46,
   entryStepClearance = 0.31, entryStepArrive = 0.10, entryStepTimeout = 1.80,
@@ -536,7 +537,7 @@ local function isDoorOpenReady(state)
     if gap >= 0.08 and elapsed >= math.max(0.36, forceDuration + 0.08) and stable >= 2 then
       markDoorFullyOpen(state, "physicalSettle")
     elseif math.max(gap, state.maxDoorGap or 0) >= 0.08
-      and elapsed >= math.max(1.25, forceDuration + 1.00) then
+      and elapsed >= math.max(0.72, forceDuration + 0.30) then
       -- Bounded fallback for doors that keep gently oscillating at their stop.
       -- Scissor-door latch pairs can have only ~0.15 m of separation even when
       -- the panel is fully raised, so long-settled physical motion is stronger
@@ -1633,10 +1634,10 @@ local function skipApproach(skipReason)
 end
 
 local function captureSpeedCoef(unicycle)
-  -- Automated vehicle entry is always a walking sequence. Carrying sprint
-  -- state into the route changes cadence and stopping distance from one attempt
-  -- to the next, which makes both the door clearance and camera shot unstable.
-  return 0
+  -- Keep automated entry independent of the player's current sprint input, but
+  -- use a predictable brisk approach. The final metre still eases back to the
+  -- normal walking speed in updateApproach so doorway placement stays precise.
+  return cfg.approachSpeedCoef
 end
 
 local function getCameraLookDir()
@@ -3104,7 +3105,11 @@ local function onUpdate(dtReal, dtSim)
   approach.lookDir = smoothLookDir(approach.lookDir, lookTarget, dt)
   gameplay_walk.setRot(approach.lookDir, up)
 
-  setExternalMove(unicycle, moveDir.x, moveDir.y, approach.speedCoef or 0)
+  local approachSpeedCoef = approach.speedCoef or 0
+  if dist < 1.6 then
+    approachSpeedCoef = approachSpeedCoef * clamp((dist - cfg.arrive) / (1.6 - cfg.arrive), 0, 1)
+  end
+  setExternalMove(unicycle, moveDir.x, moveDir.y, approachSpeedCoef)
 
   if envelopeSource ~= "none" then
     approach.minClearance = math.min(approach.minClearance or math.huge, clr)

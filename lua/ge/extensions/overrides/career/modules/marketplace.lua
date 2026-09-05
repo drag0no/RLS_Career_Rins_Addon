@@ -11,7 +11,9 @@ local listedVehicles = {}
 local TIME_BETWEEN_OFFERS_BASE = 95
 local OFFER_TTL = 500
 local OFFER_TTL_VARIANCE = 0.5
-local VALUE_LOSS_LIMIT = 0.95
+local OFFER_MARKET_REVIEW_THRESHOLD = 0.03
+local OFFER_COMMIT_CHANCE = 0.125
+local MAX_RETRACTIONS_PER_LISTING_PASS = 2
 local MAXIMUM_EXPIRED_OFFERS = 3
 
 local MIN_RATIO_DENOMINATOR = 1
@@ -469,6 +471,7 @@ local function generateOffer(inventoryId)
     ttl = OFFER_TTL + ((math.random() * OFFER_TTL_VARIANCE * 2) - OFFER_TTL_VARIANCE) * OFFER_TTL,
     negotiationPossible = not listing.rtBiz,
     buyerPersonality = buyerPersonality,
+    marketValueAtOffer = listingMarketValue,
     -- picked once at generation so the offers inbox shows a stable pitch per buyer
     quote = selectQuoteForPersonality(buyerPersonality, listing.value, true),
     archetype = buyerPersonality.archetype
@@ -517,7 +520,7 @@ local function refuseSaleDamagedAfterListing()
 end
 
 -- Crash damage lives on the spawned vehicle until part conditions are pulled into inventory.
--- Without this, listingNeedsRepair / VALUE_LOSS_LIMIT still see the pre-crash snapshot.
+-- Without this, listingNeedsRepair still see the pre-crash snapshot.
 local listingPartSyncInFlight = {}
 syncSpawnedListingPartConditions = function(inventoryId, onDone)
   if type(inventoryId) ~= "number" then
@@ -677,6 +680,109 @@ local function getOfferCount()
   return count
 end
 
+local negotiationActive = false
+local negotiationOfferId
+
+local function isOfferProtectedFromRetraction(offer)
+  if not offer or offer.expiredViewCounter or offer.committed then
+    return true
+  end
+  if negotiationActive and negotiationOfferId and offer.id == negotiationOfferId then
+    return true
+  end
+  return false
+end
+
+local function notifyNewOfferBanner(listing, offerValue)
+  local standout = isStandoutOffer(listing, offerValue)
+  listing.bestOfferValue = math.max(tonumber(listing.bestOfferValue) or 0, offerValue)
+
+  if detailedOfferBannersShown < DETAILED_OFFER_BANNER_LIMIT or standout then
+    local delta = offerValue - listing.value
+    local deltaSign = delta >= 0 and "+ " or "- "
+    local title = standout and detailedOfferBannersShown >= DETAILED_OFFER_BANNER_LIMIT and "Strong Offer" or "New Offer"
+    fireMarketplacePhoneNotification(
+      "marketplace.newOffer",
+      title,
+      core_locales.translateWithOrWithoutContext(listing.niceName),
+      "$" .. string.format("%.2f", offerValue) .. " (" .. deltaSign .. string.format("%.2f", math.abs(delta)) .. "$)",
+      "invite",
+      { ttl = DETAILED_OFFER_TTL }
+    )
+    if detailedOfferBannersShown < DETAILED_OFFER_BANNER_LIMIT then
+      detailedOfferBannersShown = detailedOfferBannersShown + 1
+    end
+    return 1
+  end
+
+  local pendingCount = countPendingOffers()
+  local waitingLabel = pendingCount == 1 and "You have 1 offer waiting" or ("You have " .. pendingCount .. " offers waiting")
+  fireMarketplacePhoneNotification(
+    "marketplace.newOffer",
+    "Marketplace",
+    waitingLabel,
+    nil,
+    "invite",
+    {
+      ttl = DIGEST_OFFER_TTL,
+      forceTtl = true,
+      replaceKey = DIGEST_REPLACE_KEY,
+      sound = digestBannerActive and false or PHONE_NOTIF_SOUND,
+    }
+  )
+  digestBannerActive = true
+  return 1
+end
+
+local function reviewOffersAgainstMarket(listing, timeNow)
+  if listing.rtBiz then
+    return 0
+  end
+
+  refreshLiveListingValues(listing)
+  local currentMarket = tonumber(getLiveListingValue(listing))
+  if not currentMarket or currentMarket <= 0 then
+    return 0
+  end
+
+  local retracted = 0
+  for offerIndex = #listing.offers, 1, -1 do
+    if retracted >= MAX_RETRACTIONS_PER_LISTING_PASS then
+      break
+    end
+
+    local offer = listing.offers[offerIndex]
+    if isOfferProtectedFromRetraction(offer) then
+      -- skip
+    else
+      local offerMarket = tonumber(offer.marketValueAtOffer)
+      if not offerMarket or offerMarket <= 0 then
+        offer.marketValueAtOffer = currentMarket
+      else
+        local changeRatio = math.abs(currentMarket - offerMarket) / offerMarket
+        if changeRatio >= OFFER_MARKET_REVIEW_THRESHOLD then
+          if math.random() < OFFER_COMMIT_CHANCE then
+            offer.committed = true
+          else
+            table.remove(listing.offers, offerIndex)
+            retracted = retracted + 1
+            fireMarketplacePhoneNotification(
+              "marketplace.offerWithdrawn",
+              "Offer withdrawn",
+              core_locales.translateWithOrWithoutContext(listing.niceName),
+              "A buyer retracted their offer after re-evaluating market value.",
+              "info",
+              { ttl = DETAILED_OFFER_TTL, sound = false }
+            )
+          end
+        end
+      end
+    end
+  end
+
+  return retracted
+end
+
 local function generateNewOffers()
   local timeNow = os.time()
   local offerCountDiff = 0
@@ -687,48 +793,20 @@ local function generateNewOffers()
       listing.timeOfNextOffer = timeNow + (TIME_BETWEEN_OFFERS_BASE * multiplier) + (math.random(-60, 60) / 100 * TIME_BETWEEN_OFFERS_BASE * multiplier)
     end
 
+    local retractedCount = reviewOffersAgainstMarket(listing, timeNow)
+    offerCountDiff = offerCountDiff - retractedCount
+    for _ = 1, retractedCount do
+      local replacement = generateOffer(listing.id)
+      if replacement then
+        offerCountDiff = offerCountDiff + notifyNewOfferBanner(listing, replacement.value)
+      end
+    end
+
     if timeNow >= listing.timeOfNextOffer then
       listing.timeOfNextOffer = nil
       local offer = generateOffer(listing.id)
       if offer then
-        local offerValue = offer.value
-        local standout = isStandoutOffer(listing, offerValue)
-        listing.bestOfferValue = math.max(tonumber(listing.bestOfferValue) or 0, offerValue)
-
-        if detailedOfferBannersShown < DETAILED_OFFER_BANNER_LIMIT or standout then
-          local delta = offerValue - listing.value
-          local deltaSign = delta >= 0 and "+ " or "- "
-          local title = standout and detailedOfferBannersShown >= DETAILED_OFFER_BANNER_LIMIT and "Strong Offer" or "New Offer"
-          fireMarketplacePhoneNotification(
-            "marketplace.newOffer",
-            title,
-            core_locales.translateWithOrWithoutContext(listing.niceName),
-            "$" .. string.format("%.2f", offerValue) .. " (" .. deltaSign .. string.format("%.2f", math.abs(delta)) .. "$)",
-            "invite",
-            { ttl = DETAILED_OFFER_TTL }
-          )
-          if detailedOfferBannersShown < DETAILED_OFFER_BANNER_LIMIT then
-            detailedOfferBannersShown = detailedOfferBannersShown + 1
-          end
-        else
-          local pendingCount = countPendingOffers()
-          local waitingLabel = pendingCount == 1 and "You have 1 offer waiting" or ("You have " .. pendingCount .. " offers waiting")
-          fireMarketplacePhoneNotification(
-            "marketplace.newOffer",
-            "Marketplace",
-            waitingLabel,
-            nil,
-            "invite",
-            {
-              ttl = DIGEST_OFFER_TTL,
-              forceTtl = true,
-              replaceKey = DIGEST_REPLACE_KEY,
-              sound = digestBannerActive and false or PHONE_NOTIF_SOUND,
-            }
-          )
-          digestBannerActive = true
-        end
-        offerCountDiff = offerCountDiff + 1
+        offerCountDiff = offerCountDiff + notifyNewOfferBanner(listing, offer.value)
       end
     end
 
@@ -756,7 +834,6 @@ local function generateNewOffers()
   return offerCountDiff
 end
 
-local negotiationActive = false
 local startingPrice
 local patience = 1
 local isInsulted = false
@@ -956,6 +1033,7 @@ beginNegotiateBuyingOffer = function(listing, offer, inventoryId, offerIndex)
 
   negotiationInventoryId = inventoryId
   negotiationOfferIndex = offerIndex
+  negotiationOfferId = offer.id
   negotiationCarMeetOfferIndex = nil
   vehicleNiceName = core_locales.translateWithOrWithoutContext(listing.niceName)
   vehicleThumbnail = listing.thumbnail
@@ -1143,6 +1221,7 @@ end
 local function dismissNegotiation()
   negotiationFromPhone = false
   negotiationActive = false
+  negotiationOfferId = nil
   purchaseFailureReason = nil
   saleCompleted = false
   negotiationCarMeetOfferIndex = nil
@@ -1152,6 +1231,7 @@ end
 local function cancelNegotiation()
   negotiationFromPhone = false
   negotiationActive = false
+  negotiationOfferId = nil
   negotiationStatus = "failed"
   purchaseFailureReason = nil
   saleCompleted = false
@@ -1590,6 +1670,7 @@ local function finishPhonePurchase()
   local purchaseShopId = shopId
   negotiationFromPhone = false
   negotiationActive = false
+  negotiationOfferId = nil
   if not purchaseShopId then
     return false
   end
@@ -1720,8 +1801,8 @@ local function onUpdate(dtReal, dtSim, dtRaw)
   if timeSinceUpdate < 10 then return end
   timeSinceUpdate = 0
 
-  -- Keep inventory part conditions current for driven listings so repair / value-loss
-  -- gates in getListings match what the player just did to the car.
+  -- Keep inventory part conditions current for driven listings so repair gates in
+  -- getListings match what the player just did to the car.
   for _, listing in ipairs(listedVehicles) do
     if not listing.rtBiz then
       syncSpawnedListingPartConditions(listing.id)
@@ -1790,22 +1871,11 @@ getListings = function()
       listing.marketValue = listing.marketValue or listing.value
     else
       local currentValue = career_modules_valueCalculator.getInventoryVehicleSellValue(listing.id)
-      local originalMarketValue = listing.marketValueAtListing or listing.marketValue
-      local origNum = tonumber(originalMarketValue) or 0
-      if currentValue and origNum > 0 and currentValue < origNum * VALUE_LOSS_LIMIT then
-        listing.disabled = true
-        listing.disableReason = core_locales.contextTranslate("ui.career.vehicleMarketplace.disableReasonValueDrop", {
-          percent = math.floor(VALUE_LOSS_LIMIT * 100),
-        })
-      end
-      -- Only block accept when damage happened after listing. Cars listed already damaged
-      -- stay sellable (value/offers are already reduced by repair cost in the sell value).
       local damagedAfterListing = listingDamagedAfterListing(listing, listing.id)
       listing.damagedAfterListing = damagedAfterListing
       if damagedAfterListing then
         listing.disabled = true
-        listing.disableReason = listing.disableReason
-          or "This vehicle was damaged after listing. Repair it before accepting offers."
+        listing.disableReason = "This vehicle was damaged after listing. Repair it before accepting offers."
       end
       listing.marketValue = currentValue or listing.marketValue
       if not listing.isManualValue and currentValue then

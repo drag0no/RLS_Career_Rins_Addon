@@ -1235,7 +1235,7 @@ function VehicleRepoJob:onUpdate(dtReal, dtSim, dtRaw)
                 if career_career and career_career.isActive and career_career.isActive() and reward then
                   local progressionBase = tonumber(baseReward) or reward
                   local repoTagData = getRepoTagData(self.repoTag) or {}
-                  local repoSkillXp = 5 + (tonumber(repoTagData.baseXp) or 0) + math.floor(((self.totalDistanceTraveled or 0) / 2000) + 0.5)
+                  local repoSkillXp = math.max(1, math.floor((5 + (tonumber(repoTagData.baseXp) or 0) + math.floor(((self.totalDistanceTraveled or 0) / 2000) + 0.5)) * 2 + 0.5))
                   local rewardData = {
                     money = { amount = reward },
                     [REPO_SKILL_ATTRIBUTE_KEY] = { amount = repoSkillXp }

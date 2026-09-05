@@ -325,8 +325,183 @@ local function findEngineCandidates(tree, includeEmpty, ioCtx)
   return candidates
 end
 
+local function nodePartName(node)
+  if not node then return nil end
+  local name = node.chosenPartName
+  if name and name ~= "" then return name end
+  name = node.name
+  if name and name ~= "" then return name end
+  return nil
+end
+
+local function isCeepHubNode(node, ioCtx)
+  local partName = nodePartName(node)
+  if not partName then return false end
+  if partIsCombustionEngine(ioCtx, partName) then return false end
+  local function hasCombustionDescendant(partNode)
+    for _, child in pairs(partNode.children or {}) do
+      local childName = nodePartName(child)
+      if childName and partIsCombustionEngine(ioCtx, childName) then
+        return true
+      end
+      if hasCombustionDescendant(child) then return true end
+    end
+    return false
+  end
+  return hasCombustionDescendant(node)
+end
+
+local function findEngineBaySlots(tree, ioCtx)
+  local bays = {}
+
+  local function visit(node)
+    if not node then return end
+    for slotName, child in pairs(node.children or {}) do
+      local lowerSlot = string.lower(slotName)
+      if child and string.find(lowerSlot, "engine", 1, true) and not string.find(lowerSlot, "electric", 1, true) then
+        table.insert(bays, {
+          node = child,
+          slotName = slotName,
+          path = child.path or ((node.path or "/") .. slotName .. "/"),
+          parentPartName = node.chosenPartName,
+          isBay = true
+        })
+      else
+        visit(child)
+      end
+    end
+  end
+
+  visit(tree)
+  table.sort(bays, function(a, b)
+    local depthA, depthB = pathDepth(a.path), pathDepth(b.path)
+    if depthA ~= depthB then return depthA < depthB end
+    return tostring(a.path) < tostring(b.path)
+  end)
+  return bays
+end
+
 local function getPrimaryEngine(tree, ioCtx)
   return findEngineCandidates(tree, false, ioCtx)[1]
+end
+
+local function resolveEngineCaptureAnchor(tree, ioCtx)
+  local primary = getPrimaryEngine(tree, ioCtx)
+  if not primary then return nil end
+  for _, bay in ipairs(findEngineBaySlots(tree, ioCtx)) do
+    if string.find(primary.path, bay.path, 1, true) == 1 and isCeepHubNode(bay.node, ioCtx) then
+      return bay
+    end
+  end
+  return primary
+end
+
+local function partNameLooksLikeCeepHub(partName)
+  if not partName or partName == "" then return false end
+  return string.find(string.lower(partName), "^classic_.-_engines$") ~= nil
+end
+
+local function partProvidesEngineMount(partData)
+  if type(partData) ~= "table" then return false end
+  if type(partData.slots) == "table" then
+    for _, slot in ipairs(partData.slots) do
+      local slotType = type(slot[1]) == "string" and string.lower(slot[1]) or ""
+      if string.find(slotType, "engine", 1, true) then
+        return true
+      end
+    end
+  end
+  if type(partData.slots2) == "table" then
+    for _, slot in ipairs(partData.slots2) do
+      if type(slot) == "table" then
+        local slotType = slot.type or slot[1]
+        if type(slotType) == "string" and string.find(string.lower(slotType), "engine", 1, true) then
+          return true
+        end
+        local allowTypes = slot.allowTypes or slot[2]
+        if type(allowTypes) == "table" then
+          for _, allowType in ipairs(allowTypes) do
+            if type(allowType) == "string" and string.find(string.lower(allowType), "engine", 1, true) then
+              return true
+            end
+          end
+        end
+      end
+    end
+  end
+  return false
+end
+
+local function parentIsCeepHub(parentPartName, ioCtx)
+  if not parentPartName or parentPartName == "" or not ioCtx then return false end
+  if partIsCombustionEngine(ioCtx, parentPartName) then return false end
+  if partNameLooksLikeCeepHub(parentPartName) then return true end
+  local partData = jbeamIO.getPart(ioCtx, parentPartName)
+  if not partData then return false end
+  local slotType = string.lower(partData.slotType or "")
+  if string.find(slotType, "classic_", 1, true) and string.find(slotType, "engines", 1, true) then
+    return true
+  end
+  return string.find(slotType, "engine", 1, true) ~= nil and partProvidesEngineMount(partData)
+end
+
+local function packageUsesCeepMount(package, ioCtx)
+  if not ioCtx or not package.tree then return false end
+  if package.tree.name and partIsCombustionEngine(ioCtx, package.tree.name) then
+    return false
+  end
+  if package.tree.name and partNameLooksLikeCeepHub(package.tree.name) then
+    return true
+  end
+  if isCeepHubNode({name = package.tree.name, children = package.tree.children or {}}, ioCtx) then
+    return true
+  end
+  return false
+end
+
+local function packageTreesStructurallyMatch(expected, actual)
+  if not expected or not actual then return false end
+  if tostring(expected.partId) ~= tostring(actual.partId) then return false end
+  for slotName, expectedChild in pairs(expected.children or {}) do
+    local actualChild = (actual.children or {})[slotName]
+    if not actualChild or not packageTreesStructurallyMatch(expectedChild, actualChild) then
+      return false
+    end
+  end
+  return true
+end
+
+local function packageTreesFullyMatch(expected, actual)
+  if not expected or not actual then return false end
+  if tostring(expected.partId) ~= tostring(actual.partId) then return false end
+  if tostring(expected.name or "") ~= tostring(actual.name or "") then return false end
+  local expectedChildren = expected.children or {}
+  local actualChildren = actual.children or {}
+  local expectedCount, actualCount = 0, 0
+  for slotName, expectedChild in pairs(expectedChildren) do
+    expectedCount = expectedCount + 1
+    local actualChild = actualChildren[slotName]
+    if not actualChild or not packageTreesFullyMatch(expectedChild, actualChild) then
+      return false
+    end
+  end
+  for _ in pairs(actualChildren) do
+    actualCount = actualCount + 1
+  end
+  return expectedCount == actualCount
+end
+
+local function installedPackageTreeMatches(packageTree, captureTree)
+  if not packageTree or not captureTree then return false end
+  if packageTreesStructurallyMatch(packageTree, captureTree) then return true end
+  local function walk(node)
+    if packageTreesStructurallyMatch(packageTree, node) then return true end
+    for _, child in pairs(node.children or {}) do
+      if walk(child) then return true end
+    end
+    return false
+  end
+  return walk(captureTree)
 end
 
 local function getDescriptionText(description, fallback)
@@ -482,7 +657,7 @@ local function uniquePackageName(baseName, exceptPackageId)
   return baseName .. " " .. suffix
 end
 
-local function captureCurrentEngineActual(inventoryId, requestedName, existingPackage)
+local function captureCurrentEngineActual(inventoryId, requestedName, existingPackage, captureAnchor)
   local vehicles = career_modules_inventory.getVehicles()
   local vehicle = vehicles and vehicles[inventoryId]
   local runtimeData, vehObj = getRuntimeVehicleData(inventoryId)
@@ -490,7 +665,7 @@ local function captureCurrentEngineActual(inventoryId, requestedName, existingPa
     return nil, "The selected vehicle is not spawned."
   end
 
-  local engine = getPrimaryEngine(runtimeData.config.partsTree, runtimeData.ioCtx)
+  local engine = captureAnchor or resolveEngineCaptureAnchor(runtimeData.config.partsTree, runtimeData.ioCtx)
   if not engine then return nil, "No installed engine slot was found." end
 
   local packageTree, treeError = makePackageTree(engine.node, inventoryId)
@@ -529,6 +704,7 @@ local function captureCurrentEngineActual(inventoryId, requestedName, existingPa
   package.createdModel = package.createdModel or vehicle.model
   package.lastInstalledModel = vehicle.model
   package.installedInventoryId = inventoryId
+  package.installedViaCeep = isCeepHubNode(engine.node, runtimeData.ioCtx)
   package.updatedAt = os.time()
   package.createdAt = package.createdAt or package.updatedAt
 
@@ -602,16 +778,50 @@ local function findCompatibleTarget(package, inventoryId)
   end
 
   local availableParts = jbeamIO.getAvailableParts(runtimeData.ioCtx)
+  local usesCeep = packageUsesCeepMount(package, runtimeData.ioCtx)
   local matches = {}
-  for _, candidate in ipairs(findEngineCandidates(runtimeData.config.partsTree, true, runtimeData.ioCtx)) do
+  local seenPaths = {}
+
+  local function tryCandidate(candidate)
+    local path = tostring(candidate.path or "")
+    if seenPaths[path] then return end
+    seenPaths[path] = true
     local ok = validatePackageTreeFits(package.tree, candidate.parentPartName, candidate.slotName, runtimeData.ioCtx, availableParts)
     if ok then table.insert(matches, candidate) end
   end
+
+  if usesCeep then
+    for _, candidate in ipairs(findEngineBaySlots(runtimeData.config.partsTree, runtimeData.ioCtx)) do
+      tryCandidate(candidate)
+    end
+  else
+    for _, candidate in ipairs(findEngineBaySlots(runtimeData.config.partsTree, runtimeData.ioCtx)) do
+      tryCandidate(candidate)
+    end
+    for _, candidate in ipairs(findEngineCandidates(runtimeData.config.partsTree, true, runtimeData.ioCtx)) do
+      if not parentIsCeepHub(candidate.parentPartName, runtimeData.ioCtx) then
+        tryCandidate(candidate)
+      end
+    end
+    for _, candidate in ipairs(findEngineCandidates(runtimeData.config.partsTree, true, runtimeData.ioCtx)) do
+      if parentIsCeepHub(candidate.parentPartName, runtimeData.ioCtx) then
+        tryCandidate(candidate)
+      end
+    end
+  end
+
   if #matches == 0 then return nil, "This engine package does not fit the selected vehicle." end
   for _, candidate in ipairs(matches) do
     if candidate.slotName == package.rootSlotName then return candidate end
   end
-  if #matches > 1 then return nil, "More than one compatible engine slot was found." end
+  table.sort(matches, function(a, b)
+    local depthA, depthB = pathDepth(a.path), pathDepth(b.path)
+    if depthA ~= depthB then return depthA < depthB end
+    return tostring(a.path) < tostring(b.path)
+  end)
+  if #matches > 1 and pathDepth(matches[1].path) == pathDepth(matches[2].path) then
+    return nil, "More than one compatible engine slot was found."
+  end
   return matches[1]
 end
 
@@ -947,7 +1157,7 @@ local function captureEngineThumbnailNow(packageId, inventoryId, callback)
     return
   end
 
-  local engine = runtimeData.config and getPrimaryEngine(runtimeData.config.partsTree, runtimeData.ioCtx)
+  local engine = runtimeData.config and resolveEngineCaptureAnchor(runtimeData.config.partsTree, runtimeData.ioCtx)
   if not engine or not engine.node then
     done(false, "no installed engine slot")
     return
@@ -1264,6 +1474,216 @@ local function restoreFuelLevels(vehObj, storedLevels)
   end, "energyStorage")
 end
 
+local function pathIsUnder(childPath, parentPath)
+  childPath = childPath or ""
+  parentPath = parentPath or ""
+  if parentPath == "" then return false end
+  return childPath == parentPath or string.find(childPath, parentPath, 1, true) == 1
+end
+
+local function partIdSetFromTree(node)
+  local ids = {}
+  for _, partId in ipairs(getPartIdsFromPackageTree(node)) do
+    ids[tostring(partId)] = true
+  end
+  return ids
+end
+
+local function findOuterEngineBay(tree, ioCtx, path)
+  local match
+  for _, bay in ipairs(findEngineBaySlots(tree, ioCtx)) do
+    if not path or pathIsUnder(path, bay.path) then
+      if not match or pathDepth(bay.path) < pathDepth(match.path) then
+        match = bay
+      end
+    end
+  end
+  return match
+end
+
+local function isLeftoverEngineMount(bay, ioCtx)
+  if not bay or not bay.node then return false end
+  local name = nodePartName(bay.node)
+  if not name or name == "" then return false end
+  if partIsCombustionEngine(ioCtx, name) then return false end
+  if isCeepHubNode(bay.node, ioCtx) then return true end
+  return partProvidesEngineMount(jbeamIO.getPart(ioCtx, name))
+end
+
+local function findInventoryPartAtSlot(inventory, slotPath, inventoryId)
+  local fallbackId
+  for partId, part in pairs(inventory) do
+    if part.containingSlot == slotPath then
+      if inventoryId and tonumber(part.location) == tonumber(inventoryId) then
+        return partId, part
+      end
+      if not inventoryId then
+        fallbackId = fallbackId or partId
+      end
+    end
+  end
+  if inventoryId then
+    return nil
+  end
+  return fallbackId, fallbackId and inventory[fallbackId]
+end
+
+local function copyLeftoverPackageTree(source, skipIds, inventory, inventoryId, relativeSlot)
+  if not source then return nil end
+  local partId = findInventoryPartAtSlot(inventory, source.path, inventoryId)
+  if partId and skipIds[tostring(partId)] then
+    return nil
+  end
+  if not partId or not source.chosenPartName or source.chosenPartName == "" then
+    return nil
+  end
+  local result = {
+    name = source.chosenPartName,
+    partId = partId,
+    relativeSlot = relativeSlot,
+    children = {}
+  }
+  for slotName, child in pairs(source.children or {}) do
+    local copied = copyLeftoverPackageTree(child, skipIds, inventory, inventoryId, slotName)
+    if copied then result.children[slotName] = copied end
+  end
+  return result
+end
+
+local function packageContainsPartId(package, partId)
+  if not package or not partId then return false end
+  for _, id in ipairs(getPartIdsFromPackageTree(package.tree)) do
+    if tostring(id) == tostring(partId) then return true end
+  end
+  return false
+end
+
+local function parkLeftoverParts(leftoverTree, package, inventory, newConditions, basePath)
+  if not leftoverTree or not package then return end
+  for _, entry in ipairs(collectTreePartEntries(leftoverTree, basePath)) do
+    local part = inventory[entry.partId]
+    if part then
+      if newConditions[part.partPath] then part.partCondition = deepcopy(newConditions[part.partPath]) end
+      newConditions[part.partPath] = nil
+      part.location = 0
+      part.mainPart = true
+      part.enginePackageId = tostring(package.id)
+      part.containingSlot = entry.containingSlot
+      part.partPath = entry.partPath
+    end
+  end
+end
+
+local function mergeLeftoverIntoOutgoing(outgoingPackage, leftoverTree, innerSlotName, bay, ioCtx)
+  if not leftoverTree then return outgoingPackage end
+  if not outgoingPackage then
+    outgoingPackage = {id = tostring(nextPackageId)}
+    nextPackageId = nextPackageId + 1
+    table.insert(packages, outgoingPackage)
+    outgoingPackage.name = uniquePackageName((getPartNiceName(ioCtx, leftoverTree.name) or "Engine") .. " Package")
+    outgoingPackage.createdAt = os.time()
+  elseif packageContainsPartId(outgoingPackage, leftoverTree.partId) then
+    outgoingPackage.rootSlotName = bay.slotName
+    outgoingPackage.rootPath = bay.path
+    outgoingPackage.updatedAt = os.time()
+    return outgoingPackage
+  else
+    leftoverTree.children = leftoverTree.children or {}
+    if innerSlotName and not leftoverTree.children[innerSlotName] and outgoingPackage.tree then
+      leftoverTree.children[innerSlotName] = outgoingPackage.tree
+      leftoverTree.children[innerSlotName].relativeSlot = innerSlotName
+    end
+  end
+  outgoingPackage.tree = leftoverTree
+  outgoingPackage.rootSlotName = bay.slotName
+  outgoingPackage.rootPath = bay.path
+  outgoingPackage.rootEngineName = leftoverTree.name
+  outgoingPackage.rootEngineNiceName = getPartNiceName(ioCtx, leftoverTree.name)
+  outgoingPackage.installedInventoryId = nil
+  outgoingPackage.updatedAt = os.time()
+  outgoingPackage.createdAt = outgoingPackage.createdAt or outgoingPackage.updatedAt
+  return outgoingPackage
+end
+
+local function hoistPackageToBay(bay, package, inventory, newConditions, vehicle, inventoryId)
+  local previousEntries = collectTreePartEntries(package.tree, package.rootPath or bay.path)
+  for _, entry in ipairs(previousEntries) do
+    newConditions[entry.partPath] = nil
+  end
+  local config = makeConfigTree(package.tree, bay.path)
+  bay.node.chosenPartName = package.tree.name
+  bay.node.children = config.children
+  bay.node.path = bay.path
+  bay.node.partPath = bay.path .. tostring(package.tree.name)
+  for _, entry in ipairs(collectTreePartEntries(package.tree, bay.path)) do
+    local part = inventory[entry.partId]
+    if part then
+      part.location = inventoryId or vehicle.id
+      part.containingSlot = entry.containingSlot
+      part.partPath = entry.partPath
+      part.mainPart = true
+      part.enginePackageId = tostring(package.id)
+      newConditions[entry.partPath] = deepcopy(part.partCondition or {integrityValue = 1, visualValue = 1, odometer = 0})
+    end
+  end
+  package.rootSlotName = bay.slotName
+  package.rootPath = bay.path
+  vehicle.changedSlots = vehicle.changedSlots or {}
+  vehicle.changedSlots[bay.path] = true
+end
+
+local function rehomeLeftoverEngineMount(opts)
+  local bay = findOuterEngineBay(opts.tree, opts.ioCtx, opts.installPath)
+  if not bay then return opts.outgoingPackage, false end
+  if not isLeftoverEngineMount(bay, opts.ioCtx) then return opts.outgoingPackage, false end
+  if opts.expectedRootName and nodePartName(bay.node) == opts.expectedRootName then
+    return opts.outgoingPackage, false
+  end
+
+  local skipIds = opts.skipIds or {}
+  local leftoverTree = copyLeftoverPackageTree(bay.node, skipIds, opts.inventory, opts.inventoryId)
+  local outgoingPackage = mergeLeftoverIntoOutgoing(opts.outgoingPackage, leftoverTree, opts.innerSlotName, bay, opts.ioCtx)
+  parkLeftoverParts(leftoverTree, outgoingPackage, opts.inventory, opts.newConditions, bay.path)
+
+  if opts.incomingPackage then
+    hoistPackageToBay(bay, opts.incomingPackage, opts.inventory, opts.newConditions, opts.vehicle, opts.inventoryId)
+  else
+    bay.node.chosenPartName = ""
+    bay.node.children = {}
+    bay.node.partPath = nil
+    opts.vehicle.changedSlots = opts.vehicle.changedSlots or {}
+    opts.vehicle.changedSlots[bay.path] = true
+  end
+  return outgoingPackage, true
+end
+
+local function engineBayMatchesPackage(tree, ioCtx, package)
+  if not tree or not ioCtx or not package or not package.tree then return false end
+  local anchor = findOuterEngineBay(tree, ioCtx, package.rootPath) or resolveEngineCaptureAnchor(tree, ioCtx)
+  if not anchor or not anchor.node then return false end
+  local rebuiltTree = makePackageTree(anchor.node, currentInventoryId)
+  if not rebuiltTree then return false end
+  return packageTreesFullyMatch(package.tree, rebuiltTree)
+end
+
+local function engineBayIsEmptyOfMount(tree, ioCtx, package)
+  if not tree then return true end
+  if getPrimaryEngine(tree, ioCtx) then
+    return false
+  end
+  local bay = findOuterEngineBay(tree, ioCtx, package and package.rootPath)
+  if not bay or not bay.node then return true end
+  local function hasPart(node)
+    local name = nodePartName(node)
+    if name and name ~= "" then return true end
+    for _, child in pairs(node.children or {}) do
+      if hasPart(child) then return true end
+    end
+    return false
+  end
+  return not hasPart(bay.node)
+end
+
 local function storeInstalledPackage(packageId)
   if transactionBusy then return end
   local valid, validationError = validateSelectedVehicle()
@@ -1283,7 +1703,7 @@ local function storeInstalledPackage(packageId)
     local vehicles = career_modules_inventory.getVehicles()
     local vehicle = vehicles[currentInventoryId]
     local runtimeData, oldVehObj = getRuntimeVehicleData(currentInventoryId)
-    local engine = runtimeData and runtimeData.config and getPrimaryEngine(runtimeData.config.partsTree, runtimeData.ioCtx)
+    local engine = runtimeData and runtimeData.config and resolveEngineCaptureAnchor(runtimeData.config.partsTree, runtimeData.ioCtx)
     if not vehicle or not runtimeData or not oldVehObj or not engine then
       transactionBusy = false
       sendResult(false, "The installed engine could not be read.")
@@ -1291,7 +1711,7 @@ local function storeInstalledPackage(packageId)
     end
 
     local currentTree, treeError = makePackageTree(engine.node, currentInventoryId)
-    if not currentTree or tostring(currentTree.partId) ~= tostring(package.tree and package.tree.partId) then
+    if not currentTree or not installedPackageTreeMatches(package.tree, currentTree) then
       transactionBusy = false
       sendResult(false, treeError or "The installed engine no longer matches this package.")
       return
@@ -1300,7 +1720,7 @@ local function storeInstalledPackage(packageId)
     local inventorySnapshot = deepcopy(inventory)
     local packagesSnapshot = deepcopy(packages)
     local vehicleSnapshot = deepcopy(vehicle)
-    package = captureCurrentEngineActual(currentInventoryId, package.name, package)
+    package = captureCurrentEngineActual(currentInventoryId, package.name, package, engine)
     if not package then
       restoreTable(inventory, inventorySnapshot)
       packages = packagesSnapshot
@@ -1310,7 +1730,8 @@ local function storeInstalledPackage(packageId)
     end
 
     local function continueStore()
-    local entries = collectTreePartEntries(package.tree, engine.path)
+    local storePath = package.rootPath or engine.path
+    local entries = collectTreePartEntries(package.tree, storePath)
     local newConditions = deepcopy(vehicle.partConditions or {})
 
     for _, entry in ipairs(entries) do
@@ -1342,6 +1763,19 @@ local function storeInstalledPackage(packageId)
     package.installedInventoryId = nil
     package.updatedAt = os.time()
 
+    rehomeLeftoverEngineMount({
+      tree = runtimeData.config.partsTree,
+      ioCtx = runtimeData.ioCtx,
+      inventory = inventory,
+      inventoryId = currentInventoryId,
+      vehicle = vehicle,
+      installPath = engine.path,
+      skipIds = partIdSetFromTree(package.tree),
+      innerSlotName = engine.slotName,
+      outgoingPackage = package,
+      newConditions = newConditions
+    })
+
     local transactionFinished = false
     local function rollback(message)
       if transactionFinished then return end
@@ -1364,6 +1798,11 @@ local function storeInstalledPackage(packageId)
           local newVehObj = getSpawnedVehicleObject(currentInventoryId)
           restoreFuelLevels(newVehObj, fuelLevels)
           unhideInventoryVehicle(currentInventoryId)
+          local liveData = getRuntimeVehicleData(currentInventoryId)
+          local liveTree = liveData and liveData.config and liveData.config.partsTree
+          if not engineBayIsEmptyOfMount(liveTree, liveData and liveData.ioCtx or runtimeData.ioCtx, package) then
+            error("leftover engine mount")
+          end
           if career_modules_partInventory.onPartShoppingTransactionComplete then
             career_modules_partInventory.onPartShoppingTransactionComplete()
           end
@@ -1438,7 +1877,12 @@ local function installPackage(packageId)
     if currentEngine then
       outgoingPackage = findPackageForInventory(currentInventoryId)
       local outgoingName = outgoingPackage and outgoingPackage.name or nil
-      outgoingPackage, validationError = captureCurrentEngineActual(currentInventoryId, outgoingName, outgoingPackage)
+      local outgoingCaptureAnchor = currentEngine
+      local isInnerCeepTarget = parentIsCeepHub(targetCandidate.parentPartName, runtimeData.ioCtx)
+      if not isInnerCeepTarget then
+        outgoingCaptureAnchor = resolveEngineCaptureAnchor(runtimeData.config.partsTree, runtimeData.ioCtx) or currentEngine
+      end
+      outgoingPackage, validationError = captureCurrentEngineActual(currentInventoryId, outgoingName, outgoingPackage, outgoingCaptureAnchor)
       if not outgoingPackage then
         transactionBusy = false
         sendResult(false, validationError)
@@ -1446,7 +1890,7 @@ local function installPackage(packageId)
       end
     end
 
-    local outgoingEntries = outgoingPackage and collectTreePartEntries(outgoingPackage.tree, targetCandidate.path) or {}
+    local outgoingEntries = outgoingPackage and collectTreePartEntries(outgoingPackage.tree, outgoingPackage.rootPath) or {}
     local incomingEntries = collectTreePartEntries(targetPackage.tree, targetCandidate.path)
     local newConditions = deepcopy(vehicle.partConditions or {})
 
@@ -1497,14 +1941,32 @@ local function installPackage(packageId)
     vehicle.changedSlots = vehicle.changedSlots or {}
     vehicle.changedSlots[targetCandidate.path] = true
 
+    local rehomed
+    outgoingPackage, rehomed = rehomeLeftoverEngineMount({
+      tree = runtimeData.config.partsTree,
+      ioCtx = runtimeData.ioCtx,
+      inventory = inventory,
+      inventoryId = currentInventoryId,
+      vehicle = vehicle,
+      installPath = targetCandidate.path,
+      expectedRootName = targetPackage.tree.name,
+      skipIds = partIdSetFromTree(targetPackage.tree),
+      innerSlotName = targetCandidate.slotName,
+      outgoingPackage = outgoingPackage,
+      incomingPackage = targetPackage,
+      newConditions = newConditions
+    })
+
     if outgoingPackage then
       outgoingPackage.installedInventoryId = nil
       outgoingPackage.updatedAt = os.time()
     end
     targetPackage.installedInventoryId = currentInventoryId
     targetPackage.lastInstalledModel = targetModel
-    targetPackage.rootSlotName = targetCandidate.slotName
-    targetPackage.rootPath = targetCandidate.path
+    if not rehomed then
+      targetPackage.rootSlotName = targetCandidate.slotName
+      targetPackage.rootPath = targetCandidate.path
+    end
     targetPackage.updatedAt = os.time()
 
     local transactionFinished = false
@@ -1529,6 +1991,11 @@ local function installPackage(packageId)
           local newVehObj = getSpawnedVehicleObject(currentInventoryId)
           restoreFuelLevels(newVehObj, fuelLevels)
           unhideInventoryVehicle(currentInventoryId)
+          local liveData = getRuntimeVehicleData(currentInventoryId)
+          local liveTree = liveData and liveData.config and liveData.config.partsTree
+          if not engineBayMatchesPackage(liveTree, liveData and liveData.ioCtx or runtimeData.ioCtx, targetPackage) then
+            error("leftover engine mount")
+          end
           if career_modules_partInventory.onPartShoppingTransactionComplete then
             career_modules_partInventory.onPartShoppingTransactionComplete()
           end
@@ -1579,9 +2046,9 @@ local function refreshInstalledPackage(inventoryId, refreshTree)
   local vehicle = career_modules_inventory.getVehicles()[inventoryId]
   if not runtimeData or not vehicle then return false end
   if refreshTree then
-    local engine = runtimeData.config and getPrimaryEngine(runtimeData.config.partsTree, runtimeData.ioCtx)
-    local currentTree = engine and makePackageTree(engine.node, inventoryId)
-    if not currentTree or tostring(currentTree.partId) ~= tostring(package.tree and package.tree.partId) then
+    local anchor = runtimeData.config and resolveEngineCaptureAnchor(runtimeData.config.partsTree, runtimeData.ioCtx)
+    local currentTree = anchor and makePackageTree(anchor.node, inventoryId)
+    if not currentTree or not installedPackageTreeMatches(package.tree, currentTree) then
       package.installedInventoryId = nil
       package.updatedAt = os.time()
       local inventory = getPartInventory()
@@ -1594,7 +2061,7 @@ local function refreshInstalledPackage(inventoryId, refreshTree)
       end
       return true
     end
-    local refreshed = captureCurrentEngineActual(inventoryId, package.name, package)
+    local refreshed = captureCurrentEngineActual(inventoryId, package.name, package, anchor)
     return refreshed ~= nil
   end
   package.tuning = captureTuning(package.tree, runtimeData, vehicle.config)

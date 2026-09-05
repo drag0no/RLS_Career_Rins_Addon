@@ -7,130 +7,126 @@ M.dependencies =
   {'career_career', 'career_modules_inspectVehicle', 'career_modules_valueCalculator', 'util_configListGenerator',
    'freeroam_organizations', 'career_modules_bank', 'career_modules_business_businessInventory'}
 
-local moduleVersion = 69
-local valuationSchemaVersion = 12
 M.limitedMileageDealerSchemaVersion = 1
 
--- Configuration constants
-local vehicleDeliveryDelay = 60
-local vehicleOfferTimeToLive = 10 * 60
-local timeToRemoveSoldVehicle = 5 * 60
-local dealershipTimeBetweenOffers = 1 * 60
-local vehiclesPerDealership = vehicleOfferTimeToLive / dealershipTimeBetweenOffers
-local salesTax = 0.07
-local customLicensePlatePrice = 300
-local dealershipPurchaseReputationGain = 2000
-local missingYearsFallbackModelYear = 2023
-local refreshInterval = 5
-local tetherRange = 4
-local POLICE_DEALERSHIP_UNLOCK_LEVEL = 10
-local POLICE_DEALERSHIP_IDS = {
-  policeDealership = true,
-  poliziaAuto = true
+local C = {
+  moduleVersion = 69,
+  valuationSchemaVersion = 12,
+  vehicleDeliveryDelay = 60,
+  vehicleOfferTimeToLive = 10 * 60,
+  timeToRemoveSoldVehicle = 5 * 60,
+  dealershipTimeBetweenOffers = 1 * 60,
+  salesTax = 0.07,
+  customLicensePlatePrice = 300,
+  dealershipPurchaseReputationGain = 2000,
+  missingYearsFallbackModelYear = 2023,
+  refreshInterval = 5,
+  tetherRange = 4,
+  POLICE_DEALERSHIP_UNLOCK_LEVEL = 10,
+  POLICE_DEALERSHIP_IDS = {
+    policeDealership = true,
+    poliziaAuto = true
+  },
+  MILES_TO_METERS = 1609.344,
+  BASE_ANNUAL_MILES = 11500,
+  MAX_USED_MILES = 300000,
+  FACTORY_MIN_MILES = 5,
+  FACTORY_MAX_MILES = 500,
+  REMOTE_PURCHASE_LEVEL = 2,
+  DELIVERY_DISCOUNT_LEVEL = 3,
+  DELIVERY_DISCOUNT_AT_LEVEL_3 = 0.25,
+  mileageProfiles = {
+    fastAutomotiveDealership = {annualMiles = 2500, minFactor = 0.5, maxFactor = 1.4, minMiles = 2000, maxMiles = 40000, wearFactor = 3.0},
+    jeffersonmotors = {minFactor = 0.28, maxFactor = 0.62, minMiles = 18000, maxMiles = 130000, timeCapsuleChance = 0.05},
+    belascoAuto = {minFactor = 0.70, maxFactor = 1.05, minMiles = 250, maxMiles = 220000},
+    richsmotorcompany = {minFactor = 0.22, maxFactor = 0.60, minMiles = 1000, maxMiles = 80000, timeCapsuleChance = 0.05},
+    quarrysideAutoSales = {minFactor = 1.00, maxFactor = 1.45, minMiles = 60000, maxMiles = 280000},
+    discountedDealership = {minFactor = 1.15, maxFactor = 1.75, minMiles = 70000, maxMiles = 350000},
+    policeDealership = {annualMiles = 18000, minFactor = 0.85, maxFactor = 1.25, minMiles = 60000, maxMiles = 180000},
+    serviceDealership = {annualMiles = 17000, minFactor = 0.85, maxFactor = 1.30, minMiles = 50000, maxMiles = 200000},
+    frameDealership = {minFactor = 1.05, maxFactor = 1.65, minMiles = 90000, maxMiles = 320000},
+    trailerShop = {annualMiles = 7000, minFactor = 0.65, maxFactor = 1.25, minMiles = 10000, maxMiles = 150000},
+    truckShop = {annualMiles = 30000, minFactor = 0.85, maxFactor = 1.35, minMiles = 80000, maxMiles = 600000},
+    importDealer = {minFactor = 0.75, maxFactor = 1.20, minMiles = 10000, maxMiles = 300000},
+    loanerDealership = {annualMiles = 18000, minFactor = 0.95, maxFactor = 1.35, minMiles = 80000, maxMiles = 240000},
+    joesJunkDealership = {minFactor = 1.35, maxFactor = 2.05, minMiles = 120000, maxMiles = 400000},
+    raceTab = {annualMiles = 2500, minFactor = 0.50, maxFactor = 1.00, minMiles = 10000, maxMiles = 40000},
+    asotv = {annualMiles = 2500, minFactor = 0.50, maxFactor = 1.00, minMiles = 10000, maxMiles = 40000},
+    private = {minFactor = 0.75, maxFactor = 1.55, minMiles = 500, maxMiles = 350000, timeCapsuleChance = 0.015}
+  },
+  POLICE_SKILL_PATH_IDS = {"careerSkills-emergency", "emergency"},
+  privateSellersPreview = "/levels/west_coast_usa/facilities/privateSeller_dealership.jpg",
+  TUTORIAL_BUY_VEHICLE_DEALERSHIP_ID = "apmStarterVehicles",
+  rtPendingTimerFailureGraceSec = 20,
+  rtPendingDriveStaleSec = 20 * 60,
 }
-local MILES_TO_METERS = 1609.344
-local BASE_ANNUAL_MILES = 11500
-local MAX_USED_MILES = 300000
-local FACTORY_MIN_MILES = 5
-local FACTORY_MAX_MILES = 500
-local REMOTE_PURCHASE_LEVEL = 2
-local DELIVERY_DISCOUNT_LEVEL = 3
-local DELIVERY_DISCOUNT_AT_LEVEL_3 = 0.25
+C.vehiclesPerDealership = C.vehicleOfferTimeToLive / C.dealershipTimeBetweenOffers
 
--- Mileage is generated from exact age first, then shaped by the seller.  These
--- profiles are intentionally independent from the catalog filters: filters
--- decide what can be stocked while profiles decide what a plausible example
--- of that vehicle looks like.
-local mileageProfiles = {
-  fastAutomotiveDealership = {annualMiles = 2500, minFactor = 0.5, maxFactor = 1.4, minMiles = 2000, maxMiles = 40000, wearFactor = 3.0},
-  jeffersonmotors = {minFactor = 0.28, maxFactor = 0.62, minMiles = 18000, maxMiles = 130000, timeCapsuleChance = 0.05},
-  belascoAuto = {minFactor = 0.70, maxFactor = 1.05, minMiles = 250, maxMiles = 220000},
-  richsmotorcompany = {minFactor = 0.22, maxFactor = 0.60, minMiles = 1000, maxMiles = 80000, timeCapsuleChance = 0.05},
-  quarrysideAutoSales = {minFactor = 1.00, maxFactor = 1.45, minMiles = 60000, maxMiles = 280000},
-  discountedDealership = {minFactor = 1.15, maxFactor = 1.75, minMiles = 70000, maxMiles = 350000},
-  policeDealership = {annualMiles = 18000, minFactor = 0.85, maxFactor = 1.25, minMiles = 60000, maxMiles = 180000},
-  serviceDealership = {annualMiles = 17000, minFactor = 0.85, maxFactor = 1.30, minMiles = 50000, maxMiles = 200000},
-  frameDealership = {minFactor = 1.05, maxFactor = 1.65, minMiles = 90000, maxMiles = 320000},
-  trailerShop = {annualMiles = 7000, minFactor = 0.65, maxFactor = 1.25, minMiles = 10000, maxMiles = 150000},
-  truckShop = {annualMiles = 30000, minFactor = 0.85, maxFactor = 1.35, minMiles = 80000, maxMiles = 600000},
-  importDealer = {minFactor = 0.75, maxFactor = 1.20, minMiles = 10000, maxMiles = 300000},
-  loanerDealership = {annualMiles = 18000, minFactor = 0.95, maxFactor = 1.35, minMiles = 80000, maxMiles = 240000},
-  joesJunkDealership = {minFactor = 1.35, maxFactor = 2.05, minMiles = 120000, maxMiles = 400000},
-  raceTab = {annualMiles = 2500, minFactor = 0.50, maxFactor = 1.00, minMiles = 10000, maxMiles = 40000},
-  asotv = {annualMiles = 2500, minFactor = 0.50, maxFactor = 1.00, minMiles = 10000, maxMiles = 40000},
-  private = {minFactor = 0.75, maxFactor = 1.55, minMiles = 500, maxMiles = 350000, timeCapsuleChance = 0.015}
-}
-local POLICE_SKILL_PATH_IDS = {"careerSkills-emergency", "emergency"}
-
--- Module state
-local vehicleShopDirtyDate
-local vehiclesInShop = {}
-local sellersInfos = {}
-local otherMapsData = {}
-local discoveredDealers = {}
-local lastMap
-local currentSeller
-local purchaseData
-local tether
-local rtBizId
-local vehicleWatchlist = {}
-local currentUiState
-local selectedSellerId
-local shoppingScreenTag
-local buyingAvailable = true
-local marketplaceAvailable = true
-local getSellerAccessInfo
-local isDealerDiscovered
-
--- Delta tracking system
-local lastSnapshotByShopId = {}
-local lastDelta = {
-  seq = 0,
-  added = {},
-  removed = {},
-  sold = {},
-  updated = {}
-}
-local deltaSeq = 0
-local pendingSoldShopIds = {}
-local soldVehicles = {}
-local uiOpen = false
-local shoppingUiOpenCount = 0
-local refreshAccumulator = 0
-local nextShopUpdateTime = 0
-local rtPendingFleetPurchases = {}
-local rtPendingFleetProcessing = false
-local rtPendingTimerFailureGraceSec = 20
-local rtPendingDriveStaleSec = 20 * 60
-
--- Vehicle cache system
-local vehicleCache = {
-  regularVehicles = {},
-  dealershipCache = {},
-  lastCacheTime = 0,
-  cacheValid = false
+local S = {
+  vehicleShopDirtyDate = nil,
+  vehiclesInShop = {},
+  sellersInfos = {},
+  otherMapsData = {},
+  discoveredDealers = {},
+  lastMap = nil,
+  currentSeller = nil,
+  purchaseData = nil,
+  tether = nil,
+  rtBizId = nil,
+  vehicleWatchlist = {},
+  currentUiState = nil,
+  selectedSellerId = nil,
+  shoppingScreenTag = nil,
+  buyingAvailable = true,
+  marketplaceAvailable = true,
+  lastSnapshotByShopId = {},
+  lastDelta = {
+    seq = 0,
+    added = {},
+    removed = {},
+    sold = {},
+    updated = {}
+  },
+  deltaSeq = 0,
+  pendingSoldShopIds = {},
+  soldVehicles = {},
+  uiOpen = false,
+  shoppingUiOpenCount = 0,
+  refreshAccumulator = 0,
+  nextShopUpdateTime = 0,
+  rtPendingFleetPurchases = {},
+  rtPendingFleetProcessing = false,
+  vehicleCache = {
+    regularVehicles = {},
+    dealershipCache = {},
+    lastCacheTime = 0,
+    cacheValid = false
+  },
+  badConfigQuarantine = {},
+  badConfigLogOnce = {},
+  validationStats = {
+    quarantined = 0,
+    loadDropped = 0,
+    cacheDropped = 0,
+    generationDropped = 0
+  },
+  purchaseMenuOpen = false,
+  inspectingVehicleShopId = nil,
+  spawnFollowUpActions = nil,
+  rewardVehicleGrantData = nil,
+  deleteAddedVehicle = nil,
+  originComputerId = nil,
+  removeNonUsedPlayerVehicles = nil,
 }
 
-local badConfigQuarantine = {}
-local badConfigLogOnce = {}
-local validationStats = {
-  quarantined = 0,
-  loadDropped = 0,
-  cacheDropped = 0,
-  generationDropped = 0
-}
+local U = {}
 
--- State tracking
-local purchaseMenuOpen = false
-local inspectingVehicleShopId = nil
-
--- Utility functions
-local function generateShopId()
+function U.generateShopId()
   local shopId = 0
   while true do
     shopId = math.floor(math.random() * 1000000)
     local found = false
-    for _, vehInfo in ipairs(vehiclesInShop) do
+    for _, vehInfo in ipairs(S.vehiclesInShop) do
       if vehInfo.shopId == shopId then
         found = true
         break
@@ -142,7 +138,7 @@ local function generateShopId()
   end
 end
 
-local function getBranchLevelByPathIds(pathIds)
+function U.getBranchLevelByPathIds(pathIds)
   if not career_branches or not career_branches.getBranchLevel then
     return 0
   end
@@ -158,15 +154,15 @@ local function getBranchLevelByPathIds(pathIds)
   return 0
 end
 
-local function getPoliceSkillLevel()
-  local level = getBranchLevelByPathIds(POLICE_SKILL_PATH_IDS)
+function U.getPoliceSkillLevel()
+  local level = U.getBranchLevelByPathIds(C.POLICE_SKILL_PATH_IDS)
   if level > 0 then
     return level
   end
 
   if career_modules_playerAttributes and career_modules_playerAttributes.getAttributeValue and career_branches and career_branches.calcBranchLevelFromValue then
     local value = tonumber(career_modules_playerAttributes.getAttributeValue("careerSkills-emergency")) or 0
-    for _, skillPathId in ipairs(POLICE_SKILL_PATH_IDS) do
+    for _, skillPathId in ipairs(C.POLICE_SKILL_PATH_IDS) do
       local branchLevel = career_branches.calcBranchLevelFromValue(value, skillPathId)
       level = math.max(level, tonumber(branchLevel) or 0)
     end
@@ -175,15 +171,15 @@ local function getPoliceSkillLevel()
   return math.max(0, math.floor(level))
 end
 
-local function isPoliceDealershipLocked(dealershipId)
-  return POLICE_DEALERSHIP_IDS[dealershipId] and getPoliceSkillLevel() < POLICE_DEALERSHIP_UNLOCK_LEVEL or false
+function U.isPoliceDealershipLocked(dealershipId)
+  return C.POLICE_DEALERSHIP_IDS[dealershipId] and U.getPoliceSkillLevel() < C.POLICE_DEALERSHIP_UNLOCK_LEVEL or false
 end
 
-local function getPoliceDealershipLockLabel()
-  return string.format("Police Dealership requires Police Skill level %d", POLICE_DEALERSHIP_UNLOCK_LEVEL)
+function U.getPoliceDealershipLockLabel()
+  return string.format("Police Dealership requires Police Skill level %d", C.POLICE_DEALERSHIP_UNLOCK_LEVEL)
 end
 
-local function getVehicleInfoByShopId(shopId)
+function U.getVehicleInfoByShopId(shopId)
   if not shopId then
     return nil
   end
@@ -192,7 +188,7 @@ local function getVehicleInfoByShopId(shopId)
     log("W", "Career", "getVehicleInfoByShopId: Invalid shopId type: " .. tostring(shopId))
     return nil
   end
-  for _, vehInfo in ipairs(vehiclesInShop) do
+  for _, vehInfo in ipairs(S.vehiclesInShop) do
     if vehInfo.shopId == numShopId then
       return vehInfo
     end
@@ -200,23 +196,21 @@ local function getVehicleInfoByShopId(shopId)
   return nil
 end
 
-local function isCarMeetShopVehicle(vehicleInfo)
+function U.isCarMeetShopVehicle(vehicleInfo)
   return vehicleInfo and (vehicleInfo.source == "carMeet" or vehicleInfo.sellerId == "carMeet")
 end
 
-local function normalizeVehicleShopTiming(vehicleInfo, currentTime)
+function U.normalizeVehicleShopTiming(vehicleInfo, currentTime)
   if not vehicleInfo then return end
   currentTime = currentTime or os.time()
   vehicleInfo.generationTime = tonumber(vehicleInfo.generationTime) or currentTime
   vehicleInfo.offerTTL = tonumber(vehicleInfo.offerTTL) or (24 * 60 * 60)
 end
 
-local getRoundedPrice
-
-local function registerCarMeetVehicle(vehicleInfo)
+function U.registerCarMeetVehicle(vehicleInfo)
   if not vehicleInfo then return nil end
   local info = deepcopy(vehicleInfo)
-  info.shopId = info.shopId or generateShopId()
+  info.shopId = info.shopId or U.generateShopId()
   info.sellerId = "carMeet"
   info.sellerName = info.sellerName or "Car Meet Owner"
   info.negotiationPossible = true
@@ -229,7 +223,7 @@ local function registerCarMeetVehicle(vehicleInfo)
   info.marketValueBase = info.marketValue
   info.Mileage = tonumber(info.Mileage) or 0
   info.mapId = getCurrentLevelIdentifier()
-  normalizeVehicleShopTiming(info)
+  U.normalizeVehicleShopTiming(info)
   if career_modules_marketplace and career_modules_marketplace.generatePersonality then
     info.negotiationPersonality = info.negotiationPersonality or career_modules_marketplace.generatePersonality(false)
     if info.negotiationPersonality and info.negotiationPersonality.name then
@@ -241,27 +235,27 @@ local function registerCarMeetVehicle(vehicleInfo)
   info.priceMultiplier = priceMultiplier
   info.valueBase = tonumber(info.valueBase) or info.marketValue * priceMultiplier
   local vehicleBuyMult = career_modules_valueCalculator.getVehicleBuyMarketMultiplier()
-  info.Value = getRoundedPrice(info.valueBase * vehicleBuyMult, info.priceRoundingType or "private")
-  table.insert(vehiclesInShop, info)
+  info.Value = U.getRoundedPrice(info.valueBase * vehicleBuyMult, info.priceRoundingType or "private")
+  table.insert(S.vehiclesInShop, info)
   return info.shopId
 end
 
-local function removeCarMeetVehicles()
-  for i = #vehiclesInShop, 1, -1 do
-    if vehiclesInShop[i].sellerId == "carMeet" or vehiclesInShop[i].source == "carMeet" then
-      table.remove(vehiclesInShop, i)
+function U.removeCarMeetVehicles()
+  for i = #S.vehiclesInShop, 1, -1 do
+    if S.vehiclesInShop[i].sellerId == "carMeet" or S.vehiclesInShop[i].source == "carMeet" then
+      table.remove(S.vehiclesInShop, i)
     end
   end
 end
 
-local function generateSoldVehicleValue(shopId)
-  local vehicleInfo = getVehicleInfoByShopId(shopId)
+function U.generateSoldVehicleValue(shopId)
+  local vehicleInfo = U.getVehicleInfoByShopId(shopId)
   if not vehicleInfo then return 0 end
   local value = vehicleInfo.Value * (0.9 + math.random() * 0.1)
   return round(value / 10) * 10
 end
 
-getRoundedPrice = function(value, priceRoundingType)
+U.getRoundedPrice = function(value, priceRoundingType)
   if priceRoundingType == "prestige" then
     local thousands = math.floor(value / 1000)
     local candidate495 = thousands * 1000 + 495
@@ -278,10 +272,10 @@ getRoundedPrice = function(value, priceRoundingType)
   end
 end
 
-local function getEligibleVehiclesWithoutDealershipVehicles(eligibleVehicles, seller)
+function U.getEligibleVehiclesWithoutDealershipVehicles(eligibleVehicles, seller)
   local eligibleVehiclesWithoutDealershipVehicles = deepcopy(eligibleVehicles)
   local configsInDealership = {}
-  for _, vehicleInfo in ipairs(vehiclesInShop) do
+  for _, vehicleInfo in ipairs(S.vehiclesInShop) do
     if vehicleInfo.sellerId == seller.id then
       configsInDealership[vehicleInfo.model_key] = configsInDealership[vehicleInfo.model_key] or {}
       configsInDealership[vehicleInfo.model_key][vehicleInfo.key] = true
@@ -297,25 +291,23 @@ local function getEligibleVehiclesWithoutDealershipVehicles(eligibleVehicles, se
   return eligibleVehiclesWithoutDealershipVehicles
 end
 
-local privateSellersPreview = "/levels/west_coast_usa/facilities/privateSeller_dealership.jpg"
-local TUTORIAL_BUY_VEHICLE_DEALERSHIP_ID = "apmStarterVehicles"
-local function getUiDealershipsData(unsoldVehicles)
+function U.getUiDealershipsData(unsoldVehicles)
   local dealerships = freeroam_facilities.getFacilitiesByType("dealership")
   local isInTutorial = career_modules_tutorial and career_modules_tutorial.isActive()
     and career_modules_tutorial.getCurrentStep() == "09spmSignup"
   local vehicleCountPerDealership = {}
   for _, vehicle in ipairs(unsoldVehicles) do
-    if not isCarMeetShopVehicle(vehicle) then
+    if not U.isCarMeetShopVehicle(vehicle) then
       vehicleCountPerDealership[vehicle.sellerId] = (vehicleCountPerDealership[vehicle.sellerId] or 0) + 1
     end
   end
   local data = {}
   if dealerships then
     for _, dealership in ipairs(dealerships) do
-      local policeLocked = isPoliceDealershipLocked(dealership.id)
-      local tutorialLocked = isInTutorial and dealership.id ~= TUTORIAL_BUY_VEHICLE_DEALERSHIP_ID
-      local discovered = isDealerDiscovered(dealership)
-      local accessInfo = getSellerAccessInfo(dealership)
+      local policeLocked = U.isPoliceDealershipLocked(dealership.id)
+      local tutorialLocked = isInTutorial and dealership.id ~= C.TUTORIAL_BUY_VEHICLE_DEALERSHIP_ID
+      local discovered = U.isDealerDiscovered(dealership)
+      local accessInfo = U.getSellerAccessInfo(dealership)
       table.insert(data, {
         id = dealership.id,
         name = _tr(dealership.name),
@@ -331,7 +323,7 @@ local function getUiDealershipsData(unsoldVehicles)
         garageDeliveryAllowed = accessInfo.garageDeliveryAllowed,
         deliveryDiscount = accessInfo.deliveryDiscount,
         disabled = policeLocked or tutorialLocked,
-        disabledReason = policeLocked and getPoliceDealershipLockLabel()
+        disabledReason = policeLocked and U.getPoliceDealershipLockLabel()
           or (tutorialLocked and _tr("ui.career.vehicleShopping.disabledDuringOnboarding") or nil),
       })
     end
@@ -341,7 +333,7 @@ local function getUiDealershipsData(unsoldVehicles)
     id = "private",
     name = _tr("ui.career.vehicleShopping.privateSellers"),
     vehicleCount = vehicleCountPerDealership["private"] or 0,
-    preview = privateSellersPreview,
+    preview = C.privateSellersPreview,
     icon = "personSolid",
     disabled = isInTutorial,
     disabledReason = isInTutorial and _tr("ui.career.vehicleShopping.disabledDuringOnboarding") or nil,
@@ -349,7 +341,7 @@ local function getUiDealershipsData(unsoldVehicles)
   return data
 end
 
-local function sanitizeVehicleForUi(v)
+function U.sanitizeVehicleForUi(v)
   local t = {}
   t.shopId = v.shopId
 
@@ -372,7 +364,7 @@ local function sanitizeVehicleForUi(v)
   return t
 end
 
-local function convertKeysToStrings(t)
+function U.convertKeysToStrings(t)
   local unsoldVehicles = {}
   local soldVehiclesResult = {}
   for k, v in ipairs(t) do
@@ -385,7 +377,7 @@ local function convertKeysToStrings(t)
   return unsoldVehicles, soldVehiclesResult
 end
 
-local function sanitizeOrganizationForUi(org)
+function U.sanitizeOrganizationForUi(org)
   if not org then
     return nil
   end
@@ -424,7 +416,7 @@ local function sanitizeOrganizationForUi(org)
   return sanitizedOrg
 end
 
-local function collectOrganizationsForUi(facilities)
+function U.collectOrganizationsForUi(facilities)
   local organizations = {}
   if not facilities or not facilities.dealerships then
     return organizations
@@ -435,7 +427,7 @@ local function collectOrganizationsForUi(facilities)
     local orgId = dealer.associatedOrganization
     if orgId and not organizations[orgId] then
       local org = organizationsById and organizationsById[orgId]
-      local sanitizedOrg = sanitizeOrganizationForUi(org)
+      local sanitizedOrg = U.sanitizeOrganizationForUi(org)
       if sanitizedOrg then
         organizations[orgId] = sanitizedOrg
       end
@@ -445,7 +437,7 @@ local function collectOrganizationsForUi(facilities)
   return organizations
 end
 
-local function getVisualValueFromMileage(mileage)
+function U.getVisualValueFromMileage(mileage)
   mileage = clamp(mileage, 0, 2000000000)
   if mileage <= 10000000 then
     return 1
@@ -464,25 +456,25 @@ local function getVisualValueFromMileage(mileage)
   end
 end
 
-local function getDeliveryDelay(distance)
+function U.getDeliveryDelay(distance)
   distance = math.max(0, tonumber(distance) or 0)
-  return clamp(vehicleDeliveryDelay + math.floor((distance / 1000) * 10 + 0.5), vehicleDeliveryDelay, 600)
+  return clamp(C.vehicleDeliveryDelay + math.floor((distance / 1000) * 10 + 0.5), C.vehicleDeliveryDelay, 600)
 end
 
-local function getSellerReputationLevel(dealership)
+function U.getSellerReputationLevel(dealership)
   if not dealership or not dealership.associatedOrganization then return 0 end
   local org = freeroam_organizations.getOrganization(dealership.associatedOrganization)
   local level = org and org.reputation and tonumber(org.reputation.level) or 0
   return math.max(0, math.floor(level or 0))
 end
 
-getSellerAccessInfo = function(dealership)
+U.getSellerAccessInfo = function(dealership)
   dealership = dealership or {}
   local salesChannel = dealership.salesChannel or (dealership.remotePurchaseOnly and "factory" or "local")
-  local repLevel = getSellerReputationLevel(dealership)
+  local repLevel = U.getSellerReputationLevel(dealership)
   local isOnline = salesChannel == "factory" or salesChannel == "remanufactured"
-  local remotePurchaseAllowed = isOnline or repLevel >= (tonumber(dealership.remotePurchaseLevel) or REMOTE_PURCHASE_LEVEL)
-  local garageDeliveryAllowed = repLevel >= (tonumber(dealership.garageDeliveryLevel) or REMOTE_PURCHASE_LEVEL)
+  local remotePurchaseAllowed = isOnline or repLevel >= (tonumber(dealership.remotePurchaseLevel) or C.REMOTE_PURCHASE_LEVEL)
+  local garageDeliveryAllowed = repLevel >= (tonumber(dealership.garageDeliveryLevel) or C.REMOTE_PURCHASE_LEVEL)
   local discount = 0
   if type(dealership.deliveryDiscounts) == "table" then
     for requiredLevel, configuredDiscount in pairs(dealership.deliveryDiscounts) do
@@ -490,8 +482,8 @@ getSellerAccessInfo = function(dealership)
         discount = math.max(discount, tonumber(configuredDiscount) or 0)
       end
     end
-  elseif repLevel >= (tonumber(dealership.deliveryDiscountLevel) or DELIVERY_DISCOUNT_LEVEL) then
-    discount = tonumber(dealership.deliveryDiscount) or DELIVERY_DISCOUNT_AT_LEVEL_3
+  elseif repLevel >= (tonumber(dealership.deliveryDiscountLevel) or C.DELIVERY_DISCOUNT_LEVEL) then
+    discount = tonumber(dealership.deliveryDiscount) or C.DELIVERY_DISCOUNT_AT_LEVEL_3
   end
   return {
     salesChannel = salesChannel,
@@ -503,9 +495,22 @@ getSellerAccessInfo = function(dealership)
   }
 end
 
-local function getExpectedMileageMiles(age, annualMiles)
+U.isOnlineSellerId = function(sellerId)
+  local dealership = U.getDealershipForSellerId(sellerId)
+  if not dealership then return false end
+  return U.getSellerAccessInfo(dealership).isOnline
+end
+
+function U.getDealershipForSellerId(sellerId)
+  if not sellerId or sellerId == "private" or sellerId == "carMeet" then
+    return nil
+  end
+  return freeroam_facilities.getDealership(sellerId)
+end
+
+function U.getExpectedMileageMiles(age, annualMiles)
   age = math.max(0, tonumber(age) or 0)
-  annualMiles = tonumber(annualMiles) or BASE_ANNUAL_MILES
+  annualMiles = tonumber(annualMiles) or C.BASE_ANNUAL_MILES
   if age <= 25 then
     return age * annualMiles
   end
@@ -514,13 +519,13 @@ local function getExpectedMileageMiles(age, annualMiles)
   return 25 * annualMiles + (age - 25) * math.min(annualMiles, 2500)
 end
 
-local function generateAgeDrivenMileage(seller, vehicleInfo, year)
+function U.generateAgeDrivenMileage(seller, vehicleInfo, year)
   local currentYear = tonumber(os.date("%Y")) or 2026
   local age = math.max(0, currentYear - (tonumber(year) or currentYear))
   local channel = seller.salesChannel or "local"
 
   if channel == "factory" then
-    return (FACTORY_MIN_MILES + math.random() * (FACTORY_MAX_MILES - FACTORY_MIN_MILES)) * MILES_TO_METERS,
+    return (C.FACTORY_MIN_MILES + math.random() * (C.FACTORY_MAX_MILES - C.FACTORY_MIN_MILES)) * C.MILES_TO_METERS,
       nil, "factoryDelivery"
   end
 
@@ -528,26 +533,26 @@ local function generateAgeDrivenMileage(seller, vehicleInfo, year)
     local commercial = seller.remanCommercial == true
     local minMiles = commercial and 60000 or 20000
     local maxMiles = commercial and 180000 or 80000
-    return (minMiles + randomGauss3() / 3 * (maxMiles - minMiles)) * MILES_TO_METERS,
+    return (minMiles + randomGauss3() / 3 * (maxMiles - minMiles)) * C.MILES_TO_METERS,
       nil, commercial and "commercialReman" or "certifiedReman"
   end
 
-  local profile = mileageProfiles[seller.id] or {}
+  local profile = C.mileageProfiles[seller.id] or {}
   local configType = tostring(vehicleInfo["Config Type"] or "")
   local bodyStyle = tostring(vehicleInfo["Body Style"] or "")
   if configType == "Race" or configType == "Rally" then
-    profile = mileageProfiles.fastAutomotiveDealership
+    profile = C.mileageProfiles.fastAutomotiveDealership
   elseif configType == "Frame" then
-    profile = mileageProfiles.frameDealership
+    profile = C.mileageProfiles.frameDealership
   elseif bodyStyle == "Semi Truck" or bodyStyle == "Tanker Truck" or bodyStyle == "Dump Truck" then
-    profile = mileageProfiles.truckShop
+    profile = C.mileageProfiles.truckShop
   end
 
   if age >= 25 and math.random() < (tonumber(profile.timeCapsuleChance) or 0) then
-    return (5000 + randomGauss3() / 3 * 15000) * MILES_TO_METERS, nil, "timeCapsule"
+    return (5000 + randomGauss3() / 3 * 15000) * C.MILES_TO_METERS, nil, "timeCapsule"
   end
 
-  local expected = getExpectedMileageMiles(age, profile.annualMiles)
+  local expected = U.getExpectedMileageMiles(age, profile.annualMiles)
   local minFactor = tonumber(profile.minFactor) or 0.75
   local maxFactor = tonumber(profile.maxFactor) or 1.25
   local factor = minFactor + randomGauss3() / 3 * (maxFactor - minFactor)
@@ -558,14 +563,14 @@ local function generateAgeDrivenMileage(seller, vehicleInfo, year)
   elseif age >= 15 then
     miles = math.max(miles, tonumber(profile.minMiles) or 5000)
   end
-  miles = clamp(miles, tonumber(profile.minMiles) or 0, tonumber(profile.maxMiles) or MAX_USED_MILES)
-  if miles >= MAX_USED_MILES then
+  miles = clamp(miles, tonumber(profile.minMiles) or 0, tonumber(profile.maxMiles) or C.MAX_USED_MILES)
+  if miles >= C.MAX_USED_MILES then
     -- Compress extreme-use vehicles into a varied 270k-300k survivor band
     -- instead of stacking every listing on the same hard-cap odometer.
-    miles = MAX_USED_MILES - math.random() * 30000
+    miles = C.MAX_USED_MILES - math.random() * 30000
   end
 
-  local odometer = math.max(0, miles * MILES_TO_METERS)
+  local odometer = math.max(0, miles * C.MILES_TO_METERS)
   local wearMileage = nil
   local mileageCategory = "ageCurve"
   if profile.wearFactor and profile.wearFactor > 1 then
@@ -573,7 +578,7 @@ local function generateAgeDrivenMileage(seller, vehicleInfo, year)
     mileageCategory = "competitionWear"
   elseif seller.id == "jeffersonmotors" and age >= 25 then
     if math.random() < 0.35 then
-      wearMileage = math.max(5000 * MILES_TO_METERS, odometer * 0.25)
+      wearMileage = math.max(5000 * C.MILES_TO_METERS, odometer * 0.25)
       mileageCategory = "restoredClassic"
     else
       wearMileage = odometer * 0.70
@@ -583,24 +588,24 @@ local function generateAgeDrivenMileage(seller, vehicleInfo, year)
   return odometer, wearMileage, mileageCategory
 end
 
-local function getDiscoveredDealersForMap(mapId)
+function U.getDiscoveredDealersForMap(mapId)
   mapId = mapId or getCurrentLevelIdentifier()
-  discoveredDealers[mapId] = discoveredDealers[mapId] or {}
-  return discoveredDealers[mapId]
+  S.discoveredDealers[mapId] = S.discoveredDealers[mapId] or {}
+  return S.discoveredDealers[mapId]
 end
 
-isDealerDiscovered = function(dealership)
+U.isDealerDiscovered = function(dealership)
   if not dealership then return false end
-  local accessInfo = getSellerAccessInfo(dealership)
+  local accessInfo = U.getSellerAccessInfo(dealership)
   if dealership.discoverable == false or accessInfo.isOnline then return true end
-  return getDiscoveredDealersForMap()[dealership.id] == true
+  return U.getDiscoveredDealersForMap()[dealership.id] == true
 end
 
-local function discoverDealer(dealershipId)
+function U.discoverDealer(dealershipId)
   local dealership = freeroam_facilities.getDealership(dealershipId)
   if not dealership or dealership.discoverable == false then return false end
-  if getSellerAccessInfo(dealership).isOnline then return false end
-  local mapDiscoveries = getDiscoveredDealersForMap()
+  if U.getSellerAccessInfo(dealership).isOnline then return false end
+  local mapDiscoveries = U.getDiscoveredDealersForMap()
   if mapDiscoveries[dealershipId] then return false end
   mapDiscoveries[dealershipId] = true
   -- Discovery is durable career progress. Queue a save now instead of relying
@@ -613,7 +618,7 @@ local function discoverDealer(dealershipId)
   return true
 end
 
-local function applyPurchaseAdjustedMarketValue(vehicleInfo)
+function U.applyPurchaseAdjustedMarketValue(vehicleInfo)
   if not vehicleInfo then return end
   local vehicleBuyMult = career_modules_valueCalculator.getVehicleBuyMarketMultiplier()
   local marketValue = vehicleInfo.marketValueBase or vehicleInfo.marketValue or vehicleInfo.Value
@@ -628,13 +633,13 @@ local function applyPurchaseAdjustedMarketValue(vehicleInfo)
     end
   end
   if valueBase then
-    vehicleInfo.valueAdjusted = getRoundedPrice(valueBase * vehicleBuyMult, vehicleInfo.priceRoundingType or "default")
+    vehicleInfo.valueAdjusted = U.getRoundedPrice(valueBase * vehicleBuyMult, vehicleInfo.priceRoundingType or "default")
   else
     vehicleInfo.valueAdjusted = vehicleInfo.Value
   end
 end
 
-local function getOrgLevelData(org, offset)
+function U.getOrgLevelData(org, offset)
   if not org then
     return nil
   end
@@ -678,7 +683,7 @@ M.pruneBlacklistedSellerStock = function(sellers)
 
     if seller.associatedOrganization then
       local org = freeroam_organizations.getOrganization(seller.associatedOrganization)
-      local level = getOrgLevelData(org)
+      local level = U.getOrgLevelData(org)
       if level then
         M.addModelBlacklistToLookup(lookup, level.filter)
       end
@@ -690,15 +695,15 @@ M.pruneBlacklistedSellerStock = function(sellers)
   end
 
   local removed = 0
-  for i = #vehiclesInShop, 1, -1 do
-    local vehicleInfo = vehiclesInShop[i]
+  for i = #S.vehiclesInShop, 1, -1 do
+    local vehicleInfo = S.vehiclesInShop[i]
     local lookup = blacklistedBySeller[vehicleInfo.sellerId]
     local modelKey = string.lower(tostring(vehicleInfo.model_key or vehicleInfo.model or ""))
     if lookup and lookup[modelKey] then
       if vehicleInfo.shopId ~= nil then
-        vehicleWatchlist[vehicleInfo.shopId] = nil
+        S.vehicleWatchlist[vehicleInfo.shopId] = nil
       end
-      table.remove(vehiclesInShop, i)
+      table.remove(S.vehiclesInShop, i)
       removed = removed + 1
     end
   end
@@ -709,10 +714,10 @@ M.pruneBlacklistedSellerStock = function(sellers)
   return removed
 end
 
-local function resetVehicleValidationState()
-  badConfigQuarantine = {}
-  badConfigLogOnce = {}
-  validationStats = {
+function U.resetVehicleValidationState()
+  S.badConfigQuarantine = {}
+  S.badConfigLogOnce = {}
+  S.validationStats = {
     quarantined = 0,
     loadDropped = 0,
     cacheDropped = 0,
@@ -720,13 +725,13 @@ local function resetVehicleValidationState()
   }
 end
 
-local function incrementValidationStat(statKey, amount)
-  if statKey and validationStats[statKey] ~= nil then
-    validationStats[statKey] = validationStats[statKey] + (amount or 1)
+function U.incrementValidationStat(statKey, amount)
+  if statKey and S.validationStats[statKey] ~= nil then
+    S.validationStats[statKey] = S.validationStats[statKey] + (amount or 1)
   end
 end
 
-local function getVehicleConfigId(vehicleInfo)
+function U.getVehicleConfigId(vehicleInfo)
   if type(vehicleInfo) ~= "table" then
     return nil
   end
@@ -739,8 +744,8 @@ local function getVehicleConfigId(vehicleInfo)
   return vehicleInfo.model_key .. "|" .. vehicleInfo.key
 end
 
-local function getVehicleConfigTrackingKey(vehicleInfo)
-  local configId = getVehicleConfigId(vehicleInfo)
+function U.getVehicleConfigTrackingKey(vehicleInfo)
+  local configId = U.getVehicleConfigId(vehicleInfo)
   if configId then
     return configId
   end
@@ -752,15 +757,15 @@ local function getVehicleConfigTrackingKey(vehicleInfo)
   return string.format("invalid:%s|%s", tostring(vehicleInfo.model_key), tostring(vehicleInfo.key))
 end
 
-local function quarantineVehicleConfig(vehicleInfo, reason, context)
-  local configId = getVehicleConfigId(vehicleInfo) or getVehicleConfigTrackingKey(vehicleInfo)
-  if not badConfigQuarantine[configId] then
-    badConfigQuarantine[configId] = true
-    validationStats.quarantined = validationStats.quarantined + 1
+function U.quarantineVehicleConfig(vehicleInfo, reason, context)
+  local configId = U.getVehicleConfigId(vehicleInfo) or U.getVehicleConfigTrackingKey(vehicleInfo)
+  if not S.badConfigQuarantine[configId] then
+    S.badConfigQuarantine[configId] = true
+    S.validationStats.quarantined = S.validationStats.quarantined + 1
   end
 
-  if not badConfigLogOnce[configId] then
-    badConfigLogOnce[configId] = true
+  if not S.badConfigLogOnce[configId] then
+    S.badConfigLogOnce[configId] = true
     log("W", "Career", string.format("Quarantined vehicle config %s during %s: %s",
       tostring(configId), tostring(context), tostring(reason)))
   end
@@ -768,12 +773,12 @@ local function quarantineVehicleConfig(vehicleInfo, reason, context)
   return configId
 end
 
-local function isQuarantined(vehicleInfo)
-  local trackingKey = getVehicleConfigTrackingKey(vehicleInfo)
-  return badConfigQuarantine[trackingKey] == true
+function U.isQuarantined(vehicleInfo)
+  local trackingKey = U.getVehicleConfigTrackingKey(vehicleInfo)
+  return S.badConfigQuarantine[trackingKey] == true
 end
 
-local function isValidVehicleInfoShape(vehicleInfo)
+function U.isValidVehicleInfoShape(vehicleInfo)
   if type(vehicleInfo) ~= "table" then
     return false, "vehicleInfo is not a table"
   end
@@ -810,7 +815,7 @@ local function isValidVehicleInfoShape(vehicleInfo)
   return true
 end
 
-local function safeYearsRange(vehicleInfo)
+function U.safeYearsRange(vehicleInfo)
   if type(vehicleInfo) ~= "table" then
     return nil
   end
@@ -831,7 +836,7 @@ local function safeYearsRange(vehicleInfo)
     normalizeYears(type(vehicleInfo.aggregates) == "table" and vehicleInfo.aggregates.Years or nil)
 end
 
-local function safeNumericAttribute(vehicleInfo, attrName)
+function U.safeNumericAttribute(vehicleInfo, attrName)
   if type(vehicleInfo) ~= "table" then
     return nil
   end
@@ -849,7 +854,7 @@ local function safeNumericAttribute(vehicleInfo, attrName)
   return nil
 end
 
-local function normalizeVehicleCatalogValue(vehicleInfo, logContext)
+function U.normalizeVehicleCatalogValue(vehicleInfo, logContext)
   if type(vehicleInfo) ~= "table" then
     return false
   end
@@ -924,7 +929,7 @@ end
 M.buildRichsTopTrimLookup = function(vehicleInfos)
   local modelGroups = {}
   for _, vehicleInfo in ipairs(vehicleInfos or {}) do
-    local years = safeYearsRange(vehicleInfo)
+    local years = U.safeYearsRange(vehicleInfo)
     if M.isRichsStreetVehicle(vehicleInfo) and years and years.max >= 2000 then
       local effectiveValue = tonumber(vehicleInfo.effectiveCatalogValue) or 0
       local originalValue = tonumber(vehicleInfo.rawCatalogValue) or tonumber(vehicleInfo.Value) or 0
@@ -941,7 +946,7 @@ M.buildRichsTopTrimLookup = function(vehicleInfos)
         local modelKey = vehicleInfo.model_key
         modelGroups[modelKey] = modelGroups[modelKey] or {}
         table.insert(modelGroups[modelKey], {
-          key = getVehicleConfigTrackingKey(vehicleInfo),
+          key = U.getVehicleConfigTrackingKey(vehicleInfo),
           value = bestCatalogValue,
           score = bestCatalogValue * (1 + 0.35 * haloScore) + (prestigeClass and 7500 or 0)
         })
@@ -986,7 +991,7 @@ M.isRichsPrestigeVehicle = function(vehicleInfo, topTrimLookup)
 
   local bestCatalogValue = math.max(effectiveValue, originalValue)
   local topTrimData = type(topTrimLookup) == "table"
-    and topTrimLookup[getVehicleConfigTrackingKey(vehicleInfo)] or nil
+    and topTrimLookup[U.getVehicleConfigTrackingKey(vehicleInfo)] or nil
   if topTrimData then
     return true, "modernTopTrim", topTrimData
   end
@@ -994,7 +999,7 @@ M.isRichsPrestigeVehicle = function(vehicleInfo, topTrimLookup)
     return true, "sixFigureCatalog"
   end
 
-  local years = safeYearsRange(vehicleInfo)
+  local years = U.safeYearsRange(vehicleInfo)
   if years and years.max < 2000 and bestCatalogValue >= 50000
       and (haloScore >= 0.75 or prestigeClass) then
     return true, "collectorHalo"
@@ -1002,7 +1007,7 @@ M.isRichsPrestigeVehicle = function(vehicleInfo, topTrimLookup)
   return false
 end
 
-local function safeBoundingBoxDimensions(vehicleInfo)
+function U.safeBoundingBoxDimensions(vehicleInfo)
   if type(vehicleInfo) ~= "table" then
     return nil
   end
@@ -1023,16 +1028,16 @@ local function safeBoundingBoxDimensions(vehicleInfo)
   return x, y, z
 end
 
-local function safeVehicleOp(context, vehicleInfo, fn)
+function U.safeVehicleOp(context, vehicleInfo, fn)
   local ok, result = pcall(fn)
   if not ok then
-    quarantineVehicleConfig(vehicleInfo, result, context)
+    U.quarantineVehicleConfig(vehicleInfo, result, context)
     return nil, result
   end
   return result, nil
 end
 
-local function sanitizeVehicleInfoList(rawVehicles, context, dropStatKey)
+function U.sanitizeVehicleInfoList(rawVehicles, context, dropStatKey)
   local sanitizedVehicles = {}
   local summary = {
     raw = 0,
@@ -1047,17 +1052,17 @@ local function sanitizeVehicleInfoList(rawVehicles, context, dropStatKey)
 
   for _, vehicleInfo in ipairs(rawVehicles) do
     summary.raw = summary.raw + 1
-    if isQuarantined(vehicleInfo) then
+    if U.isQuarantined(vehicleInfo) then
       summary.quarantined = summary.quarantined + 1
-      incrementValidationStat(dropStatKey)
+      U.incrementValidationStat(dropStatKey)
     else
-      local ok, reason = isValidVehicleInfoShape(vehicleInfo)
+      local ok, reason = U.isValidVehicleInfoShape(vehicleInfo)
       if not ok then
         summary.malformed = summary.malformed + 1
-        incrementValidationStat(dropStatKey)
-        quarantineVehicleConfig(vehicleInfo, reason, context)
+        U.incrementValidationStat(dropStatKey)
+        U.quarantineVehicleConfig(vehicleInfo, reason, context)
       else
-        normalizeVehicleCatalogValue(vehicleInfo, context)
+        U.normalizeVehicleCatalogValue(vehicleInfo, context)
         table.insert(sanitizedVehicles, vehicleInfo)
         summary.kept = summary.kept + 1
       end
@@ -1067,13 +1072,13 @@ local function sanitizeVehicleInfoList(rawVehicles, context, dropStatKey)
   return sanitizedVehicles, summary
 end
 
-local function logVehicleSanitizationSummary(context, summary)
+function U.logVehicleSanitizationSummary(context, summary)
   local logLevel = (summary.kept > 0 or summary.raw == 0) and "I" or "W"
   log(logLevel, "Career", string.format("%s summary: raw=%d kept=%d malformed=%d quarantined=%d",
     tostring(context), summary.raw, summary.kept, summary.malformed, summary.quarantined))
 end
 
-local function validateSavedVehicleRuntimeFields(vehicleInfo)
+function U.validateSavedVehicleRuntimeFields(vehicleInfo)
   local sellerIdType = type(vehicleInfo.sellerId)
   if (sellerIdType ~= "string" and sellerIdType ~= "number") or tostring(vehicleInfo.sellerId) == "" then
     return false, "missing saved sellerId"
@@ -1106,7 +1111,7 @@ local function validateSavedVehicleRuntimeFields(vehicleInfo)
 
   local tax = vehicleInfo.tax
   if tax == nil then
-    tax = salesTax
+    tax = C.salesTax
   else
     tax = tonumber(tax)
     if not tax or tax < 0 then
@@ -1123,9 +1128,9 @@ local function validateSavedVehicleRuntimeFields(vehicleInfo)
   return true
 end
 
-local function coerceVehiclePricingFields(vehicleInfo)
+function U.coerceVehiclePricingFields(vehicleInfo)
   if type(vehicleInfo) ~= "table" then
-    return 0, salesTax
+    return 0, C.salesTax
   end
 
   local fees = tonumber(vehicleInfo.fees)
@@ -1135,7 +1140,7 @@ local function coerceVehiclePricingFields(vehicleInfo)
 
   local tax = tonumber(vehicleInfo.tax)
   if not tax or tax < 0 then
-    tax = salesTax
+    tax = C.salesTax
   end
 
   vehicleInfo.fees = fees
@@ -1143,7 +1148,7 @@ local function coerceVehiclePricingFields(vehicleInfo)
   return fees, tax
 end
 
-local function sanitizeSavedVehicleEntries(savedVehicles, context)
+function U.sanitizeSavedVehicleEntries(savedVehicles, context)
   local sanitizedVehicles = {}
   local summary = {
     raw = 0,
@@ -1158,22 +1163,22 @@ local function sanitizeSavedVehicleEntries(savedVehicles, context)
 
   for _, vehicleInfo in ipairs(savedVehicles) do
     summary.raw = summary.raw + 1
-    if isQuarantined(vehicleInfo) then
+    if U.isQuarantined(vehicleInfo) then
       summary.quarantined = summary.quarantined + 1
-      incrementValidationStat("loadDropped")
+      U.incrementValidationStat("loadDropped")
     else
-      local ok, reason = isValidVehicleInfoShape(vehicleInfo)
+      local ok, reason = U.isValidVehicleInfoShape(vehicleInfo)
       if ok then
-        ok, reason = validateSavedVehicleRuntimeFields(vehicleInfo)
+        ok, reason = U.validateSavedVehicleRuntimeFields(vehicleInfo)
       end
       if not ok then
-        local logKey = "loaddrop:" .. getVehicleConfigTrackingKey(vehicleInfo)
+        local logKey = "loaddrop:" .. U.getVehicleConfigTrackingKey(vehicleInfo)
         summary.malformed = summary.malformed + 1
-        incrementValidationStat("loadDropped")
-        if not badConfigLogOnce[logKey] then
-          badConfigLogOnce[logKey] = true
+        U.incrementValidationStat("loadDropped")
+        if not S.badConfigLogOnce[logKey] then
+          S.badConfigLogOnce[logKey] = true
           log("W", "Career", string.format("Dropped malformed saved vehicle entry %s during %s: %s",
-            tostring(getVehicleConfigTrackingKey(vehicleInfo)), tostring(context), tostring(reason)))
+            tostring(U.getVehicleConfigTrackingKey(vehicleInfo)), tostring(context), tostring(reason)))
         end
       else
         table.insert(sanitizedVehicles, vehicleInfo)
@@ -1190,11 +1195,11 @@ local function sanitizeSavedVehicleEntries(savedVehicles, context)
       if posOk then
         vehicleInfo.pos = posOrErr
       else
-        local posLogKey = getVehicleConfigTrackingKey(vehicleInfo) .. "|savedPos"
-        if not badConfigLogOnce[posLogKey] then
-          badConfigLogOnce[posLogKey] = true
+        local posLogKey = U.getVehicleConfigTrackingKey(vehicleInfo) .. "|savedPos"
+        if not S.badConfigLogOnce[posLogKey] then
+          S.badConfigLogOnce[posLogKey] = true
           log("W", "Career", string.format("Clearing malformed saved vehicle position for %s during %s: %s",
-            tostring(getVehicleConfigId(vehicleInfo) or getVehicleConfigTrackingKey(vehicleInfo)),
+            tostring(U.getVehicleConfigId(vehicleInfo) or U.getVehicleConfigTrackingKey(vehicleInfo)),
             tostring(context), tostring(posOrErr)))
         end
         vehicleInfo.pos = nil
@@ -1206,26 +1211,26 @@ local function sanitizeSavedVehicleEntries(savedVehicles, context)
 end
 
 -- Delta tracking functions
-local function buildSnapshot()
+function U.buildSnapshot()
   local snap = {}
-  for _, veh in ipairs(vehiclesInShop) do
-    if not isCarMeetShopVehicle(veh) then
+  for _, veh in ipairs(S.vehiclesInShop) do
+    if not U.isCarMeetShopVehicle(veh) then
       snap[veh.shopId] = veh
     end
   end
   return snap
 end
 
-local function commitDelta(newSnap, justExpiredShopIds)
+function U.commitDelta(newSnap, justExpiredShopIds)
   justExpiredShopIds = justExpiredShopIds or {}
   local added, removed, sold, updated = {}, {}, {}, {}
   for shopId, veh in pairs(newSnap) do
-    if not lastSnapshotByShopId[shopId] then
-      table.insert(added, sanitizeVehicleForUi(veh))
+    if not S.lastSnapshotByShopId[shopId] then
+      table.insert(added, U.sanitizeVehicleForUi(veh))
     end
   end
   for shopId, veh in pairs(newSnap) do
-    local prev = lastSnapshotByShopId[shopId]
+    local prev = S.lastSnapshotByShopId[shopId]
     if prev and veh then
       local wasMarkedSold = prev.markedSold == true
       local isMarkedSold = veh.markedSold == true
@@ -1233,87 +1238,85 @@ local function commitDelta(newSnap, justExpiredShopIds)
       local currSold = (veh.soldViewCounter or 0)
 
       if justExpiredShopIds[shopId] or (isMarkedSold and not wasMarkedSold) or (currSold > prevSold) then
-        local soldVeh = sanitizeVehicleForUi(veh)
+        local soldVeh = U.sanitizeVehicleForUi(veh)
         soldVeh.__sold = true
         table.insert(updated, soldVeh)
       end
     end
   end
-  for shopId, _ in pairs(lastSnapshotByShopId) do
+  for shopId, _ in pairs(S.lastSnapshotByShopId) do
     if not newSnap[shopId] then
-      if pendingSoldShopIds[shopId] then
-        local prevVeh = lastSnapshotByShopId[shopId]
+      if S.pendingSoldShopIds[shopId] then
+        local prevVeh = S.lastSnapshotByShopId[shopId]
         if prevVeh then
-          local soldVeh = sanitizeVehicleForUi(prevVeh)
+          local soldVeh = U.sanitizeVehicleForUi(prevVeh)
           soldVeh.shopId = shopId
           soldVeh.__sold = true
           table.insert(sold, soldVeh)
         else
           table.insert(sold, shopId)
         end
-        pendingSoldShopIds[shopId] = nil
+        S.pendingSoldShopIds[shopId] = nil
       else
         table.insert(removed, shopId)
       end
     end
   end
-  lastSnapshotByShopId = newSnap
-  deltaSeq = deltaSeq + 1
-  lastDelta = {
-    seq = deltaSeq,
+  S.lastSnapshotByShopId = newSnap
+  S.deltaSeq = S.deltaSeq + 1
+  S.lastDelta = {
+    seq = S.deltaSeq,
     added = added,
     removed = removed,
     sold = sold,
     updated = updated,
-    organizations = collectOrganizationsForUi(freeroam_facilities.getFacilities(getCurrentLevelIdentifier())),
-    dealershipPurchaseReputationGain = dealershipPurchaseReputationGain
+    organizations = U.collectOrganizationsForUi(freeroam_facilities.getFacilities(getCurrentLevelIdentifier())),
+    dealershipPurchaseReputationGain = C.dealershipPurchaseReputationGain
   }
 end
 
 -- UI state management
 -- Phone buy and computer shop both restock through this. Count so closing one
 -- does not stop refresh while the other is still open.
-local function setShoppingUiOpen(isOpen)
+function U.setShoppingUiOpen(isOpen)
   if isOpen then
-    shoppingUiOpenCount = shoppingUiOpenCount + 1
+    S.shoppingUiOpenCount = S.shoppingUiOpenCount + 1
   else
-    shoppingUiOpenCount = math.max(0, shoppingUiOpenCount - 1)
+    S.shoppingUiOpenCount = math.max(0, S.shoppingUiOpenCount - 1)
   end
-  uiOpen = shoppingUiOpenCount > 0
-  refreshAccumulator = 0
+  S.uiOpen = S.shoppingUiOpenCount > 0
+  S.refreshAccumulator = 0
   if isOpen then
     M.updateVehicleList(false)
-    nextShopUpdateTime = 0
+    S.nextShopUpdateTime = 0
   end
 end
 
-local function onUiChangedState(toState)
-  currentUiState = toState
+function U.onUiChangedState(toState)
+  S.currentUiState = toState
 end
 
-local processPendingRacingTeamFleetPurchases
-
-local function onUpdate(dt)
-  processPendingRacingTeamFleetPurchases()
-  refreshAccumulator = refreshAccumulator + dt
-  if refreshAccumulator < 5 then
+function U.onUpdate(dt)
+  U.processPendingRacingTeamFleetPurchases()
+  S.refreshAccumulator = S.refreshAccumulator + dt
+  if S.refreshAccumulator < 5 then
     return
   end
-  refreshAccumulator = 0
+  S.refreshAccumulator = 0
 
   -- Watchlist expiration check
-  if not tableIsEmpty(vehicleWatchlist) and (not currentUiState or currentUiState == "play") then
+  if not tableIsEmpty(S.vehicleWatchlist) and (not S.currentUiState or S.currentUiState == "play") then
     local currentTime = os.time()
     local inspectedVehicleInfo = career_modules_inspectVehicle.getSpawnedVehicleInfo()
-    for shopId, status in pairs(vehicleWatchlist) do
+    for shopId, status in pairs(S.vehicleWatchlist) do
       if status == "unsold" and (not inspectedVehicleInfo or inspectedVehicleInfo.shopId ~= shopId) then
-        local vehicleInfo = getVehicleInfoByShopId(shopId)
+        local vehicleInfo = U.getVehicleInfoByShopId(shopId)
         if vehicleInfo then
-          normalizeVehicleShopTiming(vehicleInfo, currentTime)
+          U.normalizeVehicleShopTiming(vehicleInfo, currentTime)
           local offerTime = currentTime - vehicleInfo.generationTime
           if offerTime > vehicleInfo.offerTTL then
-            vehicleInfo.soldFor = generateSoldVehicleValue(shopId)
-            vehicleWatchlist[shopId] = "sold"
+            vehicleInfo.soldFor = U.generateSoldVehicleValue(shopId)
+            S.vehicleWatchlist[shopId] = "sold"
             guihooks.trigger("toastrMsg", {type="info", title="A vehicle you were interested in has been sold.", msg = vehicleInfo.Name .. " for $" .. string.format("%.2f", vehicleInfo.soldFor)})
             break
           end
@@ -1323,11 +1326,11 @@ local function onUpdate(dt)
   end
 
   -- UI refresh logic
-  if not uiOpen then
+  if not S.uiOpen then
     return
   end
   local now = os.time()
-  if (nextShopUpdateTime == 0) or (now >= nextShopUpdateTime) then
+  if (S.nextShopUpdateTime == 0) or (now >= S.nextShopUpdateTime) then
     M.updateVehicleList(false)
   end
 
@@ -1335,7 +1338,7 @@ local function onUpdate(dt)
 end
 
 -- Data access functions
-local function rtFleetCap(bid)
+function U.rtFleetCap(bid)
   local obj = career_modules_business_businessManager
     and career_modules_business_businessManager.getBusinessObject("racingTeam")
   if obj and obj.getMaxActiveJobs then
@@ -1344,7 +1347,7 @@ local function rtFleetCap(bid)
   return 3
 end
 
-local function getRacingTeamGarageZones(businessId)
+function U.getRacingTeamGarageZones(businessId)
   local inv = career_modules_business_businessInventory
   if not inv or not inv.getBusinessGarage then return nil end
   local garage = inv.getBusinessGarage("racingTeam", businessId)
@@ -1353,13 +1356,13 @@ local function getRacingTeamGarageZones(businessId)
   return sites and sites.zones or nil
 end
 
-local function isVehicleInRacingTeamGarageZone(businessId, vehId)
+function U.isVehicleInRacingTeamGarageZone(businessId, vehId)
   if not businessId or not vehId then return false end
   local vehObj = be:getObjectByID(vehId)
   if not vehObj then return false end
   local pos = vehObj:getPosition()
   if not pos then return false end
-  local zones = getRacingTeamGarageZones(businessId)
+  local zones = U.getRacingTeamGarageZones(businessId)
   if not zones or not zones.sorted then return false end
   for _, zone in ipairs(zones.sorted or {}) do
     if zone and zone.containsPoint2D and zone:containsPoint2D(pos) then
@@ -1369,7 +1372,7 @@ local function isVehicleInRacingTeamGarageZone(businessId, vehId)
   return false
 end
 
-local function getRacingTeamDeliveryDelaySeconds(businessId, vehicleInfo)
+function U.getRacingTeamDeliveryDelaySeconds(businessId, vehicleInfo)
   if not vehicleInfo or not vehicleInfo.pos then
     return 1
   end
@@ -1385,10 +1388,10 @@ local function getRacingTeamDeliveryDelaySeconds(businessId, vehicleInfo)
   if not garagePos then
     return 1
   end
-  return getDeliveryDelay(vehicleInfo.pos:distance(garagePos))
+  return U.getDeliveryDelay(vehicleInfo.pos:distance(garagePos))
 end
 
-local function storeRacingTeamFleetVehicleFromPending(businessId, pending)
+function U.storeRacingTeamFleetVehicleFromPending(businessId, pending)
   local inv = career_modules_business_businessInventory
   if not inv or not inv.storeVehicle then
     return false
@@ -1412,22 +1415,22 @@ local function storeRacingTeamFleetVehicleFromPending(businessId, pending)
   return true, vehicleId
 end
 
-local function addPendingRacingTeamFleetPurchase(businessId, entry)
+function U.addPendingRacingTeamFleetPurchase(businessId, entry)
   local bid = tostring(businessId)
-  rtPendingFleetPurchases[bid] = rtPendingFleetPurchases[bid] or {}
+  S.rtPendingFleetPurchases[bid] = S.rtPendingFleetPurchases[bid] or {}
   entry = entry or {}
   entry.purchasedEpoch = tonumber(entry.purchasedEpoch) or os.time()
-  table.insert(rtPendingFleetPurchases[bid], entry)
+  table.insert(S.rtPendingFleetPurchases[bid], entry)
 end
 
-processPendingRacingTeamFleetPurchases = function()
-  if rtPendingFleetProcessing or not next(rtPendingFleetPurchases) then
+U.processPendingRacingTeamFleetPurchases = function()
+  if S.rtPendingFleetProcessing or not next(S.rtPendingFleetPurchases) then
     return
   end
-  rtPendingFleetProcessing = true
+  S.rtPendingFleetProcessing = true
   local ok, err = pcall(function()
   local now = os.time()
-  for bid, entries in pairs(rtPendingFleetPurchases) do
+  for bid, entries in pairs(S.rtPendingFleetPurchases) do
     if type(entries) == "table" then
       local keep = {}
       for _, pending in ipairs(entries) do
@@ -1436,7 +1439,7 @@ processPendingRacingTeamFleetPurchases = function()
         if pending.kind == "timer" then
           local dueEpoch = tonumber(pending.dueEpoch) or 0
           if dueEpoch > 0 and now >= dueEpoch then
-            local stored, fleetVehicleId = storeRacingTeamFleetVehicleFromPending(bid, pending)
+            local stored, fleetVehicleId = U.storeRacingTeamFleetVehicleFromPending(bid, pending)
             handled = stored == true
             if handled and fleetVehicleId then
               local inv = career_modules_business_businessInventory
@@ -1446,7 +1449,7 @@ processPendingRacingTeamFleetPurchases = function()
             end
             if not handled then
               local overdue = now - dueEpoch
-              if overdue >= rtPendingTimerFailureGraceSec then
+              if overdue >= C.rtPendingTimerFailureGraceSec then
                 -- Prevent perma-"finalizing delivery" cards for invalid/failed timer entries.
                 handled = true
                 log("W", "Career", string.format(
@@ -1458,8 +1461,8 @@ processPendingRacingTeamFleetPurchases = function()
           end
         elseif pending.kind == "drive" then
           local spawnedVehId = tonumber(pending.spawnedVehId)
-          if spawnedVehId and isVehicleInRacingTeamGarageZone(bid, spawnedVehId) then
-            local stored, fleetVehicleId = storeRacingTeamFleetVehicleFromPending(bid, pending)
+          if spawnedVehId and U.isVehicleInRacingTeamGarageZone(bid, spawnedVehId) then
+            local stored, fleetVehicleId = U.storeRacingTeamFleetVehicleFromPending(bid, pending)
             if stored then
               handled = true
               local inv = career_modules_business_businessInventory
@@ -1472,7 +1475,7 @@ processPendingRacingTeamFleetPurchases = function()
             end
           else
             local age = now - purchasedEpoch
-            if age >= rtPendingDriveStaleSec then
+            if age >= C.rtPendingDriveStaleSec then
               -- Stale drive-in pending entries can survive across sessions after world-vehicle loss.
               handled = true
               log("W", "Career", string.format(
@@ -1487,33 +1490,33 @@ processPendingRacingTeamFleetPurchases = function()
         end
       end
       if #keep > 0 then
-        rtPendingFleetPurchases[bid] = keep
+        S.rtPendingFleetPurchases[bid] = keep
       else
-        rtPendingFleetPurchases[bid] = nil
+        S.rtPendingFleetPurchases[bid] = nil
       end
     end
   end
   end)
-  rtPendingFleetProcessing = false
+  S.rtPendingFleetProcessing = false
   if not ok then
     log("E", "Career", "processPendingRacingTeamFleetPurchases failed: " .. tostring(err))
   end
 end
 
-local function clearPendingRacingTeamFleetPurchases(businessId)
+function U.clearPendingRacingTeamFleetPurchases(businessId)
   if businessId == nil then return end
   local bid = tostring(tonumber(businessId) or businessId)
-  rtPendingFleetPurchases[bid] = nil
+  S.rtPendingFleetPurchases[bid] = nil
 end
 
-local function getPendingRacingTeamFleetPurchases(businessId)
+function U.getPendingRacingTeamFleetPurchases(businessId)
   -- Ensure UI never sees stale pending entries after delivery.
-  processPendingRacingTeamFleetPurchases()
+  U.processPendingRacingTeamFleetPurchases()
   if businessId == nil then
     return {}
   end
   local bid = tostring(tonumber(businessId) or businessId)
-  local list = rtPendingFleetPurchases[bid]
+  local list = S.rtPendingFleetPurchases[bid]
   if type(list) ~= "table" then
     return {}
   end
@@ -1538,56 +1541,56 @@ local function getPendingRacingTeamFleetPurchases(businessId)
   return out
 end
 
-local function getShoppingData()
+function U.getShoppingData()
   local data = {}
 
-  local unsoldVehicles, soldVehiclesResult = convertKeysToStrings(vehiclesInShop)
+  local unsoldVehicles, soldVehiclesResult = U.convertKeysToStrings(S.vehiclesInShop)
   for i = #unsoldVehicles, 1, -1 do
-    if isCarMeetShopVehicle(unsoldVehicles[i]) then
+    if U.isCarMeetShopVehicle(unsoldVehicles[i]) then
       table.remove(unsoldVehicles, i)
     end
   end
   for i = #soldVehiclesResult, 1, -1 do
-    if isCarMeetShopVehicle(soldVehiclesResult[i]) then
+    if U.isCarMeetShopVehicle(soldVehiclesResult[i]) then
       table.remove(soldVehiclesResult, i)
     end
   end
   for _, vehicleInfo in ipairs(unsoldVehicles) do
-    applyPurchaseAdjustedMarketValue(vehicleInfo)
+    U.applyPurchaseAdjustedMarketValue(vehicleInfo)
   end
   for _, vehicleInfo in ipairs(soldVehiclesResult) do
-    applyPurchaseAdjustedMarketValue(vehicleInfo)
+    U.applyPurchaseAdjustedMarketValue(vehicleInfo)
   end
   data.vehiclesInShop = unsoldVehicles
   data.soldVehicles = soldVehiclesResult
-  data.uiDealershipsData = getUiDealershipsData(unsoldVehicles)
-  data.currentSeller = currentSeller
-  if currentSeller then
-    local dealership = freeroam_facilities.getDealership(currentSeller)
+  data.uiDealershipsData = U.getUiDealershipsData(unsoldVehicles)
+  data.currentSeller = S.currentSeller
+  if S.currentSeller then
+    local dealership = freeroam_facilities.getDealership(S.currentSeller)
     if dealership then
       data.currentSellerNiceName = dealership.name
     end
   end
-  data.selectedSellerId = selectedSellerId
-  data.screenTag = shoppingScreenTag
-  data.buyingAvailable = buyingAvailable
-  data.marketplaceAvailable = marketplaceAvailable
+  data.selectedSellerId = S.selectedSellerId
+  data.screenTag = S.shoppingScreenTag
+  data.buyingAvailable = S.buyingAvailable
+  data.marketplaceAvailable = S.marketplaceAvailable
   data.playerAttributes = career_modules_playerAttributes.getAllAttributes()
-  if rtBizId and career_modules_bank and career_modules_bank.getBusinessAccount then
-    local acct = career_modules_bank.getBusinessAccount("racingTeam", rtBizId)
+  if S.rtBizId and career_modules_bank and career_modules_bank.getBusinessAccount then
+    local acct = career_modules_bank.getBusinessAccount("racingTeam", S.rtBizId)
     local bal = acct and (tonumber(acct.balance) or tonumber(acct.balanceMoney))
     if bal == nil and type(acct) == "table" then
       bal = tonumber(acct.money)
     end
     bal = tonumber(bal) or 0
-    data.racingTeamBusinessId = rtBizId
+    data.racingTeamBusinessId = S.rtBizId
     data.racingTeamBusinessMoney = bal
     local inv = career_modules_business_businessInventory
     local n = 0
     if inv and inv.getBusinessVehicles then
-      n = #(inv.getBusinessVehicles(rtBizId) or {})
+      n = #(inv.getBusinessVehicles(S.rtBizId) or {})
     end
-    local cap = rtFleetCap(rtBizId)
+    local cap = U.rtFleetCap(S.rtBizId)
     data.inventoryHasFreeSlot = n < cap
     data.numberOfFreeSlots = math.max(0, cap - n)
   else
@@ -1599,7 +1602,7 @@ local function getShoppingData()
 
   -- Racing-team shop: do not expose personal wallet in playerAttributes (UI uses racingTeamBusinessMoney).
   -- Taxi / personal fees still use playerPersonalMoneyForTaxi when present.
-  if rtBizId then
+  if S.rtBizId then
     data.playerPersonalMoneyForTaxi = career_modules_playerAttributes.getAttributeValue("money")
     if data.playerAttributes then
       data.playerAttributes = deepcopy(data.playerAttributes)
@@ -1613,7 +1616,7 @@ local function getShoppingData()
   end
 
   data.cheatsMode = career_modules_cheats and career_modules_cheats.isCheatsMode() or false
-  data.dealershipPurchaseReputationGain = dealershipPurchaseReputationGain
+  data.dealershipPurchaseReputationGain = C.dealershipPurchaseReputationGain
 
   data.tutorialPurchase = (not career_career.hasBoughtStarterVehicle()) or nil
   data.hasboughtStarterVehicle = career_career.hasBoughtStarterVehicle()
@@ -1630,12 +1633,12 @@ local function getShoppingData()
   local facilities = freeroam_facilities.getFacilities(getCurrentLevelIdentifier())
   data.dealerships = {}
   data.dealershipDiscovery = {discovered = 0, total = 0}
-  data.organizations = collectOrganizationsForUi(facilities)
+  data.organizations = U.collectOrganizationsForUi(facilities)
   if facilities and facilities.dealerships then
     for _, d in ipairs(facilities.dealerships) do
-      local policeLocked = isPoliceDealershipLocked(d.id)
-      local discovered = isDealerDiscovered(d)
-      local accessInfo = getSellerAccessInfo(d)
+      local policeLocked = U.isPoliceDealershipLocked(d.id)
+      local discovered = U.isDealerDiscovered(d)
+      local accessInfo = U.getSellerAccessInfo(d)
       if d.discoverable ~= false and not accessInfo.isOnline then
         data.dealershipDiscovery.total = data.dealershipDiscovery.total + 1
         if discovered then
@@ -1655,14 +1658,14 @@ local function getShoppingData()
         deliveryDiscount = accessInfo.deliveryDiscount,
         associatedOrganization = d.associatedOrganization,
         disabled = policeLocked,
-        disabledReason = policeLocked and getPoliceDealershipLockLabel() or nil
+        disabledReason = policeLocked and U.getPoliceDealershipLockLabel() or nil
       })
     end
   end
 
   if facilities and facilities.privateSellers then
     for _, d in ipairs(facilities.privateSellers) do
-      local policeLocked = isPoliceDealershipLocked(d.id)
+      local policeLocked = U.isPoliceDealershipLocked(d.id)
       table.insert(data.dealerships, {
         id = d.id,
         name = d.name,
@@ -1671,7 +1674,7 @@ local function getShoppingData()
         hiddenFromDealerList = d.hiddenFromDealerList or policeLocked,
         associatedOrganization = d.associatedOrganization,
         disabled = policeLocked,
-        disabledReason = policeLocked and getPoliceDealershipLockLabel() or nil
+        disabledReason = policeLocked and U.getPoliceDealershipLockLabel() or nil
       })
     end
   end
@@ -1695,11 +1698,11 @@ local function getShoppingData()
   -- having already sent a sanitized vehicleShopDelta.
   local sanitizedUnsold = {}
   for _, vehicleInfo in ipairs(data.vehiclesInShop) do
-    table.insert(sanitizedUnsold, sanitizeVehicleForUi(vehicleInfo))
+    table.insert(sanitizedUnsold, U.sanitizeVehicleForUi(vehicleInfo))
   end
   local sanitizedSold = {}
   for _, vehicleInfo in ipairs(data.soldVehicles) do
-    table.insert(sanitizedSold, sanitizeVehicleForUi(vehicleInfo))
+    table.insert(sanitizedSold, U.sanitizeVehicleForUi(vehicleInfo))
   end
   data.vehiclesInShop = sanitizedUnsold
   data.soldVehicles = sanitizedSold
@@ -1707,12 +1710,12 @@ local function getShoppingData()
   return data
 end
 
-local function sendShoppingDataToUI()
-  guihooks.trigger("vehicleShoppingData", getShoppingData())
+function U.sendShoppingDataToUI()
+  guihooks.trigger("vehicleShoppingData", U.getShoppingData())
 end
 
 -- Price calculation functions
-local function getRandomizedPrice(price, range)
+function U.getRandomizedPrice(price, range)
   local boundedRange = career_modules_valueCalculator.getVehicleListingPriceRange and
     career_modules_valueCalculator.getVehicleListingPriceRange(range) or
     {tailLow = 0.70, normalLow = 0.88, normalHigh = 1.12, tailHigh = 1.30}
@@ -1752,7 +1755,7 @@ local function getRandomizedPrice(price, range)
 end
 
 -- Vehicle filtering and processing functions
-local function normalizePopulations(configs, scalingFactor)
+function U.normalizePopulations(configs, scalingFactor)
   if not configs or tableIsEmpty(configs) then
     return
   end
@@ -1772,14 +1775,14 @@ local function normalizePopulations(configs, scalingFactor)
   end
 end
 
-local function doesVehiclePassFiltersList(vehicleInfo, filters)
+function U.doesVehiclePassFiltersList(vehicleInfo, filters)
   if type(vehicleInfo) ~= "table" or type(filters) ~= "table" then
     return false
   end
 
   for filterName, parameters in pairs(filters) do
     if filterName == "Years" then
-      local vehicleYears = safeYearsRange(vehicleInfo)
+      local vehicleYears = U.safeYearsRange(vehicleInfo)
       if not vehicleYears then
         return false
       end
@@ -1793,7 +1796,7 @@ local function doesVehiclePassFiltersList(vehicleInfo, filters)
       end
     elseif filterName ~= "Mileage" then
       if type(parameters) == "table" and (parameters.min ~= nil or parameters.max ~= nil) then
-        local value = safeNumericAttribute(vehicleInfo, filterName)
+        local value = U.safeNumericAttribute(vehicleInfo, filterName)
         if not value or type(value) ~= "number" then
           return false
         end
@@ -1831,14 +1834,14 @@ local function doesVehiclePassFiltersList(vehicleInfo, filters)
   return true
 end
 
-local function doesVehiclePassFilter(vehicleInfo, filter)
+function U.doesVehiclePassFilter(vehicleInfo, filter)
   if type(filter) ~= "table" then
     return false
   end
-  if filter.whiteList and not doesVehiclePassFiltersList(vehicleInfo, filter.whiteList) then
+  if filter.whiteList and not U.doesVehiclePassFiltersList(vehicleInfo, filter.whiteList) then
     return false
   end
-  if filter.blackList and doesVehiclePassFiltersList(vehicleInfo, filter.blackList) then
+  if filter.blackList and U.doesVehiclePassFiltersList(vehicleInfo, filter.blackList) then
     return false
   end
   return true
@@ -1849,7 +1852,7 @@ end
 -- while preserving the combined probability and the matching filters used to
 -- generate attributes such as model year.
 function M.addVehicleToDealerCache(cache, cacheIndexByConfig, vehicleInfo)
-  local configKey = getVehicleConfigTrackingKey(vehicleInfo)
+  local configKey = U.getVehicleConfigTrackingKey(vehicleInfo)
   local probability = math.max(0, tonumber(vehicleInfo.subFilterProbability) or 1)
   local matchingFilter = {
     filter = vehicleInfo.precomputedFilter,
@@ -1910,18 +1913,18 @@ function M.choosePrecomputedFilter(vehicleInfo)
 end
 
 -- Cache management functions
-local function cacheDealers()
+function U.cacheDealers()
   local startTime = os.clock()
-  vehicleCache.cacheValid = false
-  vehicleCache.dealershipCache = {}
+  S.vehicleCache.cacheValid = false
+  S.vehicleCache.dealershipCache = {}
   local totalPartsCalculated = 0
 
   local rawEligibleVehicles = util_configListGenerator.getEligibleVehicles() or {}
-  local regularEligibleVehicles, eligibleSummary = sanitizeVehicleInfoList(rawEligibleVehicles, "cacheDealers",
+  local regularEligibleVehicles, eligibleSummary = U.sanitizeVehicleInfoList(rawEligibleVehicles, "cacheDealers",
     "cacheDropped")
-  logVehicleSanitizationSummary("cacheDealers eligible vehicles", eligibleSummary)
-  normalizePopulations(regularEligibleVehicles, 0.4)
-  vehicleCache.regularVehicles = regularEligibleVehicles
+  U.logVehicleSanitizationSummary("cacheDealers eligible vehicles", eligibleSummary)
+  U.normalizePopulations(regularEligibleVehicles, 0.4)
+  S.vehicleCache.regularVehicles = regularEligibleVehicles
   local richsTopTrimLookup = M.buildRichsTopTrimLookup(regularEligibleVehicles)
 
   local facilities = freeroam_facilities.getFacilities(getCurrentLevelIdentifier())
@@ -1933,7 +1936,7 @@ local function cacheDealers()
       local filter = dealership.filter or {}
       if dealership.associatedOrganization then
         local org = freeroam_organizations.getOrganization(dealership.associatedOrganization)
-        local level = getOrgLevelData(org)
+        local level = U.getOrgLevelData(org)
         if level and level.filter then
           filter = deepcopy(filter)
           tableMergeRecursive(filter, level.filter)
@@ -1943,7 +1946,7 @@ local function cacheDealers()
       local subFilters = dealership.subFilters or {}
       if dealership.associatedOrganization then
         local org = freeroam_organizations.getOrganization(dealership.associatedOrganization)
-        local level = getOrgLevelData(org)
+        local level = U.getOrgLevelData(org)
         if level and level.subFilters then
           subFilters = level.subFilters
         end
@@ -1978,16 +1981,16 @@ local function cacheDealers()
         for _, filter in ipairs(filters) do
           local subProb = filter._probability or filter.probability or 1
           for _, vehicleInfo in ipairs(regularEligibleVehicles) do
-            if not isQuarantined(vehicleInfo) then
-              local cachedVehicle, err = safeVehicleOp("cacheDealers", vehicleInfo, function()
-                if not doesVehiclePassFilter(vehicleInfo, filter) then
+            if not U.isQuarantined(vehicleInfo) then
+              local cachedVehicle, err = U.safeVehicleOp("cacheDealers", vehicleInfo, function()
+                if not U.doesVehiclePassFilter(vehicleInfo, filter) then
                   return false
                 end
 
                 local cacheEntry = deepcopy(vehicleInfo)
                 cacheEntry.precomputedFilter = filter
                 cacheEntry.subFilterProbability = subProb
-                normalizeVehicleCatalogValue(cacheEntry, "cacheDealers")
+                U.normalizeVehicleCatalogValue(cacheEntry, "cacheDealers")
                 if dealershipId == "richsmotorcompany" then
                   local qualifies, reason, topTrimData =
                     M.isRichsPrestigeVehicle(cacheEntry, richsTopTrimLookup)
@@ -2000,7 +2003,7 @@ local function cacheDealers()
 
               if err then
                 droppedForDealership = droppedForDealership + 1
-                incrementValidationStat("cacheDropped")
+                U.incrementValidationStat("cacheDropped")
               elseif cachedVehicle then
                 if M.addVehicleToDealerCache(filteredRegular, filteredRegularByConfig, cachedVehicle) then
                   totalPartsCalculated = totalPartsCalculated + 1
@@ -2010,14 +2013,14 @@ local function cacheDealers()
           end
         end
 
-        vehicleCache.dealershipCache[dealershipId] = vehicleCache.dealershipCache[dealershipId] or {}
+        S.vehicleCache.dealershipCache[dealershipId] = S.vehicleCache.dealershipCache[dealershipId] or {}
         if tableIsEmpty(filteredRegular) then
           log("W", "Career", string.format("Dealership not configured: %s (kept=0 dropped=%d)", dealershipId,
             droppedForDealership))
-          vehicleCache.dealershipCache[dealershipId].notConfigured = true
+          S.vehicleCache.dealershipCache[dealershipId].notConfigured = true
         end
-        vehicleCache.dealershipCache[dealershipId].regularVehicles = filteredRegular
-        vehicleCache.dealershipCache[dealershipId].filters = filters
+        S.vehicleCache.dealershipCache[dealershipId].regularVehicles = filteredRegular
+        S.vehicleCache.dealershipCache[dealershipId].filters = filters
 
         log("I", "Career", string.format("cacheDealers dealership %s: kept=%d dropped=%d",
           tostring(dealershipId), #filteredRegular, droppedForDealership))
@@ -2049,17 +2052,17 @@ local function cacheDealers()
 
   for _, privateFilter in ipairs(privateFilters) do
     for _, sourceVehicle in ipairs(regularEligibleVehicles) do
-      local cachedVehicle, err = safeVehicleOp("cacheDealers:private", sourceVehicle, function()
-        if not doesVehiclePassFilter(sourceVehicle, privateFilter) then return false end
+      local cachedVehicle, err = U.safeVehicleOp("cacheDealers:private", sourceVehicle, function()
+        if not U.doesVehiclePassFilter(sourceVehicle, privateFilter) then return false end
         local vehicleInfo = deepcopy(sourceVehicle)
-        normalizeVehicleCatalogValue(vehicleInfo, "cacheDealers:private")
+        U.normalizeVehicleCatalogValue(vehicleInfo, "cacheDealers:private")
         vehicleInfo.precomputedFilter = privateFilter
         vehicleInfo.subFilterProbability = privateFilter._probability or 1
         return vehicleInfo
       end)
       if err then
         privateDropped = privateDropped + 1
-        incrementValidationStat("cacheDropped")
+        U.incrementValidationStat("cacheDropped")
       elseif cachedVehicle then
         M.addVehicleToDealerCache(privateVehicles, privateVehiclesByConfig, cachedVehicle)
       end
@@ -2067,29 +2070,29 @@ local function cacheDealers()
   end
   totalPartsCalculated = totalPartsCalculated + #privateVehicles
 
-  vehicleCache.dealershipCache["private"] = {
+  S.vehicleCache.dealershipCache["private"] = {
     regularVehicles = privateVehicles,
     filters = privateFilters
   }
   if tableIsEmpty(privateVehicles) then
-    vehicleCache.dealershipCache["private"].notConfigured = true
+    S.vehicleCache.dealershipCache["private"].notConfigured = true
   end
 
-  vehicleCache.lastCacheTime = os.time()
-  vehicleCache.cacheValid = true
+  S.vehicleCache.lastCacheTime = os.time()
+  S.vehicleCache.cacheValid = true
   log("I", "Career", string.format(
     "cacheDealers complete: raw=%d kept=%d malformed=%d quarantined=%d privateKept=%d privateDropped=%d partsCalculated=%d time=%.3fs",
     eligibleSummary.raw, eligibleSummary.kept, eligibleSummary.malformed, eligibleSummary.quarantined,
     #privateVehicles, privateDropped, totalPartsCalculated, os.clock() - startTime))
 end
 
-local function getRandomVehicleFromCache(sellerId, count, excludedConfigKeys)
-  if not vehicleCache.cacheValid then
+function U.getRandomVehicleFromCache(sellerId, count, excludedConfigKeys)
+  if not S.vehicleCache.cacheValid then
     log("W", "Career", "Vehicle cache invalid, rebuilding...")
-    cacheDealers()
+    U.cacheDealers()
   end
 
-  local dealershipData = vehicleCache.dealershipCache[sellerId]
+  local dealershipData = S.vehicleCache.dealershipCache[sellerId]
   if not dealershipData then
     log("W", "Career", "No cached data for seller: " .. tostring(sellerId))
     return {}
@@ -2098,10 +2101,10 @@ local function getRandomVehicleFromCache(sellerId, count, excludedConfigKeys)
   local sourceVehicles
   sourceVehicles = dealershipData.regularVehicles or {}
 
-  local sanitizedSourceVehicles, sourceSummary = sanitizeVehicleInfoList(sourceVehicles, "getRandomVehicleFromCache",
+  local sanitizedSourceVehicles, sourceSummary = U.sanitizeVehicleInfoList(sourceVehicles, "getRandomVehicleFromCache",
     "cacheDropped")
   if sourceSummary.malformed > 0 or sourceSummary.quarantined > 0 then
-    logVehicleSanitizationSummary("getRandomVehicleFromCache " .. tostring(sellerId), sourceSummary)
+    U.logVehicleSanitizationSummary("getRandomVehicleFromCache " .. tostring(sellerId), sourceSummary)
   end
 
   if tableIsEmpty(sanitizedSourceVehicles) then
@@ -2113,7 +2116,7 @@ local function getRandomVehicleFromCache(sellerId, count, excludedConfigKeys)
   local availableVehicles = {}
   local seenConfigKeys = {}
   for _, vehicle in ipairs(sanitizedSourceVehicles) do
-    local configKey = getVehicleConfigTrackingKey(vehicle)
+    local configKey = U.getVehicleConfigTrackingKey(vehicle)
     if not seenConfigKeys[configKey] and not (excludedConfigKeys and excludedConfigKeys[configKey]) then
       seenConfigKeys[configKey] = true
       table.insert(availableVehicles, deepcopy(vehicle))
@@ -2127,15 +2130,15 @@ local function getRandomVehicleFromCache(sellerId, count, excludedConfigKeys)
   while #selectedVehicles < targetCount do
     for j = #availableVehicles, 1, -1 do
       local vehicle = availableVehicles[j]
-      if isQuarantined(vehicle) then
+      if U.isQuarantined(vehicle) then
         table.remove(availableVehicles, j)
-        incrementValidationStat("cacheDropped")
+        U.incrementValidationStat("cacheDropped")
       else
-        local ok, reason = isValidVehicleInfoShape(vehicle)
+        local ok, reason = U.isValidVehicleInfoShape(vehicle)
         if not ok then
-          quarantineVehicleConfig(vehicle, reason, "getRandomVehicleFromCache")
+          U.quarantineVehicleConfig(vehicle, reason, "getRandomVehicleFromCache")
           table.remove(availableVehicles, j)
-          incrementValidationStat("cacheDropped")
+          U.incrementValidationStat("cacheDropped")
         end
       end
     end
@@ -2257,17 +2260,17 @@ local function getRandomVehicleFromCache(sellerId, count, excludedConfigKeys)
   return selectedVehicles
 end
 
-local function invalidateVehicleCache()
-  vehicleCache.cacheValid = false
-  vehicleCache.regularVehicles = {}
-  vehicleCache.dealershipCache = {}
+function U.invalidateVehicleCache()
+  S.vehicleCache.cacheValid = false
+  S.vehicleCache.regularVehicles = {}
+  S.vehicleCache.dealershipCache = {}
   career_modules_valueCalculator.clearVehiclePcPartsCatalogSumCache()
-  resetVehicleValidationState()
+  U.resetVehicleValidationState()
 end
 
-local function rebuildDealershipCache(dealershipId)
-  if not vehicleCache.cacheValid then
-    cacheDealers()
+function U.rebuildDealershipCache(dealershipId)
+  if not S.vehicleCache.cacheValid then
+    U.cacheDealers()
     return
   end
 
@@ -2288,25 +2291,25 @@ local function rebuildDealershipCache(dealershipId)
     return
   end
 
-  local regularEligibleVehicles, eligibleSummary = sanitizeVehicleInfoList(vehicleCache.regularVehicles or {},
+  local regularEligibleVehicles, eligibleSummary = U.sanitizeVehicleInfoList(S.vehicleCache.regularVehicles or {},
     "rebuildDealershipCache:cachedEligible", "cacheDropped")
   if eligibleSummary.raw > 0 then
-    vehicleCache.regularVehicles = regularEligibleVehicles
+    S.vehicleCache.regularVehicles = regularEligibleVehicles
   end
   if not regularEligibleVehicles or tableIsEmpty(regularEligibleVehicles) then
     local rawEligibleVehicles = util_configListGenerator.getEligibleVehicles() or {}
-    regularEligibleVehicles, eligibleSummary = sanitizeVehicleInfoList(rawEligibleVehicles, "rebuildDealershipCache",
+    regularEligibleVehicles, eligibleSummary = U.sanitizeVehicleInfoList(rawEligibleVehicles, "rebuildDealershipCache",
       "cacheDropped")
-    logVehicleSanitizationSummary("rebuildDealershipCache eligible vehicles", eligibleSummary)
-    normalizePopulations(regularEligibleVehicles, 0.4)
-    vehicleCache.regularVehicles = regularEligibleVehicles
+    U.logVehicleSanitizationSummary("rebuildDealershipCache eligible vehicles", eligibleSummary)
+    U.normalizePopulations(regularEligibleVehicles, 0.4)
+    S.vehicleCache.regularVehicles = regularEligibleVehicles
   end
   local richsTopTrimLookup = M.buildRichsTopTrimLookup(regularEligibleVehicles)
 
   local filter = dealership.filter or {}
   if dealership.associatedOrganization then
     local org = freeroam_organizations.getOrganization(dealership.associatedOrganization)
-    local level = getOrgLevelData(org)
+    local level = U.getOrgLevelData(org)
     if level and level.filter then
       filter = deepcopy(filter)
       tableMergeRecursive(filter, level.filter)
@@ -2316,7 +2319,7 @@ local function rebuildDealershipCache(dealershipId)
   local subFilters = dealership.subFilters or {}
   if dealership.associatedOrganization then
     local org = freeroam_organizations.getOrganization(dealership.associatedOrganization)
-    local level = getOrgLevelData(org)
+    local level = U.getOrgLevelData(org)
     if level and level.subFilters then
       subFilters = level.subFilters
     end
@@ -2348,16 +2351,16 @@ local function rebuildDealershipCache(dealershipId)
   for _, f in ipairs(filters) do
     local subProb = f._probability or f.probability or 1
     for _, vehicleInfo in ipairs(regularEligibleVehicles) do
-      if not isQuarantined(vehicleInfo) then
-        local cachedVehicle, err = safeVehicleOp("rebuildDealershipCache", vehicleInfo, function()
-          if not doesVehiclePassFilter(vehicleInfo, f) then
+      if not U.isQuarantined(vehicleInfo) then
+        local cachedVehicle, err = U.safeVehicleOp("rebuildDealershipCache", vehicleInfo, function()
+          if not U.doesVehiclePassFilter(vehicleInfo, f) then
             return false
           end
 
           local cacheEntry = deepcopy(vehicleInfo)
           cacheEntry.precomputedFilter = f
           cacheEntry.subFilterProbability = subProb
-          normalizeVehicleCatalogValue(cacheEntry, "rebuildDealershipCache")
+          U.normalizeVehicleCatalogValue(cacheEntry, "rebuildDealershipCache")
           if dealershipId == "richsmotorcompany" then
             local qualifies, reason, topTrimData =
               M.isRichsPrestigeVehicle(cacheEntry, richsTopTrimLookup)
@@ -2370,7 +2373,7 @@ local function rebuildDealershipCache(dealershipId)
 
         if err then
           droppedForDealership = droppedForDealership + 1
-          incrementValidationStat("cacheDropped")
+          U.incrementValidationStat("cacheDropped")
         elseif cachedVehicle then
           M.addVehicleToDealerCache(filteredRegular, filteredRegularByConfig, cachedVehicle)
         end
@@ -2384,7 +2387,7 @@ local function rebuildDealershipCache(dealershipId)
       droppedForDealership))
   end
 
-  vehicleCache.dealershipCache[dealershipId] = {
+  S.vehicleCache.dealershipCache[dealershipId] = {
     regularVehicles = filteredRegular,
     filters = filters,
     notConfigured = notConfigured
@@ -2397,7 +2400,7 @@ local function rebuildDealershipCache(dealershipId)
 end
 
 -- Vehicle list management functions
-local function updateVehicleList(fromScratch)
+function U.updateVehicleList(fromScratch)
   fromScratch = not not fromScratch
   local sellers = {}
   local currentMap = getCurrentLevelIdentifier()
@@ -2410,48 +2413,48 @@ local function updateVehicleList(fromScratch)
   }
 
   if fromScratch then
-    invalidateVehicleCache()
-    vehiclesInShop = {}
-    sellersInfos = {}
-    vehicleWatchlist = {}
+    U.invalidateVehicleCache()
+    S.vehiclesInShop = {}
+    S.sellersInfos = {}
+    S.vehicleWatchlist = {}
     changed = true
   end
 
   -- If there are already vehicles in the shop, don't generate starter vehicles
-  if onlyStarterVehicles and not tableIsEmpty(vehiclesInShop) then
-    nextShopUpdateTime = os.time() + 3600
+  if onlyStarterVehicles and not tableIsEmpty(S.vehiclesInShop) then
+    S.nextShopUpdateTime = os.time() + 3600
     return
   end
 
   local filteredVehiclesInShop = {}
-  for i, vehicleInfo in ipairs(vehiclesInShop) do
+  for i, vehicleInfo in ipairs(S.vehiclesInShop) do
     if vehicleInfo.mapId == currentMap then
       table.insert(filteredVehiclesInShop, vehicleInfo)
     else
       changed = true
     end
   end
-  vehiclesInShop = filteredVehiclesInShop
+  S.vehiclesInShop = filteredVehiclesInShop
 
   local filteredSellersInfos = {}
-  for sellerId, sellerInfo in pairs(sellersInfos) do
+  for sellerId, sellerInfo in pairs(S.sellersInfos) do
     if sellerInfo.mapId == currentMap then
       filteredSellersInfos[sellerId] = sellerInfo
     else
       changed = true
     end
   end
-  sellersInfos = filteredSellersInfos
+  S.sellersInfos = filteredSellersInfos
 
-  if not vehicleCache.cacheValid then
-    cacheDealers()
+  if not S.vehicleCache.cacheValid then
+    U.cacheDealers()
     changed = true
   end
 
   local facilitiesData = freeroam_facilities.getFacilities(getCurrentLevelIdentifier())
   if not facilitiesData then
     log("W", "Career", "No facilities data available for current map; skipping vehicle list update")
-    nextShopUpdateTime = os.time() + 60
+    S.nextShopUpdateTime = os.time() + 60
     return
   end
   local facilities = facilitiesData
@@ -2465,7 +2468,7 @@ local function updateVehicleList(fromScratch)
             name = dealership.name,
             description = dealership.description,
             preview = dealership.preview,
-            hiddenFromDealerList = dealership.hiddenFromDealerList or isPoliceDealershipLocked(dealership.id),
+            hiddenFromDealerList = dealership.hiddenFromDealerList or U.isPoliceDealershipLocked(dealership.id),
             associatedOrganization = dealership.associatedOrganization,
             vehicleGenerationMultiplier = dealership.vehicleGenerationMultiplier,
             stock = dealership.stock,
@@ -2483,7 +2486,7 @@ local function updateVehicleList(fromScratch)
           name = dealership.name,
           description = dealership.description,
           preview = dealership.preview,
-          hiddenFromDealerList = dealership.hiddenFromDealerList or isPoliceDealershipLocked(dealership.id),
+          hiddenFromDealerList = dealership.hiddenFromDealerList or U.isPoliceDealershipLocked(dealership.id),
           associatedOrganization = dealership.associatedOrganization,
           vehicleGenerationMultiplier = dealership.vehicleGenerationMultiplier,
           stock = dealership.stock,
@@ -2541,16 +2544,16 @@ local function updateVehicleList(fromScratch)
   local justExpiredShopIds = {}
 
   -- Remove vehicles that have expired using v38 watchlist logic
-  for i = #vehiclesInShop, 1, -1 do
-    local vehicleInfo = vehiclesInShop[i]
-    normalizeVehicleShopTiming(vehicleInfo, currentTime)
+  for i = #S.vehiclesInShop, 1, -1 do
+    local vehicleInfo = S.vehiclesInShop[i]
+    U.normalizeVehicleShopTiming(vehicleInfo, currentTime)
     local offerTime = currentTime - vehicleInfo.generationTime
     if offerTime > vehicleInfo.offerTTL then
-      if vehicleWatchlist[vehicleInfo.shopId] then
-        if type(vehicleWatchlist[vehicleInfo.shopId]) ~= "number" then
-          vehicleWatchlist[vehicleInfo.shopId] = currentTime + timeToRemoveSoldVehicle
+      if S.vehicleWatchlist[vehicleInfo.shopId] then
+        if type(S.vehicleWatchlist[vehicleInfo.shopId]) ~= "number" then
+          S.vehicleWatchlist[vehicleInfo.shopId] = currentTime + C.timeToRemoveSoldVehicle
           if not vehicleInfo.soldFor then
-            vehicleInfo.soldFor = generateSoldVehicleValue(vehicleInfo.shopId)
+            vehicleInfo.soldFor = U.generateSoldVehicleValue(vehicleInfo.shopId)
           end
         end
         vehicleInfo.soldViewCounter = vehicleInfo.soldViewCounter or 0
@@ -2558,13 +2561,13 @@ local function updateVehicleList(fromScratch)
         vehicleInfo.markedSold = true
         justExpiredShopIds[vehicleInfo.shopId] = true
         changed = true
-        if currentTime > vehicleWatchlist[vehicleInfo.shopId] then
-          vehicleWatchlist[vehicleInfo.shopId] = nil
-          table.remove(vehiclesInShop, i)
+        if currentTime > S.vehicleWatchlist[vehicleInfo.shopId] then
+          S.vehicleWatchlist[vehicleInfo.shopId] = nil
+          table.remove(S.vehiclesInShop, i)
           changed = true
         end
       else
-        table.remove(vehiclesInShop, i)
+        table.remove(S.vehiclesInShop, i)
         changed = true
       end
     end
@@ -2573,17 +2576,17 @@ local function updateVehicleList(fromScratch)
   local unsoldCountBySellerId = {}
   local stockedConfigsBySeller = {}
   local duplicateStockRemoved = 0
-  for i = #vehiclesInShop, 1, -1 do
-    local vehicleInfo = vehiclesInShop[i]
+  for i = #S.vehiclesInShop, 1, -1 do
+    local vehicleInfo = S.vehiclesInShop[i]
     if vehicleInfo.sellerId and not vehicleInfo.soldViewCounter then
-      if isCarMeetShopVehicle(vehicleInfo) then
+      if U.isCarMeetShopVehicle(vehicleInfo) then
         unsoldCountBySellerId[vehicleInfo.sellerId] = (unsoldCountBySellerId[vehicleInfo.sellerId] or 0) + 1
       else
         local sellerConfigKeys = stockedConfigsBySeller[vehicleInfo.sellerId] or {}
         stockedConfigsBySeller[vehicleInfo.sellerId] = sellerConfigKeys
-        local configKey = getVehicleConfigTrackingKey(vehicleInfo)
+        local configKey = U.getVehicleConfigTrackingKey(vehicleInfo)
         if sellerConfigKeys[configKey] then
-          table.remove(vehiclesInShop, i)
+          table.remove(S.vehiclesInShop, i)
           duplicateStockRemoved = duplicateStockRemoved + 1
           changed = true
         else
@@ -2603,13 +2606,13 @@ local function updateVehicleList(fromScratch)
     local sellerAttemptedStart = updateSummary.attempted
     local sellerInsertedStart = updateSummary.inserted
     local sellerDroppedStart = updateSummary.dropped
-    local dealershipData = vehicleCache.dealershipCache[seller.id]
+    local dealershipData = S.vehicleCache.dealershipCache[seller.id]
     if dealershipData and dealershipData.notConfigured then
       goto continue
     end
 
-    if not sellersInfos[seller.id] then
-      sellersInfos[seller.id] = {
+    if not S.sellersInfos[seller.id] then
+      S.sellersInfos[seller.id] = {
         lastGenerationTime = 0,
         mapId = currentMap,
         lastOrgLevel = nil
@@ -2617,22 +2620,22 @@ local function updateVehicleList(fromScratch)
       changed = true
     end
     if fromScratch then
-      sellersInfos[seller.id].lastGenerationTime = 0
+      S.sellersInfos[seller.id].lastGenerationTime = 0
     end
 
     local randomVehicleInfos = {}
     local currentVehicleCount = unsoldCountBySellerId[seller.id] or 0
     local stockedConfigKeys = {}
-    for _, stockedVehicle in ipairs(vehiclesInShop) do
+    for _, stockedVehicle in ipairs(S.vehiclesInShop) do
       if stockedVehicle.sellerId == seller.id and not stockedVehicle.soldViewCounter then
-        stockedConfigKeys[getVehicleConfigTrackingKey(stockedVehicle)] = true
+        stockedConfigKeys[U.getVehicleConfigTrackingKey(stockedVehicle)] = true
       end
     end
 
     local function drawUnstockedSellerVehicles(drawCount)
-      local selected = getRandomVehicleFromCache(seller.id, drawCount, stockedConfigKeys)
+      local selected = U.getRandomVehicleFromCache(seller.id, drawCount, stockedConfigKeys)
       for _, selectedVehicle in ipairs(selected) do
-        stockedConfigKeys[getVehicleConfigTrackingKey(selectedVehicle)] = true
+        stockedConfigKeys[U.getVehicleConfigTrackingKey(selectedVehicle)] = true
       end
       return selected
     end
@@ -2649,13 +2652,13 @@ local function updateVehicleList(fromScratch)
       end
     end
 
-    local storedLevel = sellersInfos[seller.id].lastOrgLevel
+    local storedLevel = S.sellersInfos[seller.id].lastOrgLevel
     local levelChanged = (currentOrgLevel ~= nil) and (storedLevel ~= nil) and (storedLevel ~= currentOrgLevel)
 
     local maxStock = tonumber(seller.stock) or 10
     if seller.associatedOrganization then
       local org = freeroam_organizations.getOrganization(seller.associatedOrganization)
-      local level = getOrgLevelData(org)
+      local level = U.getOrgLevelData(org)
       local levelStock = level and tonumber(level.stock) or nil
       if levelStock then
         maxStock = levelStock
@@ -2665,7 +2668,7 @@ local function updateVehicleList(fromScratch)
     local availableSlots = math.max(0, maxStock - currentVehicleCount)
 
     local numberOfVehiclesToGenerate = 0
-    local adjustedTimeBetweenOffers = vehicleOfferTimeToLive / maxStock
+    local adjustedTimeBetweenOffers = C.vehicleOfferTimeToLive / maxStock
     local generationMultiplier = tonumber(seller.vehicleGenerationMultiplier)
     if generationMultiplier and generationMultiplier > 0 then
       adjustedTimeBetweenOffers = adjustedTimeBetweenOffers / generationMultiplier
@@ -2674,25 +2677,25 @@ local function updateVehicleList(fromScratch)
     if onlyStarterVehicles then
       -- Generate the starter vehicles
       local eligibleVehiclesStarterRaw = util_configListGenerator.getEligibleVehicles(onlyStarterVehicles) or {}
-      local eligibleVehiclesStarter, starterSummary = sanitizeVehicleInfoList(eligibleVehiclesStarterRaw,
+      local eligibleVehiclesStarter, starterSummary = U.sanitizeVehicleInfoList(eligibleVehiclesStarterRaw,
         "updateVehicleList:starterEligible", "generationDropped")
       if starterSummary.malformed > 0 or starterSummary.quarantined > 0 then
-        logVehicleSanitizationSummary("updateVehicleList starter eligible vehicles", starterSummary)
+        U.logVehicleSanitizationSummary("updateVehicleList starter eligible vehicles", starterSummary)
       end
       randomVehicleInfos = util_configListGenerator.getRandomVehicleInfos(seller, 3, eligibleVehiclesStarter,
         "adjustedPopulation") or {}
     else
       -- vehicleGenerationMultiplier lowers the time between offers
-      local maxVehicles = math.floor(vehicleOfferTimeToLive / adjustedTimeBetweenOffers)
-      numberOfVehiclesToGenerate = math.min(math.floor((currentTime - sellersInfos[seller.id].lastGenerationTime) / adjustedTimeBetweenOffers), maxVehicles)
+      local maxVehicles = math.floor(C.vehicleOfferTimeToLive / adjustedTimeBetweenOffers)
+      numberOfVehiclesToGenerate = math.min(math.floor((currentTime - S.sellersInfos[seller.id].lastGenerationTime) / adjustedTimeBetweenOffers), maxVehicles)
 
       if levelChanged then
-        rebuildDealershipCache(seller.id)
+        U.rebuildDealershipCache(seller.id)
         numberOfVehiclesToGenerate = availableSlots
-        sellersInfos[seller.id].lastGenerationTime = 0
+        S.sellersInfos[seller.id].lastGenerationTime = 0
         log("I", "Career", string.format("Level changed for %s (from %d to %d), restocking to %d vehicles", 
           seller.id, storedLevel, currentOrgLevel, availableSlots))
-      elseif fromScratch or sellersInfos[seller.id].lastGenerationTime == 0 then
+      elseif fromScratch or S.sellersInfos[seller.id].lastGenerationTime == 0 then
         numberOfVehiclesToGenerate = availableSlots
         log("D", "Career",
           string.format("Initial stock fill for %s: generating %d vehicles", seller.id, numberOfVehiclesToGenerate))
@@ -2738,19 +2741,19 @@ local function updateVehicleList(fromScratch)
 
         local randomVehicleInfo = randomVehicleInfos[i]
         updateSummary.attempted = updateSummary.attempted + 1
-        if isQuarantined(randomVehicleInfo) then
+        if U.isQuarantined(randomVehicleInfo) then
           updateSummary.dropped = updateSummary.dropped + 1
-          incrementValidationStat("generationDropped")
+          U.incrementValidationStat("generationDropped")
         else
-          local shapeOk, shapeReason = isValidVehicleInfoShape(randomVehicleInfo)
+          local shapeOk, shapeReason = U.isValidVehicleInfoShape(randomVehicleInfo)
           if not shapeOk then
-            quarantineVehicleConfig(randomVehicleInfo, shapeReason, "updateVehicleList")
+            U.quarantineVehicleConfig(randomVehicleInfo, shapeReason, "updateVehicleList")
             updateSummary.dropped = updateSummary.dropped + 1
-            incrementValidationStat("generationDropped")
+            U.incrementValidationStat("generationDropped")
           else
-            local generatedVehicle, err = safeVehicleOp("updateVehicleList", randomVehicleInfo, function()
+            local generatedVehicle, err = U.safeVehicleOp("updateVehicleList", randomVehicleInfo, function()
               randomVehicleInfo.generationTime = currentTime - (successfulGenerationsForSeller * adjustedTimeBetweenOffers)
-              randomVehicleInfo.offerTTL = onlyStarterVehicles and math.huge or vehicleOfferTimeToLive
+              randomVehicleInfo.offerTTL = onlyStarterVehicles and math.huge or C.vehicleOfferTimeToLive
 
               randomVehicleInfo.sellerId = seller.id
               randomVehicleInfo.sellerName = seller.name
@@ -2759,7 +2762,7 @@ local function updateVehicleList(fromScratch)
               local filter = M.choosePrecomputedFilter(randomVehicleInfo)
               if not filter and seller.associatedOrganization then
                 local org = freeroam_organizations.getOrganization(seller.associatedOrganization)
-                local level = getOrgLevelData(org)
+                local level = U.getOrgLevelData(org)
                 if level and level.filter then
                   filter = level.filter
                 end
@@ -2767,7 +2770,7 @@ local function updateVehicleList(fromScratch)
               filter = filter or (seller.filter or {})
               randomVehicleInfo.filter = filter
 
-              local years = safeYearsRange(randomVehicleInfo)
+              local years = U.safeYearsRange(randomVehicleInfo)
 
               if not onlyStarterVehicles then
                 if years then
@@ -2786,18 +2789,18 @@ local function updateVehicleList(fromScratch)
                   end
                   randomVehicleInfo.year = math.random(minYear, maxYear)
                 else
-                  randomVehicleInfo.year = tonumber(randomVehicleInfo.year) or missingYearsFallbackModelYear
+                  randomVehicleInfo.year = tonumber(randomVehicleInfo.year) or C.missingYearsFallbackModelYear
                 end
 
                 randomVehicleInfo.Mileage, randomVehicleInfo.wearMileage, randomVehicleInfo.mileageClass =
-                  generateAgeDrivenMileage(seller, randomVehicleInfo, randomVehicleInfo.year)
+                  U.generateAgeDrivenMileage(seller, randomVehicleInfo, randomVehicleInfo.year)
               else
                 randomVehicleInfo.year = starterVehicleYears[randomVehicleInfo.model_key]
                 if not randomVehicleInfo.year then
                   if years then
                     randomVehicleInfo.year = math.random(years.min, years.max)
                   else
-                    randomVehicleInfo.year = tonumber(randomVehicleInfo.year) or missingYearsFallbackModelYear
+                    randomVehicleInfo.year = tonumber(randomVehicleInfo.year) or C.missingYearsFallbackModelYear
                   end
                 end
                 randomVehicleInfo.Mileage = starterVehicleMileages[randomVehicleInfo.model_key] or 100000000
@@ -2842,7 +2845,7 @@ local function updateVehicleList(fromScratch)
               local range = seller.range
               if seller.associatedOrganization then
                 local org = freeroam_organizations.getOrganization(seller.associatedOrganization)
-                local level = getOrgLevelData(org)
+                local level = U.getOrgLevelData(org)
                 if level and level.range then
                   range = level.range
                 end
@@ -2861,7 +2864,7 @@ local function updateVehicleList(fromScratch)
                 end
               end
 
-              local randomizedValue, priceBand, dealerPriceMultiplier = getRandomizedPrice(baseValue, range)
+              local randomizedValue, priceBand, dealerPriceMultiplier = U.getRandomizedPrice(baseValue, range)
               randomVehicleInfo.marketValue = randomizedValue
               randomVehicleInfo.marketValueBase = randomVehicleInfo.marketValue
               randomVehicleInfo.priceRoundingType = seller.priceRoundingType
@@ -2884,14 +2887,14 @@ local function updateVehicleList(fromScratch)
               randomVehicleInfo.combinedSellerMultiplier = combinedMultiplier
 
               local vehicleBuyMult = career_modules_valueCalculator.getVehicleBuyMarketMultiplier()
-              randomVehicleInfo.Value = getRoundedPrice(randomVehicleInfo.valueBase * vehicleBuyMult,
+              randomVehicleInfo.Value = U.getRoundedPrice(randomVehicleInfo.valueBase * vehicleBuyMult,
                 seller.priceRoundingType)
 
               randomVehicleInfo.negotiationPossible = not onlyStarterVehicles
-              randomVehicleInfo.shopId = generateShopId()
+              randomVehicleInfo.shopId = U.generateShopId()
               randomVehicleInfo.associatedOrganization = seller.associatedOrganization
-              local dealership = freeroam_facilities.getDealership(seller.id)
-              local accessInfo = getSellerAccessInfo(dealership)
+              local dealership = U.getDealershipForSellerId(seller.id)
+              local accessInfo = U.getSellerAccessInfo(dealership or seller)
               randomVehicleInfo.remotePurchaseAllowed = accessInfo.remotePurchaseAllowed
               randomVehicleInfo.garageDeliveryAllowed = accessInfo.garageDeliveryAllowed
               randomVehicleInfo.deliveryDiscount = accessInfo.deliveryDiscount
@@ -2899,7 +2902,7 @@ local function updateVehicleList(fromScratch)
               local fees = seller.fees or 0
               if seller.associatedOrganization then
                 local org = freeroam_organizations.getOrganization(seller.associatedOrganization)
-                local level = getOrgLevelData(org)
+                local level = U.getOrgLevelData(org)
                 if level and level.fees ~= nil then
                   fees = level.fees
                 end
@@ -2907,22 +2910,22 @@ local function updateVehicleList(fromScratch)
               fees = tonumber(fees)
               randomVehicleInfo.fees = fees or 0
 
-              local tax = seller.salesTax or salesTax
+              local tax = seller.salesTax or C.salesTax
               if seller.associatedOrganization then
                 local org = freeroam_organizations.getOrganization(seller.associatedOrganization)
-                local level = getOrgLevelData(org)
+                local level = U.getOrgLevelData(org)
                 if level and level.tax ~= nil then
                   tax = level.tax
                 end
               end
               tax = tonumber(tax)
-              randomVehicleInfo.tax = tax or salesTax
+              randomVehicleInfo.tax = tax or C.salesTax
 
               if seller.id == "private" then
                 local parkingData = gameplay_parking.getParkingSpots()
                 local parkingSpots = parkingData and parkingData.byName or {}
                 local sizeMatches, allowedSpots = {}, {}
-                local boxX, boxY, boxZ = safeBoundingBoxDimensions(randomVehicleInfo)
+                local boxX, boxY, boxZ = U.safeBoundingBoxDimensions(randomVehicleInfo)
                 for name, spot in pairs(parkingSpots) do
                   local tags = (spot.customFields and spot.customFields.tags) or {}
                   if not tags.notprivatesale then
@@ -2953,8 +2956,10 @@ local function updateVehicleList(fromScratch)
                       tostring(randomVehicleInfo.shopId)))
                 end
               else
-                local dealership = freeroam_facilities.getDealership(seller.id)
-                randomVehicleInfo.pos = freeroam_facilities.getAverageDoorPositionForFacility(dealership)
+                if dealership and not accessInfo.isOnline then
+                  randomVehicleInfo.pos =
+                    freeroam_facilities.getAverageDoorPositionForFacility(dealership) or nil
+                end
               end
 
               if career_modules_insurance_insurance and
@@ -2980,9 +2985,9 @@ local function updateVehicleList(fromScratch)
 
             if err or not generatedVehicle then
               updateSummary.dropped = updateSummary.dropped + 1
-              incrementValidationStat("generationDropped")
+              U.incrementValidationStat("generationDropped")
             else
-              table.insert(vehiclesInShop, generatedVehicle)
+              table.insert(S.vehiclesInShop, generatedVehicle)
               if generatedVehicle.sellerId and not generatedVehicle.soldViewCounter then
                 unsoldCountBySellerId[generatedVehicle.sellerId] = (unsoldCountBySellerId[generatedVehicle.sellerId] or 0) + 1
               end
@@ -3014,10 +3019,10 @@ local function updateVehicleList(fromScratch)
       arrayConcat(randomVehicleInfos, replacementVehicles)
     end
     if successfulGenerationsForSeller >= targetVehicleCount then
-      sellersInfos[seller.id].lastGenerationTime = currentTime
+      S.sellersInfos[seller.id].lastGenerationTime = currentTime
       changed = true
     elseif attemptedGenerationForSeller and targetVehicleCount == 0 then
-      sellersInfos[seller.id].lastGenerationTime = currentTime
+      S.sellersInfos[seller.id].lastGenerationTime = currentTime
       changed = true
     end
     if updateSummary.attempted > sellerAttemptedStart then
@@ -3029,7 +3034,7 @@ local function updateVehicleList(fromScratch)
     end
 
     if currentOrgLevel ~= nil then
-      sellersInfos[seller.id].lastOrgLevel = currentOrgLevel
+      S.sellersInfos[seller.id].lastOrgLevel = currentOrgLevel
     end
 
     sellerMeta[seller.id] = {
@@ -3041,7 +3046,7 @@ local function updateVehicleList(fromScratch)
   end
 
   local minNext = math.huge
-  for _, veh in ipairs(vehiclesInShop) do
+  for _, veh in ipairs(S.vehiclesInShop) do
     if veh.generationTime and veh.offerTTL then
       local expiryTime = veh.generationTime + veh.offerTTL
       if expiryTime > currentTime and expiryTime < minNext then
@@ -3056,8 +3061,8 @@ local function updateVehicleList(fromScratch)
     local currentCount = unsoldCountBySellerId[seller.id] or 0
     local availableSlotsAfter = math.max(0, maxStock - currentCount)
     if availableSlotsAfter > 0 then
-      local lastGen = (sellersInfos[seller.id] and sellersInfos[seller.id].lastGenerationTime) or 0
-      local interval = meta and meta.adjustedTimeBetweenOffers or (vehicleOfferTimeToLive / maxStock)
+      local lastGen = (S.sellersInfos[seller.id] and S.sellersInfos[seller.id].lastGenerationTime) or 0
+      local interval = meta and meta.adjustedTimeBetweenOffers or (C.vehicleOfferTimeToLive / maxStock)
       local nextGen = (lastGen > 0 and (lastGen + interval)) or currentTime
       if nextGen < minNext then
         minNext = nextGen
@@ -3067,26 +3072,23 @@ local function updateVehicleList(fromScratch)
   if minNext == math.huge then
     minNext = currentTime + 60
   end
-  nextShopUpdateTime = minNext
+  S.nextShopUpdateTime = minNext
 
   if not changed then
     return
   end
 
-  vehicleShopDirtyDate = os.date("!%Y-%m-%dT%H:%M:%SZ")
-  log("I", "Career", "Vehicles in shop: " .. tableSize(vehiclesInShop))
+  S.vehicleShopDirtyDate = os.date("!%Y-%m-%dT%H:%M:%SZ")
+  log("I", "Career", "Vehicles in shop: " .. tableSize(S.vehiclesInShop))
   log("I", "Career", string.format("updateVehicleList summary: attempted=%d inserted=%d dropped=%d",
     updateSummary.attempted, updateSummary.inserted, updateSummary.dropped))
 
-  local newSnap = buildSnapshot()
-  commitDelta(newSnap, justExpiredShopIds)
-  guihooks.trigger("vehicleShopDelta", lastDelta)
+  local newSnap = U.buildSnapshot()
+  U.commitDelta(newSnap, justExpiredShopIds)
+  guihooks.trigger("vehicleShopDelta", S.lastDelta)
 end
 
 -- Vehicle spawning and delivery functions
-local spawnFollowUpActions
-local canPurchaseCarMeetVehicle
-
 -- Private listings advertise a real parking spot (chosen in updateVehicleList) - that is the spot
 -- the taxi and the route marker point at, so a bought vehicle has to actually turn up there.
 function M.moveVehicleToListingSpot(vehObj, vehicleInfo)
@@ -3104,9 +3106,9 @@ end
 -- Not every seller has a facility: private sellers park in the world, so getDealership("private")
 -- returns nil and the old unguarded chain threw while spawning a just-purchased vehicle.
 -- Leave the vehicle where it spawned rather than taking the whole purchase down with it.
-local function moveVehicleToDealership(vehObj, dealershipId, useFreightPickup)
+function U.moveVehicleToDealership(vehObj, dealershipId, useFreightPickup)
   if not vehObj or not dealershipId then return false end
-  local dealership = freeroam_facilities.getDealership(dealershipId)
+  local dealership = U.getDealershipForSellerId(dealershipId)
   if not dealership then
     log("D", "Career", "No dealership facility for '" .. tostring(dealershipId) .. "'; leaving vehicle at spawn")
     return false
@@ -3123,7 +3125,7 @@ local function moveVehicleToDealership(vehObj, dealershipId, useFreightPickup)
   return true
 end
 
-local function moveVehicleToRewardTransform(vehObj, transform)
+function U.moveVehicleToRewardTransform(vehObj, transform)
   if not vehObj or type(transform) ~= "table" then return end
 
   local pos = transform.pos or transform.position
@@ -3151,7 +3153,7 @@ local function moveVehicleToRewardTransform(vehObj, transform)
   end
 end
 
-local function getConfigKeyFromPath(configPath)
+function U.getConfigKeyFromPath(configPath)
   if type(configPath) ~= "string" then return nil end
   local normalized = configPath:gsub("\\", "/")
   local key = normalized:match("/configurations/([^/]+)%.pc$")
@@ -3159,11 +3161,11 @@ local function getConfigKeyFromPath(configPath)
   return normalized:match("/([^/]+)%.pc$")
 end
 
-local function applyRandomPaintToSpawnOptions(options, modelKey, configPath)
+function U.applyRandomPaintToSpawnOptions(options, modelKey, configPath)
   if not options or not modelKey then return nil end
   if not core_vehiclePaints or not core_vehiclePaints.getRandomPaints then return nil end
 
-  local paintResult = core_vehiclePaints.getRandomPaints(modelKey, getConfigKeyFromPath(configPath))
+  local paintResult = core_vehiclePaints.getRandomPaints(modelKey, U.getConfigKeyFromPath(configPath))
   if type(paintResult) ~= "table" then return nil end
 
   local modelData = core_vehicles.getModel(modelKey)
@@ -3202,7 +3204,7 @@ local function applyRandomPaintToSpawnOptions(options, modelKey, configPath)
   return paintNames
 end
 
-local function applyRandomPaintToSpawnedVehicle(vehId, modelKey, paintNames)
+function U.applyRandomPaintToSpawnedVehicle(vehId, modelKey, paintNames)
   if not vehId or type(paintNames) ~= "table" or not paintNames[1] then return end
   if not core_vehicle_manager or not core_vehicle_manager.setVehiclePaintsNames then return end
 
@@ -3233,19 +3235,19 @@ local function applyRandomPaintToSpawnedVehicle(vehId, modelKey, paintNames)
 end
 
 -- spawnFinishedCallbackName: exported M function name (e.g. onVehicleSpawnFinished adds personal inventory).
-local function spawnShopVehicleInternal(vehicleInfo, dealershipToMoveTo, spawnFinishedCallbackName, rewardTransform, randomPaint, useFreightPickup)
+function U.spawnShopVehicleInternal(vehicleInfo, dealershipToMoveTo, spawnFinishedCallbackName, rewardTransform, randomPaint, useFreightPickup)
   local spawnOptions = {}
   spawnOptions.config = vehicleInfo.key
   spawnOptions.autoEnterVehicle = false
   local randomPaintNames
   if randomPaint then
-    randomPaintNames = applyRandomPaintToSpawnOptions(spawnOptions, vehicleInfo.model_key, vehicleInfo.key)
+    randomPaintNames = U.applyRandomPaintToSpawnOptions(spawnOptions, vehicleInfo.model_key, vehicleInfo.key)
   end
   local newVeh = core_vehicles.spawnNewVehicle(vehicleInfo.model_key, spawnOptions)
   if rewardTransform then
-    moveVehicleToRewardTransform(newVeh, rewardTransform)
+    U.moveVehicleToRewardTransform(newVeh, rewardTransform)
   elseif dealershipToMoveTo then
-    moveVehicleToDealership(newVeh, dealershipToMoveTo, useFreightPickup)
+    U.moveVehicleToDealership(newVeh, dealershipToMoveTo, useFreightPickup)
   else
     -- no dealership lot: put it on the listing's own parking spot so it is where the map said
     M.moveVehicleToListingSpot(newVeh, vehicleInfo)
@@ -3255,21 +3257,21 @@ local function spawnShopVehicleInternal(vehicleInfo, dealershipToMoveTo, spawnFi
   newVeh:queueLuaCommand(string.format(
     "partCondition.initConditions(nil, %d, nil, %f) obj:queueGameEngineLua('career_modules_vehicleShopping.%s(%d)')",
     vehicleInfo.wearMileage or vehicleInfo.Mileage,
-    getVisualValueFromMileage(vehicleInfo.wearMileage or vehicleInfo.Mileage),
+    U.getVisualValueFromMileage(vehicleInfo.wearMileage or vehicleInfo.Mileage),
     spawnFinishedCallbackName, newVeh:getID()))
   return newVeh, randomPaintNames
 end
 
-local function spawnVehicle(vehicleInfo, dealershipToMoveTo, useFreightPickup)
-  return spawnShopVehicleInternal(vehicleInfo, dealershipToMoveTo, "onVehicleSpawnFinished", nil, nil, useFreightPickup)
+function U.spawnVehicle(vehicleInfo, dealershipToMoveTo, useFreightPickup)
+  return U.spawnShopVehicleInternal(vehicleInfo, dealershipToMoveTo, "onVehicleSpawnFinished", nil, nil, useFreightPickup)
 end
 
 -- Racing team fleet drive-in: world vehicle only until business inventory takes ownership (no personal addVehicle).
-local function rtFleetSpawnVehicle(vehicleInfo, dealershipToMoveTo)
-  return spawnShopVehicleInternal(vehicleInfo, dealershipToMoveTo, "onRacingTeamFleetVehicleSpawnFinished")
+function U.rtFleetSpawnVehicle(vehicleInfo, dealershipToMoveTo)
+  return U.spawnShopVehicleInternal(vehicleInfo, dealershipToMoveTo, "onRacingTeamFleetVehicleSpawnFinished")
 end
 
-local function onRacingTeamFleetVehicleSpawnFinished(_vehId)
+function U.onRacingTeamFleetVehicleSpawnFinished(_vehId)
 end
 
 function M.completeFreightPickup(inventoryId)
@@ -3303,32 +3305,32 @@ function M.completeFreightPickup(inventoryId)
   return true
 end
 
-local function onVehicleSpawnFinished(vehId)
+function U.onVehicleSpawnFinished(vehId)
   local inventoryId = career_modules_inventory.addVehicle(vehId)
 
-  if spawnFollowUpActions then
-    if spawnFollowUpActions.delayAccess then
-      career_modules_inventory.delayVehicleAccess(inventoryId, spawnFollowUpActions.delayAccess, "bought")
+  if S.spawnFollowUpActions then
+    if S.spawnFollowUpActions.delayAccess then
+      career_modules_inventory.delayVehicleAccess(inventoryId, S.spawnFollowUpActions.delayAccess, "bought")
     end
-    if spawnFollowUpActions.licensePlateText then
-      career_modules_inventory.setLicensePlateText(inventoryId, spawnFollowUpActions.licensePlateText)
+    if S.spawnFollowUpActions.licensePlateText then
+      career_modules_inventory.setLicensePlateText(inventoryId, S.spawnFollowUpActions.licensePlateText)
     end
-    if spawnFollowUpActions.dealershipId and
-      (spawnFollowUpActions.dealershipId == "policeDealership" or spawnFollowUpActions.dealershipId == "poliziaAuto") then
+    if S.spawnFollowUpActions.dealershipId and
+      (S.spawnFollowUpActions.dealershipId == "policeDealership" or S.spawnFollowUpActions.dealershipId == "poliziaAuto") then
       career_modules_inventory.setVehicleRole(inventoryId, "police")
     end
-    if spawnFollowUpActions.policyId ~= nil then
-      local policyId = tonumber(spawnFollowUpActions.policyId) or 0
+    if S.spawnFollowUpActions.policyId ~= nil then
+      local policyId = tonumber(S.spawnFollowUpActions.policyId) or 0
       if career_modules_insurance and career_modules_insurance.changeVehPolicy then
         career_modules_insurance.changeVehPolicy(inventoryId, policyId)
       end
     end
-    if spawnFollowUpActions.freightPickup then
+    if S.spawnFollowUpActions.freightPickup then
       local inventoryVehicle = career_modules_inventory.getVehicles()[inventoryId]
       if inventoryVehicle then
-        inventoryVehicle.location = "freightPickup:" .. tostring(spawnFollowUpActions.dealershipId or "online")
+        inventoryVehicle.location = "freightPickup:" .. tostring(S.spawnFollowUpActions.dealershipId or "online")
         inventoryVehicle.niceLocation = "Freight Pickup"
-        inventoryVehicle.freightHomeGarageId = spawnFollowUpActions.targetGarageId
+        inventoryVehicle.freightHomeGarageId = S.spawnFollowUpActions.targetGarageId
       end
       local freightVehicle = getObjectByID(vehId)
       if freightVehicle then
@@ -3342,20 +3344,18 @@ local function onVehicleSpawnFinished(vehId)
       ui_message("Order ready at Freight Pickup. It is listed in Vehicle Inventory under Freight Pickup, and a route has been set.", 10,
         "Freight order ready", "info")
     else
-      career_modules_inventory.moveVehicleToGarage(inventoryId, spawnFollowUpActions.targetGarageId)
+      career_modules_inventory.moveVehicleToGarage(inventoryId, S.spawnFollowUpActions.targetGarageId)
     end
-    spawnFollowUpActions = nil
+    S.spawnFollowUpActions = nil
   end
 end
 
-local rewardVehicleGrantData
-
-local function onRewardVehicleSpawnFinished(vehId)
-  local data = rewardVehicleGrantData or {}
-  rewardVehicleGrantData = nil
+function U.onRewardVehicleSpawnFinished(vehId)
+  local data = S.rewardVehicleGrantData or {}
+  S.rewardVehicleGrantData = nil
 
   if data.randomPaintNames then
-    applyRandomPaintToSpawnedVehicle(vehId, data.vehicleInfo and data.vehicleInfo.model_key, data.randomPaintNames)
+    U.applyRandomPaintToSpawnedVehicle(vehId, data.vehicleInfo and data.vehicleInfo.model_key, data.randomPaintNames)
   end
 
   local addOptions = { owned = true }
@@ -3397,19 +3397,19 @@ local function onRewardVehicleSpawnFinished(vehId)
   end
 end
 
-local function grantRewardVehicle(vehicleInfo, source, options)
+function U.grantRewardVehicle(vehicleInfo, source, options)
   if not vehicleInfo or not vehicleInfo.model_key or not vehicleInfo.key then return false end
   options = options or {}
-  if not options.ignoreGarageLimit and not canPurchaseCarMeetVehicle(true) then return false end
-  if rewardVehicleGrantData then return false end
+  if not options.ignoreGarageLimit and not U.canPurchaseCarMeetVehicle(true) then return false end
+  if S.rewardVehicleGrantData then return false end
 
-  rewardVehicleGrantData = {
+  S.rewardVehicleGrantData = {
     vehicleInfo = deepcopy(vehicleInfo),
     source = source or "Reward",
     ignoreGarageLimit = options.ignoreGarageLimit == true
   }
-  local _, randomPaintNames = spawnShopVehicleInternal(vehicleInfo, nil, "onRewardVehicleSpawnFinished", options.spawnTransform, options.randomPaint == true)
-  rewardVehicleGrantData.randomPaintNames = randomPaintNames
+  local _, randomPaintNames = U.spawnShopVehicleInternal(vehicleInfo, nil, "onRewardVehicleSpawnFinished", options.spawnTransform, options.randomPaint == true)
+  S.rewardVehicleGrantData.randomPaintNames = randomPaintNames
   return true
 end
 
@@ -3419,7 +3419,7 @@ end
 function M.computePurchaseTaxAndFinalPrice(vehicleShopInfo, tradeInValue)
   tradeInValue = tonumber(tradeInValue) or 0
   local vehicleAndFees = (tonumber(vehicleShopInfo.Value) or 0) + (tonumber(vehicleShopInfo.fees) or 0)
-  local taxes = math.max((vehicleAndFees - tradeInValue) * (vehicleShopInfo.tax or salesTax), 0)
+  local taxes = math.max((vehicleAndFees - tradeInValue) * (vehicleShopInfo.tax or C.salesTax), 0)
   if vehicleShopInfo.sellerId == "discountedDealership" or vehicleShopInfo.sellerId == "joesJunkDealership" then
     taxes = 0
   end
@@ -3427,7 +3427,7 @@ function M.computePurchaseTaxAndFinalPrice(vehicleShopInfo, tradeInValue)
 end
 
 function M.tradeInFreesInventorySlot()
-  local info = purchaseData and purchaseData.tradeInVehicleInfo
+  local info = S.purchaseData and S.purchaseData.tradeInVehicleInfo
   return info ~= nil and info.id ~= nil and not info.takesNoInventorySpace
 end
 
@@ -3436,18 +3436,18 @@ function M.hasInventorySlotForPurchase()
 end
 
 function M.applyDeliveryCharge(quote)
-  local previousDelivery = tonumber(purchaseData.prices.delivery) or 0
+  local previousDelivery = tonumber(S.purchaseData.prices.delivery) or 0
   local deliveryPrice = tonumber(quote and quote.finalPrice) or 0
-  purchaseData.prices.finalPrice =
-    (tonumber(purchaseData.prices.finalPrice) or 0) - previousDelivery + deliveryPrice
-  purchaseData.prices.delivery = deliveryPrice
+  S.purchaseData.prices.finalPrice =
+    (tonumber(S.purchaseData.prices.finalPrice) or 0) - previousDelivery + deliveryPrice
+  S.purchaseData.prices.delivery = deliveryPrice
 end
 
 -- Validate before removing a trade-in so a failed purchase cannot eat the traded vehicle.
 function M.canCompletePersonalVehiclePurchase(options)
   options = options or {}
   local cheats = career_modules_cheats and career_modules_cheats.isCheatsMode and career_modules_cheats.isCheatsMode()
-  local prices = purchaseData.prices or {}
+  local prices = S.purchaseData.prices or {}
   local price = (tonumber(prices.finalPrice) or 0) - (tonumber(prices.delivery) or 0)
   if options.makeDelivery then
     local quote = M.getDeliveryQuote(options.targetGarageId)
@@ -3473,36 +3473,35 @@ function M.canCompletePersonalVehiclePurchase(options)
   return true
 end
 
-local function payForVehicle()
-  if rtBizId then
+function U.payForVehicle()
+  if S.rtBizId then
     return
   end
-  local label = string.format("Bought a vehicle: %s", purchaseData.vehicleInfo.niceName)
-  if purchaseData.tradeInVehicleInfo then
-    label = label .. string.format(" and traded in vehicle id %d: %s", purchaseData.tradeInVehicleInfo.id,
-      purchaseData.tradeInVehicleInfo.niceName)
+  local label = string.format("Bought a vehicle: %s", S.purchaseData.vehicleInfo.niceName)
+  if S.purchaseData.tradeInVehicleInfo then
+    label = label .. string.format(" and traded in vehicle id %d: %s", S.purchaseData.tradeInVehicleInfo.id,
+      S.purchaseData.tradeInVehicleInfo.niceName)
   end
   career_modules_playerAttributes.addAttributes({
-    money = -purchaseData.prices.finalPrice
+    money = -S.purchaseData.prices.finalPrice
   }, {
     tags = {"vehicleBought", "buying"},
     label = label
   })
   if career_modules_carmeets and career_modules_carmeets.addTransactionReputation then
-    local vehicleInfo = purchaseData.vehicleInfo or {}
-    local marketValue = vehicleInfo.marketValue or vehicleInfo.Value or purchaseData.prices.finalPrice
-    career_modules_carmeets.addTransactionReputation("buy", purchaseData.prices.finalPrice, marketValue)
+    local vehicleInfo = S.purchaseData.vehicleInfo or {}
+    local marketValue = vehicleInfo.marketValue or vehicleInfo.Value or S.purchaseData.prices.finalPrice
+    career_modules_carmeets.addTransactionReputation("buy", S.purchaseData.prices.finalPrice, marketValue)
   end
-  if purchaseData.vehicleInfo and purchaseData.vehicleInfo.source == "carMeet" and career_modules_carmeets and career_modules_carmeets.onCarMeetVehiclePurchased then
-    career_modules_carmeets.onCarMeetVehiclePurchased(purchaseData.shopId, purchaseData.keepCarMeetWorldVehicle == true)
+  if S.purchaseData.vehicleInfo and S.purchaseData.vehicleInfo.source == "carMeet" and career_modules_carmeets and career_modules_carmeets.onCarMeetVehiclePurchased then
+    career_modules_carmeets.onCarMeetVehiclePurchased(S.purchaseData.shopId, S.purchaseData.keepCarMeetWorldVehicle == true)
   end
   Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Buy_01')
-  vehicleWatchlist[purchaseData.shopId] = nil
+  S.vehicleWatchlist[S.purchaseData.shopId] = nil
 end
 
-local deleteAddedVehicle
-local function buyVehicleAndSendToGarage(options)
-  if rtBizId then
+function U.buyVehicleAndSendToGarage(options)
+  if S.rtBizId then
     return false
   end
   local targetGarageId = options and options.targetGarageId
@@ -3520,40 +3519,40 @@ local function buyVehicleAndSendToGarage(options)
   end
   M.applyDeliveryCharge(quote)
   local canAfford = career_modules_cheats and career_modules_cheats.isCheatsMode() or
-    career_modules_playerAttributes.getAttributeValue("money") >= purchaseData.prices.finalPrice
+    career_modules_playerAttributes.getAttributeValue("money") >= S.purchaseData.prices.finalPrice
   if not canAfford or not career_modules_inventory.hasFreeSlot() then
     return false
   end
-  payForVehicle()
-  spawnFollowUpActions = {
+  U.payForVehicle()
+  S.spawnFollowUpActions = {
     delayAccess = quote.etaSeconds,
     targetGarageId = targetGarageId,
     licensePlateText = options.licensePlateText,
     dealershipId = options.dealershipId,
     policyId = options.policyId
   }
-  spawnVehicle(purchaseData.vehicleInfo)
-  deleteAddedVehicle = true
+  U.spawnVehicle(S.purchaseData.vehicleInfo)
+  S.deleteAddedVehicle = true
   return true
 end
 
-local function buyVehicleAndSpawnInParkingSpot(options)
-  if rtBizId then
+function U.buyVehicleAndSpawnInParkingSpot(options)
+  if S.rtBizId then
     return false
   end
-  local canAfford = career_modules_cheats and career_modules_cheats.isCheatsMode() or career_modules_playerAttributes.getAttributeValue("money") >= purchaseData.prices.finalPrice
+  local canAfford = career_modules_cheats and career_modules_cheats.isCheatsMode() or career_modules_playerAttributes.getAttributeValue("money") >= S.purchaseData.prices.finalPrice
   if not canAfford or not career_modules_inventory.hasFreeSlot() then
     return false
   end
-  payForVehicle()
+  U.payForVehicle()
 
-  local dealershipId = options.dealershipId or (purchaseData.vehicleInfo and purchaseData.vehicleInfo.sellerId)
+  local dealershipId = options.dealershipId or (S.purchaseData.vehicleInfo and S.purchaseData.vehicleInfo.sellerId)
   local dealership = dealershipId and freeroam_facilities.getDealership(dealershipId) or nil
-  local freightPickup = dealership and getSellerAccessInfo(dealership).isOnline or false
+  local freightPickup = dealership and U.getSellerAccessInfo(dealership).isOnline or false
   local targetGarage =
     career_modules_inventory.getClosestOwnedGarageWithSpace() or career_modules_inventory.getClosestGarage()
 
-  spawnFollowUpActions = {
+  S.spawnFollowUpActions = {
     targetGarageId = targetGarage and targetGarage.id or nil,
     licensePlateText = options.licensePlateText,
     dealershipId = dealershipId,
@@ -3561,9 +3560,9 @@ local function buyVehicleAndSpawnInParkingSpot(options)
     policyId = options.policyId
   }
   -- "private" is a seller id, not a facility, so it must not be used as a dealership to move to
-  local sellerId = purchaseData.vehicleInfo.sellerId
+  local sellerId = S.purchaseData.vehicleInfo.sellerId
   local moveToDealership = (sellerId ~= "private" and sellerId ~= "carMeet") and dealershipId or nil
-  local newVehObj = spawnVehicle(purchaseData.vehicleInfo, moveToDealership, freightPickup)
+  local newVehObj = U.spawnVehicle(S.purchaseData.vehicleInfo, moveToDealership, freightPickup)
   if gameplay_walk.isWalking() then
     gameplay_walk.setRot(newVehObj:getPosition() - getPlayerVehicle(0):getPosition())
   end
@@ -3571,23 +3570,22 @@ local function buyVehicleAndSpawnInParkingSpot(options)
 end
 
 -- TODO At this point, the part conditions of the previous vehicle should have already been saved. for example when entering the garage
-local originComputerId
-local function openShop(seller, _originComputerId, screenTag)
-  if seller and isPoliceDealershipLocked(seller) then
-    ui_message(getPoliceDealershipLockLabel(), 8, "Police", "info")
+function U.openShop(seller, _originComputerId, screenTag)
+  if seller and U.isPoliceDealershipLocked(seller) then
+    ui_message(U.getPoliceDealershipLockLabel(), 8, "Police", "info")
     return
   end
 
-  if seller then discoverDealer(seller) end
-  currentSeller = seller
-  originComputerId = _originComputerId
+  if seller then U.discoverDealer(seller) end
+  S.currentSeller = seller
+  S.originComputerId = _originComputerId
 
   if not career_modules_inspectVehicle.getSpawnedVehicleInfo() then
-    updateVehicleList()
+    U.updateVehicleList()
   end
 
   local sellerInfos = {}
-  for id, vehicleInfo in ipairs(vehiclesInShop) do
+  for id, vehicleInfo in ipairs(S.vehiclesInShop) do
     if vehicleInfo.pos then
       if vehicleInfo.sellerId ~= "private" then
         local sellerInfo = sellerInfos[vehicleInfo.sellerId]
@@ -3614,45 +3612,48 @@ local function openShop(seller, _originComputerId, screenTag)
   end
 
   local computer
-  if currentSeller then
-    local dealership = freeroam_facilities.getFacility("dealership", currentSeller)
+  if S.currentSeller then
+    local dealership = freeroam_facilities.getFacility("dealership", S.currentSeller)
     local tetherPos
-    if dealership then
+    if dealership and not U.getSellerAccessInfo(dealership).isOnline then
       tetherPos = freeroam_facilities.getAverageDoorPositionForFacility(dealership)
-    else
-      for _, vehicleInfo in ipairs(vehiclesInShop) do
-        if vehicleInfo.sellerId == currentSeller and vehicleInfo.pos then
+    elseif not dealership then
+      for _, vehicleInfo in ipairs(S.vehiclesInShop) do
+        if vehicleInfo.sellerId == S.currentSeller and vehicleInfo.pos then
           tetherPos = vehicleInfo.pos
           break
         end
       end
     end
     if tetherPos then
-      tether = career_modules_tether.startSphereTether(tetherPos, tetherRange, M.endShopping)
+      S.tether = career_modules_tether.startSphereTether(tetherPos, C.tetherRange, M.endShopping)
     end
-  elseif originComputerId then
-    computer = freeroam_facilities.getFacility("computer", originComputerId)
-    tether = career_modules_tether.startDoorTether(computer.doors[1], nil, M.endShopping)
+  elseif S.originComputerId then
+    computer = freeroam_facilities.getFacility("computer", S.originComputerId)
+    S.tether = career_modules_tether.startDoorTether(computer.doors[1], nil, M.endShopping)
   end
 
-  shoppingScreenTag = screenTag
-  buyingAvailable = (not computer or computer.functions.vehicleShop) and true or false
-  marketplaceAvailable = (career_career.hasBoughtStarterVehicle() and not currentSeller) and true or false
-  selectedSellerId = currentSeller
+  S.shoppingScreenTag = screenTag
+  S.buyingAvailable = (not computer or computer.functions.vehicleShop) and true or false
+  S.marketplaceAvailable = (career_career.hasBoughtStarterVehicle() and not S.currentSeller) and true or false
+  S.selectedSellerId = S.currentSeller
 
-  if currentSeller then
+  if S.currentSeller then
     extensions.ui_router.navigate("career.computer.vehicleShopping.vehicles")
   else
     extensions.ui_router.navigate("career.computer.vehicleShopping")
   end
   extensions.hook("onVehicleShoppingMenuOpened", {
-    seller = currentSeller
+    seller = S.currentSeller
   })
 end
 
-local function navigateToDealership(dealershipId)
-  if isPoliceDealershipLocked(dealershipId) then
-    ui_message(getPoliceDealershipLockLabel(), 8, "Police", "info")
+function U.navigateToDealership(dealershipId)
+  if U.isPoliceDealershipLocked(dealershipId) then
+    ui_message(U.getPoliceDealershipLockLabel(), 8, "Police", "info")
+    return
+  end
+  if U.isOnlineSellerId(dealershipId) then
     return
   end
 
@@ -3664,12 +3665,15 @@ local function navigateToDealership(dealershipId)
   if not pos then
     return
   end
-  navigateToPos(pos)
+  U.navigateToPos(pos)
 end
 
-local function taxiToDealership(dealershipId)
-  if isPoliceDealershipLocked(dealershipId) then
-    ui_message(getPoliceDealershipLockLabel(), 8, "Police", "info")
+function U.taxiToDealership(dealershipId)
+  if U.isPoliceDealershipLocked(dealershipId) then
+    ui_message(U.getPoliceDealershipLockLabel(), 8, "Police", "info")
+    return
+  end
+  if U.isOnlineSellerId(dealershipId) then
     return
   end
 
@@ -3685,14 +3689,17 @@ local function taxiToDealership(dealershipId)
     string.format("Took a taxi to %s", dealership.name or "dealership"))
   -- Racing team computer shop: player is now at the lot; scope shopping to this seller so
   -- inspect/instant purchase matches in-person flow (Vue refreshes shopping data after taxi).
-  if rtBizId then
-    currentSeller = dealershipId
-    originComputerId = nil
+  if S.rtBizId then
+    S.currentSeller = dealershipId
+    S.originComputerId = nil
   end
 end
 
-local function getTaxiPriceToDealership(dealershipId)
-  if isPoliceDealershipLocked(dealershipId) then
+function U.getTaxiPriceToDealership(dealershipId)
+  if U.isPoliceDealershipLocked(dealershipId) then
+    return 0
+  end
+  if U.isOnlineSellerId(dealershipId) then
     return 0
   end
 
@@ -3724,94 +3731,93 @@ local function getTaxiPriceToDealership(dealershipId)
   return price * 5 or 0
 end
 
-local function endShopping()
+function U.endShopping()
   career_career.closeAllMenus()
   extensions.hook("onVehicleShoppingMenuClosed", {})
 end
 
-local function cancelShopping()
-  if originComputerId then
-    local computer = freeroam_facilities.getFacility("computer", originComputerId)
+function U.cancelShopping()
+  if S.originComputerId then
+    local computer = freeroam_facilities.getFacility("computer", S.originComputerId)
     career_modules_computer.openMenu(computer)
   else
     career_career.closeAllMenus()
   end
 end
 
-local function requestExit()
-  if rtBizId then
-    local businessId = rtBizId
-    rtBizId = nil
-    currentSeller = nil
-    originComputerId = nil
-    selectedSellerId = nil
+function U.requestExit()
+  if S.rtBizId then
+    local businessId = S.rtBizId
+    S.rtBizId = nil
+    S.currentSeller = nil
+    S.originComputerId = nil
+    S.selectedSellerId = nil
     return extensions.ui_router.navigate("business-computer", {
       businessType = "racingTeam",
       businessId = tostring(businessId)
     })
   end
-  return cancelShopping()
+  return U.cancelShopping()
 end
 
-local function onRouteMount(context, toRoute, fromRoute, data)
-  sendShoppingDataToUI()
+function U.onRouteMount(context, toRoute, fromRoute, data)
+  U.sendShoppingDataToUI()
 end
 
-local function selectSeller(sellerId)
+function U.selectSeller(sellerId)
   if type(sellerId) ~= "string" or sellerId == "" then return end
-  if isPoliceDealershipLocked(sellerId) then
-    ui_message(getPoliceDealershipLockLabel(), 8, "Police", "info")
+  if U.isPoliceDealershipLocked(sellerId) then
+    ui_message(U.getPoliceDealershipLockLabel(), 8, "Police", "info")
     return
   end
   local dealership = freeroam_facilities.getDealership(sellerId)
-  if dealership and not isDealerDiscovered(dealership) then return end
-  selectedSellerId = sellerId
+  if dealership and not U.isDealerDiscovered(dealership) then return end
+  S.selectedSellerId = sellerId
   extensions.hook("onVehicleShoppingSelectedSellerIdChanged", sellerId)
-  sendShoppingDataToUI()
+  U.sendShoppingDataToUI()
   return extensions.ui_router.navigate("career.computer.vehicleShopping.vehicles")
 end
 
-local function clearSelectedSeller()
-  selectedSellerId = nil
+function U.clearSelectedSeller()
+  S.selectedSellerId = nil
   extensions.hook("onVehicleShoppingSelectedSellerIdChanged", nil)
-  sendShoppingDataToUI()
+  U.sendShoppingDataToUI()
 end
 
-local function requestVehicleListExit()
-  if currentSeller then
-    return cancelShopping()
+function U.requestVehicleListExit()
+  if S.currentSeller then
+    return U.cancelShopping()
   end
-  clearSelectedSeller()
+  U.clearSelectedSeller()
   return extensions.ui_router.navigate("career.computer.vehicleShopping")
 end
 
-local function getSelectedSellerBreadcrumbTitle()
-  if not selectedSellerId then return nil end
-  if selectedSellerId == "private" then
+function U.getSelectedSellerBreadcrumbTitle()
+  if not S.selectedSellerId then return nil end
+  if S.selectedSellerId == "private" then
     return _tr("ui.career.vehicleShopping.privateSellers")
   end
-  local dealership = freeroam_facilities.getDealership(selectedSellerId)
+  local dealership = freeroam_facilities.getDealership(S.selectedSellerId)
   if dealership and dealership.name then
     return _tr(dealership.name)
   end
   return nil
 end
 
-local function onShoppingMenuClosed()
-  if tether then
-    tether.remove = true
-    tether = nil
+function U.onShoppingMenuClosed()
+  if S.tether then
+    S.tether.remove = true
+    S.tether = nil
   end
-  inspectingVehicleShopId = nil
-  purchaseMenuOpen = false
+  S.inspectingVehicleShopId = nil
+  S.purchaseMenuOpen = false
 end
 
-local function getVehiclesInShop()
-  return vehiclesInShop
+function U.getVehiclesInShop()
+  return S.vehiclesInShop
 end
 
-local removeNonUsedPlayerVehicles
-local function removeUnusedPlayerVehicles()
+function U.removeUnusedPlayerVehicles()
   for inventoryId, vehId in pairs(career_modules_inventory.getMapInventoryIdToVehId()) do
     if inventoryId ~= career_modules_inventory.getCurrentVehicle() then
       career_modules_inventory.removeVehicleObject(inventoryId)
@@ -3819,8 +3825,8 @@ local function removeUnusedPlayerVehicles()
   end
 end
 
-local function buySpawnedVehicle(buyVehicleOptions)
-  if rtBizId then
+function U.buySpawnedVehicle(buyVehicleOptions)
+  if S.rtBizId then
     return false
   end
   buyVehicleOptions = buyVehicleOptions or {}
@@ -3832,7 +3838,7 @@ local function buySpawnedVehicle(buyVehicleOptions)
     end
     M.applyDeliveryCharge(deliveryQuote)
   end
-  local canAfford = career_modules_cheats and career_modules_cheats.isCheatsMode() or career_modules_playerAttributes.getAttributeValue("money") >= purchaseData.prices.finalPrice
+  local canAfford = career_modules_cheats and career_modules_cheats.isCheatsMode() or career_modules_playerAttributes.getAttributeValue("money") >= S.purchaseData.prices.finalPrice
   local garageAvailability = career_modules_garageManager and career_modules_garageManager.getGarageAvailabilityReason and career_modules_garageManager.getGarageAvailabilityReason() or "ok"
   if not canAfford then
     return false
@@ -3845,16 +3851,16 @@ local function buySpawnedVehicle(buyVehicleOptions)
     return false
   end
 
-  local vehObj = getObjectByID(purchaseData.vehId)
+  local vehObj = getObjectByID(S.purchaseData.vehId)
   if not vehObj then
     return false
   end
-  payForVehicle()
+  U.payForVehicle()
   local newInventoryId = career_modules_inventory.addVehicle(vehObj:getID())
   local inventoryVehicle = career_modules_inventory.getVehicles and
                              career_modules_inventory.getVehicles()[newInventoryId] or nil
   if inventoryVehicle and vehicleMaintenance and vehicleMaintenance.applyInspectionSnapshotToVehicleData then
-    vehicleMaintenance.applyInspectionSnapshotToVehicleData(purchaseData.vehicleInfo, inventoryVehicle)
+    vehicleMaintenance.applyInspectionSnapshotToVehicleData(S.purchaseData.vehicleInfo, inventoryVehicle)
   end
   if buyVehicleOptions.licensePlateText then
     career_modules_inventory.setLicensePlateText(newInventoryId, buyVehicleOptions.licensePlateText)
@@ -3874,16 +3880,16 @@ local function buySpawnedVehicle(buyVehicleOptions)
   if not stored then
     return false
   end
-  removeNonUsedPlayerVehicles = true
+  S.removeNonUsedPlayerVehicles = true
   if not deliveryQuote and be:getPlayerVehicleID(0) == vehObj:getID() then
     career_modules_inventory.enterVehicle(newInventoryId)
   end
   return true
 end
 
-local function getDeliveryOrigin(dealership)
+function U.getDeliveryOrigin(dealership)
   if not dealership then return nil, "Dealership is unavailable." end
-  local accessInfo = getSellerAccessInfo(dealership)
+  local accessInfo = U.getSellerAccessInfo(dealership)
   if accessInfo.isOnline then
     local freightFacility = dealership
     if type(dealership.freightPickupSpotNames) == "table" then
@@ -3901,9 +3907,9 @@ local function getDeliveryOrigin(dealership)
   return pos
 end
 
-local function getDeliveryGarages(dealership)
+function U.getDeliveryGarages(dealership)
   local result = {}
-  if not dealership or not getSellerAccessInfo(dealership).garageDeliveryAllowed then return result end
+  if not dealership or not U.getSellerAccessInfo(dealership).garageDeliveryAllowed then return result end
   local capacityData = career_modules_garageManager.getGarageCapacityData() or {}
   for garageId, info in pairs(capacityData) do
     if (tonumber(info.capacity) or 0) > (tonumber(info.count) or 0) then
@@ -3921,12 +3927,13 @@ local function getDeliveryGarages(dealership)
   return result
 end
 
-local function getDeliveryQuote(garageId)
-  if not purchaseData or not purchaseData.vehicleInfo then
+function U.getDeliveryQuote(garageId)
+  if not S.purchaseData or not S.purchaseData.vehicleInfo then
     return {disabled = true, reason = "No active vehicle purchase."}
   end
-  local dealership = freeroam_facilities.getDealership(purchaseData.vehicleInfo.sellerId)
-  local accessInfo = getSellerAccessInfo(dealership)
+  local vehicleInfo = S.purchaseData.vehicleInfo
+  local dealership = U.getDealershipForSellerId(vehicleInfo.sellerId)
+  local accessInfo = U.getSellerAccessInfo(dealership or vehicleInfo)
   if not accessInfo.garageDeliveryAllowed then
     return {disabled = true, reason = "Garage delivery unlocks at dealer reputation level 2."}
   end
@@ -3939,7 +3946,7 @@ local function getDeliveryQuote(garageId)
   end
   local garage = freeroam_facilities.getFacility("garage", garageId)
   local garagePos = garage and freeroam_facilities.getGaragePosRot(garage) or nil
-  local origin, reason = getDeliveryOrigin(dealership)
+  local origin, reason = U.getDeliveryOrigin(dealership)
   if not origin or not garagePos then
     return {disabled = true, reason = reason or "Delivery route is unavailable."}
   end
@@ -3956,57 +3963,57 @@ local function getDeliveryQuote(garageId)
     fullPrice = fullPrice or 0,
     discount = discount,
     finalPrice = finalPrice,
-    etaSeconds = getDeliveryDelay(roadDistance)
+    etaSeconds = U.getDeliveryDelay(roadDistance)
   }
 end
 
-local function sendPurchaseDataToUi()
-  local rtBid = purchaseData.racingTeamBusinessId or rtBizId
-  local vehicleShopInfo = deepcopy(getVehicleInfoByShopId(purchaseData.shopId))
+function U.sendPurchaseDataToUi()
+  local rtBid = S.purchaseData.racingTeamBusinessId or S.rtBizId
+  local vehicleShopInfo = deepcopy(U.getVehicleInfoByShopId(S.purchaseData.shopId))
   if not vehicleShopInfo then
-    log("E", "Career", "sendPurchaseDataToUi: Vehicle not found for shopId: " .. tostring(purchaseData.shopId))
+    log("E", "Career", "sendPurchaseDataToUi: Vehicle not found for shopId: " .. tostring(S.purchaseData.shopId))
     return
   end
-  vehicleShopInfo.shopId = purchaseData.shopId
+  vehicleShopInfo.shopId = S.purchaseData.shopId
   vehicleShopInfo.niceName = vehicleShopInfo.Brand .. " " .. vehicleShopInfo.Name
-  vehicleShopInfo.deliveryDelay = getDeliveryDelay(vehicleShopInfo.distance)
-  applyPurchaseAdjustedMarketValue(vehicleShopInfo)
+  vehicleShopInfo.deliveryDelay = U.getDeliveryDelay(vehicleShopInfo.distance)
+  U.applyPurchaseAdjustedMarketValue(vehicleShopInfo)
   vehicleShopInfo.Value = vehicleShopInfo.valueAdjusted or vehicleShopInfo.Value
-  coerceVehiclePricingFields(vehicleShopInfo)
-  purchaseData.vehicleInfo = vehicleShopInfo
+  U.coerceVehiclePricingFields(vehicleShopInfo)
+  S.purchaseData.vehicleInfo = vehicleShopInfo
 
-  local tradeInValue = purchaseData.tradeInVehicleInfo and purchaseData.tradeInVehicleInfo.Value or 0
+  local tradeInValue = S.purchaseData.tradeInVehicleInfo and S.purchaseData.tradeInVehicleInfo.Value or 0
   local taxes, finalPrice = M.computePurchaseTaxAndFinalPrice(vehicleShopInfo, tradeInValue)
-  purchaseData.prices = {fees = vehicleShopInfo.fees, taxes = taxes, finalPrice = finalPrice, customLicensePlate = customLicensePlatePrice}
+  S.purchaseData.prices = {fees = vehicleShopInfo.fees, taxes = taxes, finalPrice = finalPrice, customLicensePlate = C.customLicensePlatePrice}
   local spawnedVehicleInfo = career_modules_inspectVehicle.getSpawnedVehicleInfo()
-  purchaseData.vehId = spawnedVehicleInfo and spawnedVehicleInfo.vehId
+  S.purchaseData.vehId = spawnedVehicleInfo and spawnedVehicleInfo.vehId
 
   -- Insurance options from v38
   if vehicleShopInfo.source == "carMeet" then
-    purchaseData.insuranceId = -1
-  elseif not purchaseData.insuranceId then
+    S.purchaseData.insuranceId = -1
+  elseif not S.purchaseData.insuranceId then
     if vehicleShopInfo.insuranceClass and vehicleShopInfo.insuranceClass.id then
       if career_modules_insurance_insurance and career_modules_insurance_insurance.getDefaultInsuranceForClassId then
         local defaultInsurance = career_modules_insurance_insurance.getDefaultInsuranceForClassId(vehicleShopInfo.insuranceClass.id)
         if defaultInsurance then
-          purchaseData.insuranceId = defaultInsurance.id
+          S.purchaseData.insuranceId = defaultInsurance.id
         end
       end
     end
   end
 
-  purchaseData.insuranceOptions = {
-    insuranceId = purchaseData.insuranceId,
-    shopId = purchaseData.shopId,
+  S.purchaseData.insuranceOptions = {
+    insuranceId = S.purchaseData.insuranceId,
+    shopId = S.purchaseData.shopId,
   }
 
-  if purchaseData.insuranceId and purchaseData.insuranceId >= 0 then
+  if S.purchaseData.insuranceId and S.purchaseData.insuranceId >= 0 then
     if career_modules_insurance_insurance and career_modules_insurance_insurance.getInsuranceDataById then
-      local insuranceInfo = career_modules_insurance_insurance.getInsuranceDataById(purchaseData.insuranceId)
+      local insuranceInfo = career_modules_insurance_insurance.getInsuranceDataById(S.purchaseData.insuranceId)
       if insuranceInfo then
-        purchaseData.insuranceOptions.spendingReason = string.format("Insurance Policy: \"%s\"", insuranceInfo.name)
+        S.purchaseData.insuranceOptions.spendingReason = string.format("Insurance Policy: \"%s\"", insuranceInfo.name)
         if career_modules_insurance_insurance.calculateAddVehiclePrice then
-          purchaseData.insuranceOptions.priceMoney = career_modules_insurance_insurance.calculateAddVehiclePrice(purchaseData.insuranceId, purchaseData.vehicleInfo.Value)
+          S.purchaseData.insuranceOptions.priceMoney = career_modules_insurance_insurance.calculateAddVehiclePrice(S.purchaseData.insuranceId, S.purchaseData.vehicleInfo.Value)
         end
       end
     end
@@ -4023,34 +4030,34 @@ local function sendPurchaseDataToUi()
     if inv and inv.getBusinessVehicles then
       n = #(inv.getBusinessVehicles(rtBid) or {})
     end
-    invFree = n < rtFleetCap(rtBid)
+    invFree = n < U.rtFleetCap(rtBid)
   end
 
   local data = {
-    vehicleInfo = purchaseData.vehicleInfo,
+    vehicleInfo = S.purchaseData.vehicleInfo,
     playerMoney = playerMoney,
     racingTeamBusinessMoney = racingTeamBusinessMoney,
     racingTeamFleetPurchase = rtBid ~= nil,
     inventoryHasFreeSlot = invFree,
     garageAvailability = career_modules_garageManager and career_modules_garageManager.getGarageAvailabilityReason and career_modules_garageManager.getGarageAvailabilityReason() or "ok",
-    purchaseType = purchaseData.purchaseType,
+    purchaseType = S.purchaseData.purchaseType,
     forceTradeIn = (not rtBid) and (not career_career.hasBoughtStarterVehicle()) or nil,
-    tradeInVehicleInfo = purchaseData.tradeInVehicleInfo,
-    prices = purchaseData.prices,
+    tradeInVehicleInfo = S.purchaseData.tradeInVehicleInfo,
+    prices = S.purchaseData.prices,
     dealershipId = vehicleShopInfo.sellerId,
     alreadyDidTestDrive = career_modules_inspectVehicle.getDidTestDrive() or false,
-    vehId = purchaseData.vehId,
+    vehId = S.purchaseData.vehId,
     cheatsMode = career_modules_cheats and career_modules_cheats.isCheatsMode() or false,
-    insuranceOptions = purchaseData.insuranceOptions
+    insuranceOptions = S.purchaseData.insuranceOptions
   }
-  local dealership = freeroam_facilities.getDealership(vehicleShopInfo.sellerId)
-  local accessInfo = getSellerAccessInfo(dealership)
-  local _, freightReason = getDeliveryOrigin(dealership)
+  local dealership = U.getDealershipForSellerId(vehicleShopInfo.sellerId)
+  local accessInfo = U.getSellerAccessInfo(dealership or vehicleShopInfo)
+  local _, freightReason = U.getDeliveryOrigin(dealership)
   data.salesChannel = accessInfo.salesChannel
   data.remotePurchaseAllowed = accessInfo.remotePurchaseAllowed
   data.garageDeliveryAllowed = accessInfo.garageDeliveryAllowed
   data.deliveryDiscount = accessInfo.deliveryDiscount
-  data.deliveryGarages = getDeliveryGarages(dealership)
+  data.deliveryGarages = U.getDeliveryGarages(dealership)
   data.freightAvailable = not accessInfo.isOnline or freightReason == nil
   data.freightUnavailableReason = accessInfo.isOnline and freightReason or nil
 
@@ -4069,8 +4076,8 @@ local function sendPurchaseDataToUi()
     end
   end
 
-  local atDealership = (purchaseData.purchaseType == "instant" and currentSeller) or
-                         (purchaseData.purchaseType == "inspect" and vehicleShopInfo.sellerId ~= "private")
+  local atDealership = (S.purchaseData.purchaseType == "instant" and S.currentSeller) or
+                         (S.purchaseData.purchaseType == "inspect" and vehicleShopInfo.sellerId ~= "private")
 
   if atDealership and not rtBid and vehicleShopInfo.source ~= "carMeet" then
     data.tradeInEnabled = true
@@ -4088,21 +4095,21 @@ local function sendPurchaseDataToUi()
   guihooks.trigger("vehiclePurchaseData", data)
 end
 
-local function updateInsuranceSelection(insuranceId)
-  if purchaseData then
-    purchaseData.insuranceId = insuranceId
-    sendPurchaseDataToUi()
+function U.updateInsuranceSelection(insuranceId)
+  if S.purchaseData then
+    S.purchaseData.insuranceId = insuranceId
+    U.sendPurchaseDataToUi()
   end
 end
 
-local function onClientStartMission()
-  vehiclesInShop = {}
+function U.onClientStartMission()
+  S.vehiclesInShop = {}
 end
 
-local function onAddedVehiclePartsToInventory(inventoryId, newParts)
+function U.onAddedVehiclePartsToInventory(inventoryId, newParts)
   local vehicle = career_modules_inventory.getVehicles()[inventoryId]
 
-  vehicle.year = purchaseData and purchaseData.vehicleInfo.year or 1990
+  vehicle.year = S.purchaseData and S.purchaseData.vehicleInfo.year or 1990
 
   vehicle.originalParts = {}
   local allSlotsInVehicle = {
@@ -4125,18 +4132,18 @@ local function onAddedVehiclePartsToInventory(inventoryId, newParts)
 
   vehicle.changedSlots = {}
 
-  if deleteAddedVehicle then
+  if S.deleteAddedVehicle then
     career_modules_inventory.removeVehicleObject(inventoryId)
-    deleteAddedVehicle = nil
+    S.deleteAddedVehicle = nil
   end
 
-  endShopping()
+  U.endShopping()
 
   extensions.hook("onVehicleAddedToInventory", {
     inventoryId = inventoryId,
-    vehicleInfo = purchaseData and purchaseData.vehicleInfo,
-    selectedPolicyId = purchaseData and purchaseData.selectedPolicyId,
-    purchaseData = purchaseData
+    vehicleInfo = S.purchaseData and S.purchaseData.vehicleInfo,
+    selectedPolicyId = S.purchaseData and S.purchaseData.selectedPolicyId,
+    purchaseData = S.purchaseData
   })
 
   if career_career.isAutosaveEnabled() then
@@ -4144,14 +4151,17 @@ local function onAddedVehiclePartsToInventory(inventoryId, newParts)
   end
 end
 
-local function onEnterVehicleFinished(inventoryId)
-  if removeNonUsedPlayerVehicles then
-    removeNonUsedPlayerVehicles = nil
+function U.onEnterVehicleFinished(inventoryId)
+  if S.removeNonUsedPlayerVehicles then
+    S.removeNonUsedPlayerVehicles = nil
   end
   M.completeFreightPickup(inventoryId)
 end
 
-local function startInspectionWorkitem(job, vehicleInfo, teleportToVehicle)
+function U.startInspectionWorkitem(job, vehicleInfo, teleportToVehicle)
+  if U.isOnlineSellerId(vehicleInfo and vehicleInfo.sellerId) then
+    return
+  end
   ui_fadeScreen.start(0.5)
   job.sleep(1.0)
   extensions.ui_router.navigate("play")
@@ -4160,7 +4170,7 @@ local function startInspectionWorkitem(job, vehicleInfo, teleportToVehicle)
   ui_fadeScreen.stop(0.5)
   job.sleep(1.0)
 
-  inspectingVehicleShopId = vehicleInfo.shopId
+  S.inspectingVehicleShopId = vehicleInfo.shopId
 
   extensions.hook("onVehicleShoppingVehicleShown", {
     vehicleInfo = vehicleInfo
@@ -4168,52 +4178,63 @@ local function startInspectionWorkitem(job, vehicleInfo, teleportToVehicle)
 end
 
 -- Navigation functions
-local function navigateToPos(pos, shopId)
-  core_groundMarkers.setPath(vec3(pos.x, pos.y, pos.z))
-
+function U.navigateToPos(pos, shopId)
   if shopId then
-    local vehicleInfo = getVehicleInfoByShopId(shopId)
+    local vehicleInfo = U.getVehicleInfoByShopId(shopId)
     if not vehicleInfo then
       log("E", "Career", "Failed to find vehicle for inspection with shopId: " .. tostring(shopId))
       return
     end
-    core_jobsystem.create(startInspectionWorkitem, nil, vehicleInfo, false)
-  else
-    extensions.ui_router.navigate("play")
+    if U.isOnlineSellerId(vehicleInfo.sellerId) then
+      return
+    end
+    if not pos then return end
+    core_groundMarkers.setPath(vec3(pos.x, pos.y, pos.z))
+    core_jobsystem.create(U.startInspectionWorkitem, nil, vehicleInfo, false)
+    return
   end
+  if not pos then return end
+  core_groundMarkers.setPath(vec3(pos.x, pos.y, pos.z))
+  extensions.ui_router.navigate("play")
 end
 
-local function showVehicle(shopId)
-  local vehicleInfo = getVehicleInfoByShopId(shopId)
+function U.showVehicle(shopId)
+  local vehicleInfo = U.getVehicleInfoByShopId(shopId)
   if not vehicleInfo then
     log("E", "Career", "Failed to find vehicle for inspection with shopId: " .. tostring(shopId))
     return
   end
-  core_jobsystem.create(startInspectionWorkitem, nil, vehicleInfo, true)
+  if U.isOnlineSellerId(vehicleInfo.sellerId) then
+    return
+  end
+  core_jobsystem.create(U.startInspectionWorkitem, nil, vehicleInfo, true)
 end
 
-local function quickTravelToVehicle(shopId)
+function U.quickTravelToVehicle(shopId)
   if not shopId then
     log("E", "Career", "quickTravelToVehicle: shopId is nil")
     return
   end
   log("D", "Career", "quickTravelToVehicle called with shopId: " .. tostring(shopId) .. " (type: " .. type(shopId) .. ")")
-  local vehicleInfo = getVehicleInfoByShopId(shopId)
+  local vehicleInfo = U.getVehicleInfoByShopId(shopId)
   if not vehicleInfo then
     log("E", "Career", "Failed to find vehicle for quick travel with shopId: " .. tostring(shopId))
-    log("D", "Career", "Vehicles in shop: " .. tableSize(vehiclesInShop))
-    if tableSize(vehiclesInShop) > 0 then
+    log("D", "Career", "Vehicles in shop: " .. tableSize(S.vehiclesInShop))
+    if tableSize(S.vehiclesInShop) > 0 then
       log("D", "Career", "Sample shopIds in vehiclesInShop:")
-      for i = 1, math.min(5, #vehiclesInShop) do
-        log("D", "Career", "  Vehicle " .. i .. ": shopId=" .. tostring(vehiclesInShop[i].shopId) .. " (type: " .. type(vehiclesInShop[i].shopId) .. ")")
+      for i = 1, math.min(5, #S.vehiclesInShop) do
+        log("D", "Career", "  Vehicle " .. i .. ": shopId=" .. tostring(S.vehiclesInShop[i].shopId) .. " (type: " .. type(S.vehiclesInShop[i].shopId) .. ")")
       end
     end
     return
   end
-  core_jobsystem.create(startInspectionWorkitem, nil, vehicleInfo, true)
+  if U.isOnlineSellerId(vehicleInfo.sellerId) then
+    return
+  end
+  core_jobsystem.create(U.startInspectionWorkitem, nil, vehicleInfo, true)
 end
 
-local function openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
+function U.openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
   log("D", "Career",
     "openPurchaseMenu called with purchaseType: " .. tostring(purchaseType) .. ", shopId: " .. tostring(shopId))
 
@@ -4227,12 +4248,12 @@ local function openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
     return
   end
 
-  local vehicle = getVehicleInfoByShopId(shopId)
+  local vehicle = U.getVehicleInfoByShopId(shopId)
   if not vehicle then
     log("E", "Career", "Failed to find vehicle for purchase with shopId: " .. tostring(shopId))
-    if #vehiclesInShop > 0 then
+    if #S.vehiclesInShop > 0 then
       log("D", "Career", "Available vehicles in shop:")
-      for i, v in ipairs(vehiclesInShop) do
+      for i, v in ipairs(S.vehiclesInShop) do
         log("D", "Career", "  Vehicle " .. i .. ": shopId=" .. tostring(v.shopId) .. ", key=" .. tostring(v.key))
       end
     else
@@ -4240,16 +4261,16 @@ local function openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
     end
     return
   end
-  if purchaseType == "instant" and not currentSeller and vehicle.sellerId ~= "private" and vehicle.source ~= "carMeet" then
+  if purchaseType == "instant" and not S.currentSeller and vehicle.sellerId ~= "private" and vehicle.source ~= "carMeet" then
     local dealership = freeroam_facilities.getDealership(vehicle.sellerId)
-    local accessInfo = getSellerAccessInfo(dealership)
+    local accessInfo = U.getSellerAccessInfo(dealership)
     if not accessInfo.remotePurchaseAllowed then
       ui_message("Visit this dealership to purchase. Remote checkout unlocks at reputation level 2.",
         6, "In-person purchase required", "info")
       return
     end
     if accessInfo.isOnline then
-      local origin, reason = getDeliveryOrigin(dealership)
+      local origin, reason = U.getDeliveryOrigin(dealership)
       if not origin then
         ui_message(reason, 8, "Online ordering unavailable", "warning")
         return
@@ -4257,13 +4278,13 @@ local function openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
     end
   end
 
-  vehicleWatchlist[shopId] = "unsold"
+  S.vehicleWatchlist[shopId] = "unsold"
   -- Snapshot before switching UI: leaving vehicle shopping can remount the view and clear global rtBizId.
-  local racingTeamPurchaseBizId = rtBizId
+  local racingTeamPurchaseBizId = S.rtBizId
 
   local vehicleShopInfo = deepcopy(vehicle)
   vehicleShopInfo.niceName = vehicleShopInfo.Brand .. " " .. vehicleShopInfo.Name
-  coerceVehiclePricingFields(vehicleShopInfo)
+  U.coerceVehiclePricingFields(vehicleShopInfo)
 
   local distance = vehicleShopInfo.distance
   if not distance or type(distance) ~= "number" then
@@ -4276,11 +4297,11 @@ local function openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
     end
     vehicleShopInfo.distance = distance
   end
-  vehicleShopInfo.deliveryDelay = getDeliveryDelay(distance)
+  vehicleShopInfo.deliveryDelay = U.getDeliveryDelay(distance)
 
   local taxes, finalPrice = M.computePurchaseTaxAndFinalPrice(vehicleShopInfo, 0)
 
-  purchaseData = {
+  S.purchaseData = {
     shopId = shopId,
     purchaseType = purchaseType,
     vehicleInfo = vehicleShopInfo,
@@ -4290,15 +4311,15 @@ local function openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
       fees = vehicleShopInfo.fees,
       taxes = taxes,
       finalPrice = finalPrice,
-      customLicensePlate = customLicensePlatePrice
+      customLicensePlate = C.customLicensePlatePrice
     }
   }
 
   if racingTeamPurchaseBizId then
-    purchaseData.insuranceId = -1
+    S.purchaseData.insuranceId = -1
   end
 
-  purchaseMenuOpen = true
+  S.purchaseMenuOpen = true
   log("D", "Career", "Successfully opened purchase menu for vehicle: " .. tostring(shopId))
   if not silent then
     extensions.ui_router.navigate("career.computer.vehicleShopping.vehicles.vehiclePurchase")
@@ -4309,42 +4330,42 @@ local function openPurchaseMenu(purchaseType, shopId, insuranceId, silent)
   end
 end
 
-local function buyFromPurchaseMenu(purchaseType, options)
+function U.buyFromPurchaseMenu(purchaseType, options)
   options = options or {}
 
-  if not purchaseData then
+  if not S.purchaseData then
     log("E", "Career", "buyFromPurchaseMenu: purchaseData is nil")
     return
   end
-  if not purchaseData.vehicleInfo then
+  if not S.purchaseData.vehicleInfo then
     log("E", "Career", "buyFromPurchaseMenu: purchaseData.vehicleInfo is nil")
     return
   end
   if options.makeDelivery then
-    local quote = getDeliveryQuote(options.targetGarageId)
+    local quote = U.getDeliveryQuote(options.targetGarageId)
     if not quote or quote.disabled then
       ui_message(quote and quote.reason or "Delivery quote is unavailable.", 6, "Delivery unavailable", "warning")
       return
     end
   end
-  if not purchaseData.prices then
+  if not S.purchaseData.prices then
     log("W", "Career", "buyFromPurchaseMenu: purchaseData.prices is nil, calculating prices as fallback")
-    local vehicleShopInfo = purchaseData.vehicleInfo
-    coerceVehiclePricingFields(vehicleShopInfo)
-    local tradeInValue = purchaseData.tradeInVehicleInfo and purchaseData.tradeInVehicleInfo.Value or 0
+    local vehicleShopInfo = S.purchaseData.vehicleInfo
+    U.coerceVehiclePricingFields(vehicleShopInfo)
+    local tradeInValue = S.purchaseData.tradeInVehicleInfo and S.purchaseData.tradeInVehicleInfo.Value or 0
     local taxes, finalPrice = M.computePurchaseTaxAndFinalPrice(vehicleShopInfo, tradeInValue)
-    purchaseData.prices = {
+    S.purchaseData.prices = {
       fees = vehicleShopInfo.fees,
       taxes = taxes,
       finalPrice = finalPrice,
-      customLicensePlate = customLicensePlatePrice
+      customLicensePlate = C.customLicensePlatePrice
     }
   end
 
-  local bid = purchaseData.racingTeamBusinessId or rtBizId
+  local bid = S.purchaseData.racingTeamBusinessId or S.rtBizId
   if bid then
     local inv = career_modules_business_businessInventory
-    local cap = rtFleetCap(bid)
+    local cap = U.rtFleetCap(bid)
     local n = 0
     if inv and inv.getBusinessVehicles then
       n = #(inv.getBusinessVehicles(bid) or {})
@@ -4352,9 +4373,9 @@ local function buyFromPurchaseMenu(purchaseType, options)
     if n >= cap then
       return
     end
-    local price = tonumber(purchaseData.prices.finalPrice) or 0
+    local price = tonumber(S.purchaseData.prices.finalPrice) or 0
     if options.licensePlateText then
-      price = price + (tonumber(purchaseData.prices.customLicensePlate) or 0)
+      price = price + (tonumber(S.purchaseData.prices.customLicensePlate) or 0)
     end
     -- Racing team purchases always debit the business account; cheats mode does not waive this.
     local bank = career_modules_bank
@@ -4369,9 +4390,9 @@ local function buyFromPurchaseMenu(purchaseType, options)
     if not paid then
       return
     end
-    local orgId = purchaseData.vehicleInfo and purchaseData.vehicleInfo.associatedOrganization
+    local orgId = S.purchaseData.vehicleInfo and S.purchaseData.vehicleInfo.associatedOrganization
     if not orgId then
-      local dealershipId = options.dealershipId or (purchaseData.vehicleInfo and purchaseData.vehicleInfo.sellerId)
+      local dealershipId = options.dealershipId or (S.purchaseData.vehicleInfo and S.purchaseData.vehicleInfo.sellerId)
       if dealershipId and dealershipId ~= "private" then
         local dealership = freeroam_facilities.getDealership(dealershipId)
         orgId = dealership and dealership.associatedOrganization
@@ -4381,32 +4402,32 @@ local function buyFromPurchaseMenu(purchaseType, options)
       local org = freeroam_organizations.getOrganization(orgId)
       if org then
         career_modules_playerAttributes.addAttributes({
-          [orgId .. "Reputation"] = dealershipPurchaseReputationGain
+          [orgId .. "Reputation"] = C.dealershipPurchaseReputationGain
         }, {
           tags = {"buying"},
           label = string.format("Bought vehicle from %s", orgId)
         })
       end
     end
-    local vehInfo = purchaseData.vehicleInfo
-    local spawnedVehId = tonumber(purchaseData.vehId) or purchaseData.vehId
+    local vehInfo = S.purchaseData.vehicleInfo
+    local spawnedVehId = tonumber(S.purchaseData.vehId) or S.purchaseData.vehId
     -- Match the same in-person dealership detection used by purchase UI wiring:
     -- - instant purchase while currently at a seller
     -- - inspect purchase for non-private seller vehicles
-    local effectivePurchaseType = purchaseType or purchaseData.purchaseType
+    local effectivePurchaseType = purchaseType or S.purchaseData.purchaseType
     local isInPersonSellerFlow =
       (effectivePurchaseType == "inspect") or
-      ((effectivePurchaseType == "instant" and currentSeller ~= nil) and vehInfo and vehInfo.sellerId ~= "private")
+      ((effectivePurchaseType == "instant" and S.currentSeller ~= nil) and vehInfo and vehInfo.sellerId ~= "private")
     if isInPersonSellerFlow then
       local spawnedVehObj = spawnedVehId and be and be:getObjectByID(spawnedVehId) or nil
       if not spawnedVehObj then
         local dealershipId = options.dealershipId or (vehInfo and vehInfo.sellerId)
-        local respawnedVehObj = rtFleetSpawnVehicle(vehInfo, dealershipId)
+        local respawnedVehObj = U.rtFleetSpawnVehicle(vehInfo, dealershipId)
         spawnedVehId = respawnedVehObj and respawnedVehObj:getID() or nil
       end
       if not spawnedVehId then
-        local delay = getRacingTeamDeliveryDelaySeconds(bid, vehInfo)
-        addPendingRacingTeamFleetPurchase(bid, {
+        local delay = U.getRacingTeamDeliveryDelaySeconds(bid, vehInfo)
+        U.addPendingRacingTeamFleetPurchase(bid, {
           kind = "timer",
           dueEpoch = os.time() + delay,
           model_key = vehInfo.model_key,
@@ -4416,7 +4437,7 @@ local function buyFromPurchaseMenu(purchaseType, options)
           purchasedEpoch = os.time()
         })
       else
-      addPendingRacingTeamFleetPurchase(bid, {
+      U.addPendingRacingTeamFleetPurchase(bid, {
         kind = "drive",
         spawnedVehId = spawnedVehId,
         model_key = vehInfo.model_key,
@@ -4436,8 +4457,8 @@ local function buyFromPurchaseMenu(purchaseType, options)
       end
       end
     else
-      local delay = getRacingTeamDeliveryDelaySeconds(bid, vehInfo)
-      addPendingRacingTeamFleetPurchase(bid, {
+      local delay = U.getRacingTeamDeliveryDelaySeconds(bid, vehInfo)
+      U.addPendingRacingTeamFleetPurchase(bid, {
         kind = "timer",
         dueEpoch = os.time() + delay,
         model_key = vehInfo.model_key,
@@ -4457,23 +4478,23 @@ local function buyFromPurchaseMenu(purchaseType, options)
       end
     end
     Engine.Audio.playOnce('AudioGui', 'event:>UI>Career>Buy_01')
-    vehicleWatchlist[purchaseData.shopId] = nil
-    local targetShopId = tonumber(purchaseData.shopId) or purchaseData.shopId
-    for i, v in ipairs(vehiclesInShop) do
+    S.vehicleWatchlist[S.purchaseData.shopId] = nil
+    local targetShopId = tonumber(S.purchaseData.shopId) or S.purchaseData.shopId
+    for i, v in ipairs(S.vehiclesInShop) do
       local vid = tonumber(v.shopId) or v.shopId
       if vid == targetShopId then
         v.markedSold = true
         v.soldViewCounter = 1
-        pendingSoldShopIds[purchaseData.shopId] = true
-        table.remove(vehiclesInShop, i)
+        S.pendingSoldShopIds[S.purchaseData.shopId] = true
+        table.remove(S.vehiclesInShop, i)
         break
       end
     end
-    purchaseMenuOpen = false
-    inspectingVehicleShopId = nil
-    if uiOpen then
-      commitDelta(buildSnapshot())
-      guihooks.trigger("vehicleShopDelta", lastDelta)
+    S.purchaseMenuOpen = false
+    S.inspectingVehicleShopId = nil
+    if S.uiOpen then
+      U.commitDelta(U.buildSnapshot())
+      guihooks.trigger("vehicleShopDelta", S.lastDelta)
     end
     career_career.closeAllMenus()
     return
@@ -4490,8 +4511,8 @@ local function buyFromPurchaseMenu(purchaseType, options)
   end
 
   -- Only remove the trade-in after purchase preconditions pass.
-  if purchaseData.tradeInVehicleInfo then
-    career_modules_inventory.removeVehicle(purchaseData.tradeInVehicleInfo.id)
+  if S.purchaseData.tradeInVehicleInfo then
+    career_modules_inventory.removeVehicle(S.purchaseData.tradeInVehicleInfo.id)
   end
 
   local selectedPolicyId = options.policyId or 0
@@ -4501,26 +4522,26 @@ local function buyFromPurchaseMenu(purchaseType, options)
     end
   end
 
-  purchaseData.selectedPolicyId = selectedPolicyId
+  S.purchaseData.selectedPolicyId = selectedPolicyId
   local buyVehicleOptions = {
     makeDelivery = options.makeDelivery == true,
     targetGarageId = options.targetGarageId,
     licensePlateText = options.licensePlateText,
-    dealershipId = options.dealershipId or (purchaseData.vehicleInfo and purchaseData.vehicleInfo.sellerId),
+    dealershipId = options.dealershipId or (S.purchaseData.vehicleInfo and S.purchaseData.vehicleInfo.sellerId),
     policyId = selectedPolicyId
   }
   local purchaseSucceeded = false
   if purchaseType == "inspect" then
     if options.makeDelivery then
-      deleteAddedVehicle = true
+      S.deleteAddedVehicle = true
     end
     purchaseSucceeded = career_modules_inspectVehicle.buySpawnedVehicle(buyVehicleOptions) == true
   elseif purchaseType == "instant" then
     career_modules_inspectVehicle.showVehicle(nil)
     if options.makeDelivery then
-      purchaseSucceeded = buyVehicleAndSendToGarage(buyVehicleOptions) == true
+      purchaseSucceeded = U.buyVehicleAndSendToGarage(buyVehicleOptions) == true
     else
-      purchaseSucceeded = buyVehicleAndSpawnInParkingSpot(buyVehicleOptions) == true
+      purchaseSucceeded = U.buyVehicleAndSpawnInParkingSpot(buyVehicleOptions) == true
     end
   end
 
@@ -4529,9 +4550,9 @@ local function buyFromPurchaseMenu(purchaseType, options)
     return
   end
 
-  local orgId = purchaseData.vehicleInfo and purchaseData.vehicleInfo.associatedOrganization
+  local orgId = S.purchaseData.vehicleInfo and S.purchaseData.vehicleInfo.associatedOrganization
   if not orgId then
-    local dealershipId = options.dealershipId or (purchaseData.vehicleInfo and purchaseData.vehicleInfo.sellerId)
+    local dealershipId = options.dealershipId or (S.purchaseData.vehicleInfo and S.purchaseData.vehicleInfo.sellerId)
     if dealershipId and dealershipId ~= "private" then
       local dealership = freeroam_facilities.getDealership(dealershipId)
       if dealership and dealership.associatedOrganization then
@@ -4544,7 +4565,7 @@ local function buyFromPurchaseMenu(purchaseType, options)
     local org = freeroam_organizations.getOrganization(orgId)
     if org then
       career_modules_playerAttributes.addAttributes({
-        [orgId .. "Reputation"] = dealershipPurchaseReputationGain
+        [orgId .. "Reputation"] = C.dealershipPurchaseReputationGain
       }, {
         tags = {"buying"},
         label = string.format("Bought vehicle from %s", orgId)
@@ -4554,7 +4575,7 @@ local function buyFromPurchaseMenu(purchaseType, options)
 
   if options.licensePlateText then
     career_modules_playerAttributes.addAttributes({
-      money = -purchaseData.prices.customLicensePlate
+      money = -S.purchaseData.prices.customLicensePlate
     }, {
       tags = {"buying"},
       label = string.format("Bought custom license plate for new vehicle")
@@ -4562,25 +4583,25 @@ local function buyFromPurchaseMenu(purchaseType, options)
   end
 
   -- Remove the vehicle from the shop
-  local targetShopId = tonumber(purchaseData.shopId) or purchaseData.shopId
-  for i, vehInfo in ipairs(vehiclesInShop) do
+  local targetShopId = tonumber(S.purchaseData.shopId) or S.purchaseData.shopId
+  for i, vehInfo in ipairs(S.vehiclesInShop) do
     local vehShopId = tonumber(vehInfo.shopId) or vehInfo.shopId
     if vehShopId == targetShopId then
       vehInfo.markedSold = true
       vehInfo.soldViewCounter = 1
-      pendingSoldShopIds[purchaseData.shopId] = true
-      table.remove(vehiclesInShop, i)
+      S.pendingSoldShopIds[S.purchaseData.shopId] = true
+      table.remove(S.vehiclesInShop, i)
       break
     end
   end
 
-  purchaseMenuOpen = false
-  inspectingVehicleShopId = nil
-  rtPendingFleetPurchases = {}
+  S.purchaseMenuOpen = false
+  S.inspectingVehicleShopId = nil
+  S.rtPendingFleetPurchases = {}
 
-  if uiOpen then
-    commitDelta(buildSnapshot())
-    guihooks.trigger("vehicleShopDelta", lastDelta)
+  if S.uiOpen then
+    U.commitDelta(U.buildSnapshot())
+    guihooks.trigger("vehicleShopDelta", S.lastDelta)
   end
   if purchaseType == "inspect" then
     career_career.closeAllMenus()
@@ -4589,15 +4610,15 @@ local function buyFromPurchaseMenu(purchaseType, options)
   end
 end
 
-local function cancelPurchase(purchaseType)
-  purchaseMenuOpen = false
+function U.cancelPurchase(purchaseType)
+  S.purchaseMenuOpen = false
   if purchaseType == "inspect" then
     career_career.closeAllMenus()
   elseif purchaseType == "instant" then
     -- Phone-initiated purchases open this screen without the computer shop UI
     -- (uiOpen). Routing back to vehicleShopping.vehicles leaves an orphan
     -- computer route that blocks the phone with no computer on screen.
-    if uiOpen then
+    if S.uiOpen then
       extensions.ui_router.navigate("career.computer.vehicleShopping.vehicles")
     else
       career_career.closeAllMenus()
@@ -4605,20 +4626,20 @@ local function cancelPurchase(purchaseType)
   end
 end
 
-local function requestPurchaseExit()
-  local purchaseType = purchaseData and purchaseData.purchaseType
-  purchaseMenuOpen = false
+function U.requestPurchaseExit()
+  local purchaseType = S.purchaseData and S.purchaseData.purchaseType
+  S.purchaseMenuOpen = false
   if purchaseType == "inspect" then
     career_career.closeAllMenus()
     return
   end
-  if uiOpen then
+  if S.uiOpen then
     return extensions.ui_router.navigate("career.computer.vehicleShopping.vehicles")
   end
   return career_career.closeAllMenus()
 end
 
-local function getCarMeetPurchaseBlockReason()
+function U.getCarMeetPurchaseBlockReason()
   local garageAvailability = career_modules_garageManager and career_modules_garageManager.getGarageAvailabilityReason and career_modules_garageManager.getGarageAvailabilityReason() or "ok"
   if garageAvailability == "none" then
     return "Buy or rent a garage before purchasing a vehicle."
@@ -4629,8 +4650,8 @@ local function getCarMeetPurchaseBlockReason()
   return nil
 end
 
-canPurchaseCarMeetVehicle = function(showMessage)
-  local reason = getCarMeetPurchaseBlockReason()
+U.canPurchaseCarMeetVehicle = function(showMessage)
+  local reason = U.getCarMeetPurchaseBlockReason()
   if reason then
     if showMessage then
       ui_message(reason, nil, "vehicleShopping")
@@ -4640,30 +4661,30 @@ canPurchaseCarMeetVehicle = function(showMessage)
   return true
 end
 
-local function buyCarMeetVehicleNow(shopId)
+function U.buyCarMeetVehicleNow(shopId)
   local function fail(reason)
     return false, reason
   end
 
-  openPurchaseMenu("instant", shopId, -1, true)
-  if not purchaseData or not purchaseData.vehicleInfo or purchaseData.vehicleInfo.source ~= "carMeet" then
+  U.openPurchaseMenu("instant", shopId, -1, true)
+  if not S.purchaseData or not S.purchaseData.vehicleInfo or S.purchaseData.vehicleInfo.source ~= "carMeet" then
     return fail("This vehicle is no longer available for purchase.")
   end
 
-  local blockReason = getCarMeetPurchaseBlockReason()
+  local blockReason = U.getCarMeetPurchaseBlockReason()
   if blockReason then
     return fail(blockReason)
   end
 
-  local canAfford = career_modules_cheats and career_modules_cheats.isCheatsMode() or career_modules_playerAttributes.getAttributeValue("money") >= purchaseData.prices.finalPrice
+  local canAfford = career_modules_cheats and career_modules_cheats.isCheatsMode() or career_modules_playerAttributes.getAttributeValue("money") >= S.purchaseData.prices.finalPrice
   if not canAfford then
     return fail("You cannot afford this vehicle.")
   end
 
-  purchaseData.keepCarMeetWorldVehicle = true
+  S.purchaseData.keepCarMeetWorldVehicle = true
   local vehId
   if career_modules_carmeets and career_modules_carmeets.prepareCarMeetVehicleForPurchase then
-    vehId = career_modules_carmeets.prepareCarMeetVehicleForPurchase(shopId, purchaseData.vehicleInfo)
+    vehId = career_modules_carmeets.prepareCarMeetVehicleForPurchase(shopId, S.purchaseData.vehicleInfo)
   else
     vehId = career_modules_carmeets and career_modules_carmeets.getCarMeetVehicleIdForShopId and career_modules_carmeets.getCarMeetVehicleIdForShopId(shopId)
     if career_modules_carmeets and career_modules_carmeets.snapshotCarMeetVehicleForPurchase then
@@ -4688,9 +4709,9 @@ local function buyCarMeetVehicleNow(shopId)
     if vehicleData and type(vehicleData.config) == "table" then
       inventoryVehicle.config = deepcopy(vehicleData.config)
     end
-    inventoryVehicle.mileage = purchaseData.vehicleInfo.Mileage or inventoryVehicle.mileage or 0
-    inventoryVehicle.year = purchaseData.vehicleInfo.year or inventoryVehicle.year
-    inventoryVehicle.purchasePrice = purchaseData.prices and purchaseData.prices.finalPrice or purchaseData.vehicleInfo.Value
+    inventoryVehicle.mileage = S.purchaseData.vehicleInfo.Mileage or inventoryVehicle.mileage or 0
+    inventoryVehicle.year = S.purchaseData.vehicleInfo.year or inventoryVehicle.year
+    inventoryVehicle.purchasePrice = S.purchaseData.prices and S.purchaseData.prices.finalPrice or S.purchaseData.vehicleInfo.Value
   end
 
   if not career_modules_inventory.moveVehicleToGarage(inventoryId) then
@@ -4703,45 +4724,45 @@ local function buyCarMeetVehicleNow(shopId)
   vehObj:queueLuaCommand('if electrics.setLightsState then electrics.setLightsState(0) end')
   vehObj:queueLuaCommand('if electrics.set_warn_signal then electrics.set_warn_signal(0) end')
 
-  payForVehicle()
+  U.payForVehicle()
 
   -- Register with insurance as uninsured; coverage can be added later at a garage/computer.
-  purchaseData.insuranceId = -1
+  S.purchaseData.insuranceId = -1
   extensions.hook("onVehicleAddedToInventory", {
     inventoryId = inventoryId,
-    vehicleInfo = purchaseData.vehicleInfo,
+    vehicleInfo = S.purchaseData.vehicleInfo,
     selectedPolicyId = 0,
-    purchaseData = purchaseData
+    purchaseData = S.purchaseData
   })
 
   if career_career.isAutosaveEnabled() then
     career_saveSystem.saveCurrent()
   end
 
-  local targetShopId = tonumber(purchaseData.shopId) or purchaseData.shopId
-  for i, vehInfo in ipairs(vehiclesInShop) do
+  local targetShopId = tonumber(S.purchaseData.shopId) or S.purchaseData.shopId
+  for i, vehInfo in ipairs(S.vehiclesInShop) do
     local vehShopId = tonumber(vehInfo.shopId) or vehInfo.shopId
     if vehShopId == targetShopId then
       vehInfo.markedSold = true
       vehInfo.soldViewCounter = 1
-      pendingSoldShopIds[purchaseData.shopId] = true
-      table.remove(vehiclesInShop, i)
+      S.pendingSoldShopIds[S.purchaseData.shopId] = true
+      table.remove(S.vehiclesInShop, i)
       break
     end
   end
 
-  purchaseMenuOpen = false
-  inspectingVehicleShopId = nil
+  S.purchaseMenuOpen = false
+  S.inspectingVehicleShopId = nil
   career_career.closeAllMenus()
   return true
 end
 
-local function removeTradeInVehicle()
-  purchaseData.tradeInVehicleInfo = nil
-  sendPurchaseDataToUi()
+function U.removeTradeInVehicle()
+  S.purchaseData.tradeInVehicleInfo = nil
+  U.sendPurchaseDataToUi()
 end
 
-local function openInventoryMenuForTradeIn()
+function U.openInventoryMenuForTradeIn()
   career_modules_inventory.openMenu({{
     callback = function(inventoryId)
       local vehicle = career_modules_inventory.getVehicles()[inventoryId]
@@ -4757,7 +4778,7 @@ local function openInventoryMenuForTradeIn()
         if type(niceName) ~= "string" then
           niceName = tostring(niceName or "Trade-In Vehicle")
         end
-        purchaseData.tradeInVehicleInfo = {
+        S.purchaseData.tradeInVehicleInfo = {
           id = inventoryId,
           niceName = niceName,
           Value = career_modules_valueCalculator.getInventoryVehicleValue(inventoryId) *
@@ -4765,7 +4786,7 @@ local function openInventoryMenuForTradeIn()
           takesNoInventorySpace = vehicle.takesNoInventorySpace
         }
         guihooks.trigger('UINavigation', 'back', 1)
-        sendPurchaseDataToUi()
+        U.sendPurchaseDataToUi()
       end
     end,
     buttonText = "Trade-In",
@@ -4780,16 +4801,16 @@ local function openInventoryMenuForTradeIn()
   }, "career.computer.vehicleShopping.vehicles.vehiclePurchase")
 end
 
-local function onExtensionLoaded()
+function U.onExtensionLoaded()
   if not career_career.isActive() then
     return false
   end
 
-  resetVehicleValidationState()
-  cacheDealers()
+  U.resetVehicleValidationState()
+  U.cacheDealers()
 
-  purchaseMenuOpen = false
-  inspectingVehicleShopId = nil
+  S.purchaseMenuOpen = false
+  S.inspectingVehicleShopId = nil
 
   local saveSlot, savePath = career_saveSystem.getCurrentProfile()
   if not saveSlot or not savePath then
@@ -4800,38 +4821,38 @@ local function onExtensionLoaded()
   -- vehicleShop.json owns moduleVersion. info.json uses the independent career
   -- save-system version, so comparing that value to moduleVersion made every
   -- current save look outdated (for example, save-system 64 vs shop module 69).
-  local outdated = not savedData or (tonumber(savedData.version) or 0) < moduleVersion
+  local outdated = not savedData or (tonumber(savedData.version) or 0) < C.moduleVersion
 
   -- Discovery is durable player progress, not generated shop inventory. Load it
   -- even when a career/module version or valuation schema change invalidates the
   -- saved offers below.
-  discoveredDealers = savedData and type(savedData.discoveredDealers) == "table"
+  S.discoveredDealers = savedData and type(savedData.discoveredDealers) == "table"
     and savedData.discoveredDealers or {}
 
   local data = not outdated and savedData
-  if data and tonumber(data.valuationSchemaVersion) ~= valuationSchemaVersion then
+  if data and tonumber(data.valuationSchemaVersion) ~= C.valuationSchemaVersion then
     log("I", "vehicleShopping", string.format(
       "Discarding saved shop offers from valuation schema %s; current schema is %d",
-      tostring(data.valuationSchemaVersion), valuationSchemaVersion))
+      tostring(data.valuationSchemaVersion), C.valuationSchemaVersion))
     data = nil
-    otherMapsData = {}
-    vehiclesInShop = {}
-    sellersInfos = {}
-    vehicleWatchlist = {}
+    S.otherMapsData = {}
+    S.vehiclesInShop = {}
+    S.sellersInfos = {}
+    S.vehicleWatchlist = {}
   end
   if data then
     local currentMap = getCurrentLevelIdentifier()
     local limitedMileageSchemaOutdated =
       tonumber(data.limitedMileageDealerSchemaVersion) ~= M.limitedMileageDealerSchemaVersion
-    vehicleWatchlist = data.vehicleWatchlist or {}
-    rtPendingFleetPurchases = data.rtPendingFleetPurchases or {}
+    S.vehicleWatchlist = data.vehicleWatchlist or {}
+    S.rtPendingFleetPurchases = data.rtPendingFleetPurchases or {}
 
     -- New format with 'maps' key
     if data.maps then
-      otherMapsData = data.maps
-      for mapId, mapData in pairs(otherMapsData) do
+      S.otherMapsData = data.maps
+      for mapId, mapData in pairs(S.otherMapsData) do
         if mapData.vehiclesInShop then
-          local sanitizedVehicles, loadSummary = sanitizeSavedVehicleEntries(mapData.vehiclesInShop,
+          local sanitizedVehicles, loadSummary = U.sanitizeSavedVehicleEntries(mapData.vehiclesInShop,
             "load:" .. tostring(mapId))
           if limitedMileageSchemaOutdated then
             for i = #sanitizedVehicles, 1, -1 do
@@ -4843,7 +4864,7 @@ local function onExtensionLoaded()
           end
           mapData.vehiclesInShop = sanitizedVehicles
           if loadSummary.raw > 0 then
-            logVehicleSanitizationSummary("saved vehicle load " .. tostring(mapId), loadSummary)
+            U.logVehicleSanitizationSummary("saved vehicle load " .. tostring(mapId), loadSummary)
           end
         end
       end
@@ -4854,76 +4875,76 @@ local function onExtensionLoaded()
       local oldDirtyDate = data.dirtyDate
 
       for _, vehicleInfo in ipairs(oldVehicles) do
-        local sanitizedVehicles, _ = sanitizeSavedVehicleEntries({vehicleInfo}, "load:migration")
+        local sanitizedVehicles, _ = U.sanitizeSavedVehicleEntries({vehicleInfo}, "load:migration")
         local sanitizedVehicle = sanitizedVehicles[1]
         if sanitizedVehicle and not (limitedMileageSchemaOutdated and
           (sanitizedVehicle.sellerId == "raceTab" or sanitizedVehicle.sellerId == "asotv")) then
           local mId = sanitizedVehicle.mapId or currentMap
-          if not otherMapsData[mId] then otherMapsData[mId] = {vehiclesInShop = {}, sellersInfos = {}} end
-          table.insert(otherMapsData[mId].vehiclesInShop, sanitizedVehicle)
+          if not S.otherMapsData[mId] then S.otherMapsData[mId] = {vehiclesInShop = {}, sellersInfos = {}} end
+          table.insert(S.otherMapsData[mId].vehiclesInShop, sanitizedVehicle)
         end
       end
 
       for sellerId, sellerInfo in pairs(oldSellers) do
         local mId = sellerInfo.mapId or currentMap
-        if not otherMapsData[mId] then otherMapsData[mId] = {vehiclesInShop = {}, sellersInfos = {}} end
-        otherMapsData[mId].sellersInfos[sellerId] = sellerInfo
+        if not S.otherMapsData[mId] then S.otherMapsData[mId] = {vehiclesInShop = {}, sellersInfos = {}} end
+        S.otherMapsData[mId].sellersInfos[sellerId] = sellerInfo
       end
       
       -- Assign dirty date to the current map if it was migration
-      if otherMapsData[currentMap] then
-        otherMapsData[currentMap].dirtyDate = oldDirtyDate
+      if S.otherMapsData[currentMap] then
+        S.otherMapsData[currentMap].dirtyDate = oldDirtyDate
       end
     end
 
     -- Set current map data
-    local currentData = otherMapsData[currentMap] or {}
-    local sanitizedVehicles, loadSummary = sanitizeSavedVehicleEntries(currentData.vehiclesInShop or {},
+    local currentData = S.otherMapsData[currentMap] or {}
+    local sanitizedVehicles, loadSummary = U.sanitizeSavedVehicleEntries(currentData.vehiclesInShop or {},
       "load:current:" .. tostring(currentMap))
     if loadSummary.raw > 0 then
-      logVehicleSanitizationSummary("saved vehicle load current " .. tostring(currentMap), loadSummary)
+      U.logVehicleSanitizationSummary("saved vehicle load current " .. tostring(currentMap), loadSummary)
     end
     currentData.vehiclesInShop = sanitizedVehicles
-    vehiclesInShop = sanitizedVehicles
-    sellersInfos = currentData.sellersInfos or {}
-    vehicleShopDirtyDate = currentData.dirtyDate
-    lastMap = currentMap
+    S.vehiclesInShop = sanitizedVehicles
+    S.sellersInfos = currentData.sellersInfos or {}
+    S.vehicleShopDirtyDate = currentData.dirtyDate
+    S.lastMap = currentMap
   end
 end
 
-local function onSaveCurrentProfile(currentSavePath)
+function U.onSaveCurrentProfile(currentSavePath)
   local currentMap = getCurrentLevelIdentifier()
   
   -- Update the stash for the current map
-  otherMapsData[currentMap] = {
-    vehiclesInShop = vehiclesInShop,
-    sellersInfos = sellersInfos,
-    dirtyDate = vehicleShopDirtyDate
+  S.otherMapsData[currentMap] = {
+    vehiclesInShop = S.vehiclesInShop,
+    sellersInfos = S.sellersInfos,
+    dirtyDate = S.vehicleShopDirtyDate
   }
 
   local data = {}
-  data.maps = otherMapsData
-  data.vehicleWatchlist = vehicleWatchlist
-  data.rtPendingFleetPurchases = rtPendingFleetPurchases
-  data.discoveredDealers = discoveredDealers
-  data.version = moduleVersion
-  data.valuationSchemaVersion = valuationSchemaVersion
+  data.maps = S.otherMapsData
+  data.vehicleWatchlist = S.vehicleWatchlist
+  data.rtPendingFleetPurchases = S.rtPendingFleetPurchases
+  data.discoveredDealers = S.discoveredDealers
+  data.version = C.moduleVersion
+  data.valuationSchemaVersion = C.valuationSchemaVersion
   data.limitedMileageDealerSchemaVersion = M.limitedMileageDealerSchemaVersion
   
   career_saveSystem.jsonWriteFileSafe(currentSavePath .. "/career/vehicleShop.json", data, true)
 end
 
-local function getCurrentSellerId()
-  return currentSeller
+function U.getCurrentSellerId()
+  return S.currentSeller
 end
 
-local function onComputerAddFunctions(menuData, computerFunctions)
+function U.onComputerAddFunctions(menuData, computerFunctions)
   local computerFunctionData = {
     id = "vehicleShop",
     label = "Vehicle Marketplace",
     routeTarget = "career.computer.vehicleShopping",
     callback = function()
-      openShop(nil, menuData.computerFacility.id)
+      U.openShop(nil, menuData.computerFacility.id)
     end,
     order = 10
   }
@@ -4942,45 +4963,45 @@ local function onComputerAddFunctions(menuData, computerFunctions)
   computerFunctions.general[computerFunctionData.id] = computerFunctionData
 end
 
-local function onModActivated()
-  resetVehicleValidationState()
-  cacheDealers()
+function U.onModActivated()
+  U.resetVehicleValidationState()
+  U.cacheDealers()
 end
 
-local function onWorldReadyState(state)
+function U.onWorldReadyState(state)
   if state == 2 then
     local currentMap = getCurrentLevelIdentifier()
 
     -- Stash previous map data if it exists
-    if lastMap and lastMap ~= currentMap then
-      otherMapsData[lastMap] = {
-        vehiclesInShop = vehiclesInShop,
-        sellersInfos = sellersInfos,
-        dirtyDate = vehicleShopDirtyDate
+    if S.lastMap and S.lastMap ~= currentMap then
+      S.otherMapsData[S.lastMap] = {
+        vehiclesInShop = S.vehiclesInShop,
+        sellersInfos = S.sellersInfos,
+        dirtyDate = S.vehicleShopDirtyDate
       }
     end
 
     -- Load new map data
-    if otherMapsData[currentMap] then
-      local currentData = otherMapsData[currentMap]
-      local sanitizedVehicles, loadSummary = sanitizeSavedVehicleEntries(currentData.vehiclesInShop or {},
+    if S.otherMapsData[currentMap] then
+      local currentData = S.otherMapsData[currentMap]
+      local sanitizedVehicles, loadSummary = U.sanitizeSavedVehicleEntries(currentData.vehiclesInShop or {},
         "onWorldReadyState:" .. tostring(currentMap))
       if loadSummary.raw > 0 then
-        logVehicleSanitizationSummary("world load " .. tostring(currentMap), loadSummary)
+        U.logVehicleSanitizationSummary("world load " .. tostring(currentMap), loadSummary)
       end
       currentData.vehiclesInShop = sanitizedVehicles
-      vehiclesInShop = sanitizedVehicles
-      sellersInfos = currentData.sellersInfos or {}
-      vehicleShopDirtyDate = currentData.dirtyDate
+      S.vehiclesInShop = sanitizedVehicles
+      S.sellersInfos = currentData.sellersInfos or {}
+      S.vehicleShopDirtyDate = currentData.dirtyDate
     else
       -- If no data for this map, start fresh but keep watchlist
-      vehiclesInShop = {}
-      sellersInfos = {}
-      vehicleShopDirtyDate = nil
+      S.vehiclesInShop = {}
+      S.sellersInfos = {}
+      S.vehicleShopDirtyDate = nil
     end
 
-    lastMap = currentMap
-    cacheDealers()
+    S.lastMap = currentMap
+    U.cacheDealers()
 
     -- Repair freight purchases made before pickup completion assigned a home
     -- garage. A current/last vehicle proves the player has already collected it.
@@ -4992,8 +5013,8 @@ local function onWorldReadyState(state)
 end
 
 -- Statistics and utility functions
-local function getCacheStats()
-  if not vehicleCache.cacheValid then
+function U.getCacheStats()
+  if not S.vehicleCache.cacheValid then
     return {
       valid = false,
       message = "Cache not initialized"
@@ -5002,12 +5023,12 @@ local function getCacheStats()
 
   local stats = {
     valid = true,
-    cacheTime = vehicleCache.lastCacheTime,
+    cacheTime = S.vehicleCache.lastCacheTime,
     dealerships = {},
     totalVehicles = 0
   }
 
-  for dealershipId, data in pairs(vehicleCache.dealershipCache) do
+  for dealershipId, data in pairs(S.vehicleCache.dealershipCache) do
     local regularCount = data.regularVehicles and #data.regularVehicles or 0
     stats.dealerships[dealershipId] = {
       regularVehicles = regularCount,
@@ -5019,21 +5040,21 @@ local function getCacheStats()
   return stats
 end
 
-local function getMapStats()
+function U.getMapStats()
   local stats = {
     currentMap = getCurrentLevelIdentifier(),
     vehiclesByMap = {},
     sellersByMap = {},
-    totalVehicles = #vehiclesInShop,
-    totalSellers = tableSize(sellersInfos)
+    totalVehicles = #S.vehiclesInShop,
+    totalSellers = tableSize(S.sellersInfos)
   }
 
-  for _, vehicleInfo in ipairs(vehiclesInShop) do
+  for _, vehicleInfo in ipairs(S.vehiclesInShop) do
     local mapId = vehicleInfo.mapId or "unknown"
     stats.vehiclesByMap[mapId] = (stats.vehiclesByMap[mapId] or 0) + 1
   end
 
-  for sellerId, sellerInfo in pairs(sellersInfos) do
+  for sellerId, sellerInfo in pairs(S.sellersInfos) do
     local mapId = sellerInfo.mapId or "unknown"
     stats.sellersByMap[mapId] = (stats.sellersByMap[mapId] or 0) + 1
   end
@@ -5041,28 +5062,28 @@ local function getMapStats()
   return stats
 end
 
-local function clearDataFromOtherMaps(targetMap)
+function U.clearDataFromOtherMaps(targetMap)
   targetMap = targetMap or getCurrentLevelIdentifier()
 
   local filteredVehicles = {}
-  for _, vehicleInfo in ipairs(vehiclesInShop) do
+  for _, vehicleInfo in ipairs(S.vehiclesInShop) do
     if vehicleInfo.mapId == targetMap then
       table.insert(filteredVehicles, vehicleInfo)
     end
   end
-  local removedVehicles = #vehiclesInShop - #filteredVehicles
-  vehiclesInShop = filteredVehicles
+  local removedVehicles = #S.vehiclesInShop - #filteredVehicles
+  S.vehiclesInShop = filteredVehicles
 
   local filteredSellers = {}
   local removedSellers = 0
-  for sellerId, sellerInfo in pairs(sellersInfos) do
+  for sellerId, sellerInfo in pairs(S.sellersInfos) do
     if sellerInfo.mapId == targetMap then
       filteredSellers[sellerId] = sellerInfo
     else
       removedSellers = removedSellers + 1
     end
   end
-  sellersInfos = filteredSellers
+  S.sellersInfos = filteredSellers
 
   return {
     vehiclesRemoved = removedVehicles,
@@ -5071,114 +5092,116 @@ local function clearDataFromOtherMaps(targetMap)
 end
 
 -- Public API
-M.openShop = openShop
-M.showVehicle = showVehicle
-M.navigateToPos = navigateToPos
-M.navigateToDealership = navigateToDealership
-M.taxiToDealership = taxiToDealership
-M.getTaxiPriceToDealership = getTaxiPriceToDealership
-M.buySpawnedVehicle = buySpawnedVehicle
-M.quickTravelToVehicle = quickTravelToVehicle
-M.updateVehicleList = updateVehicleList
-M.getShoppingData = getShoppingData
-M.sendShoppingDataToUI = sendShoppingDataToUI
-M.onRouteMount = onRouteMount
-M.selectSeller = selectSeller
-M.getSelectedSellerBreadcrumbTitle = getSelectedSellerBreadcrumbTitle
-M.sendPurchaseDataToUi = sendPurchaseDataToUi
-M.getDeliveryQuote = getDeliveryQuote
-M.getCurrentSellerId = getCurrentSellerId
-M.getVisualValueFromMileage = getVisualValueFromMileage
-M.invalidateVehicleCache = invalidateVehicleCache
+M.openShop = U.openShop
+M.showVehicle = U.showVehicle
+M.navigateToPos = U.navigateToPos
+M.navigateToDealership = U.navigateToDealership
+M.taxiToDealership = U.taxiToDealership
+M.getTaxiPriceToDealership = U.getTaxiPriceToDealership
+M.buySpawnedVehicle = U.buySpawnedVehicle
+M.quickTravelToVehicle = U.quickTravelToVehicle
+M.updateVehicleList = U.updateVehicleList
+M.getShoppingData = U.getShoppingData
+M.sendShoppingDataToUI = U.sendShoppingDataToUI
+M.onRouteMount = U.onRouteMount
+M.selectSeller = U.selectSeller
+M.getSelectedSellerBreadcrumbTitle = U.getSelectedSellerBreadcrumbTitle
+M.sendPurchaseDataToUi = U.sendPurchaseDataToUi
+M.getDeliveryQuote = U.getDeliveryQuote
+M.getCurrentSellerId = U.getCurrentSellerId
+M.getSellerAccessInfo = U.getSellerAccessInfo
+M.isOnlineSellerId = U.isOnlineSellerId
+M.getVisualValueFromMileage = U.getVisualValueFromMileage
+M.invalidateVehicleCache = U.invalidateVehicleCache
 M.getLastDelta = function()
-  return lastDelta
+  return S.lastDelta
 end
-M.setShoppingUiOpen = setShoppingUiOpen
-M.getVehicleInfoByShopId = getVehicleInfoByShopId
-M.registerCarMeetVehicle = registerCarMeetVehicle
-M.removeCarMeetVehicles = removeCarMeetVehicles
-M.canPurchaseCarMeetVehicle = canPurchaseCarMeetVehicle
-M.getCarMeetPurchaseBlockReason = getCarMeetPurchaseBlockReason
-M.buyCarMeetVehicleNow = buyCarMeetVehicleNow
-M.grantRewardVehicle = grantRewardVehicle
-M.getPendingRacingTeamFleetPurchases = getPendingRacingTeamFleetPurchases
-M.clearPendingRacingTeamFleetPurchases = clearPendingRacingTeamFleetPurchases
+M.setShoppingUiOpen = U.setShoppingUiOpen
+M.getVehicleInfoByShopId = U.getVehicleInfoByShopId
+M.registerCarMeetVehicle = U.registerCarMeetVehicle
+M.removeCarMeetVehicles = U.removeCarMeetVehicles
+M.canPurchaseCarMeetVehicle = U.canPurchaseCarMeetVehicle
+M.getCarMeetPurchaseBlockReason = U.getCarMeetPurchaseBlockReason
+M.buyCarMeetVehicleNow = U.buyCarMeetVehicleNow
+M.grantRewardVehicle = U.grantRewardVehicle
+M.getPendingRacingTeamFleetPurchases = U.getPendingRacingTeamFleetPurchases
+M.clearPendingRacingTeamFleetPurchases = U.clearPendingRacingTeamFleetPurchases
 
-M.openPurchaseMenu = openPurchaseMenu
-M.updateInsuranceSelection = updateInsuranceSelection
-M.buyFromPurchaseMenu = buyFromPurchaseMenu
-M.openInventoryMenuForTradeIn = openInventoryMenuForTradeIn
-M.removeTradeInVehicle = removeTradeInVehicle
+M.openPurchaseMenu = U.openPurchaseMenu
+M.updateInsuranceSelection = U.updateInsuranceSelection
+M.buyFromPurchaseMenu = U.buyFromPurchaseMenu
+M.openInventoryMenuForTradeIn = U.openInventoryMenuForTradeIn
+M.removeTradeInVehicle = U.removeTradeInVehicle
 
-M.endShopping = endShopping
-M.cancelShopping = cancelShopping
-M.requestExit = requestExit
-M.requestVehicleListExit = requestVehicleListExit
-M.cancelPurchase = cancelPurchase
-M.requestPurchaseExit = requestPurchaseExit
+M.endShopping = U.endShopping
+M.cancelShopping = U.cancelShopping
+M.requestExit = U.requestExit
+M.requestVehicleListExit = U.requestVehicleListExit
+M.cancelPurchase = U.cancelPurchase
+M.requestPurchaseExit = U.requestPurchaseExit
 
-M.getVehiclesInShop = getVehiclesInShop
+M.getVehiclesInShop = U.getVehiclesInShop
 
-M.onWorldReadyState = onWorldReadyState
-M.onModActivated = onModActivated
-M.onClientStartMission = onClientStartMission
-M.onVehicleSpawnFinished = onVehicleSpawnFinished
-M.onRewardVehicleSpawnFinished = onRewardVehicleSpawnFinished
-M.onRacingTeamFleetVehicleSpawnFinished = onRacingTeamFleetVehicleSpawnFinished
-M.onAddedVehiclePartsToInventory = onAddedVehiclePartsToInventory
-M.onEnterVehicleFinished = onEnterVehicleFinished
-M.onExtensionLoaded = onExtensionLoaded
-M.onSaveCurrentProfile = onSaveCurrentProfile
-M.onShoppingMenuClosed = onShoppingMenuClosed
-M.onComputerAddFunctions = onComputerAddFunctions
-M.onUpdate = onUpdate
-M.onUiChangedState = onUiChangedState
+M.onWorldReadyState = U.onWorldReadyState
+M.onModActivated = U.onModActivated
+M.onClientStartMission = U.onClientStartMission
+M.onVehicleSpawnFinished = U.onVehicleSpawnFinished
+M.onRewardVehicleSpawnFinished = U.onRewardVehicleSpawnFinished
+M.onRacingTeamFleetVehicleSpawnFinished = U.onRacingTeamFleetVehicleSpawnFinished
+M.onAddedVehiclePartsToInventory = U.onAddedVehiclePartsToInventory
+M.onEnterVehicleFinished = U.onEnterVehicleFinished
+M.onExtensionLoaded = U.onExtensionLoaded
+M.onSaveCurrentProfile = U.onSaveCurrentProfile
+M.onShoppingMenuClosed = U.onShoppingMenuClosed
+M.onComputerAddFunctions = U.onComputerAddFunctions
+M.onUpdate = U.onUpdate
+M.onUiChangedState = U.onUiChangedState
 
 M.onVehicleInspectionFinished = function(shopId)
-  if inspectingVehicleShopId == shopId then
-    inspectingVehicleShopId = nil
+  if S.inspectingVehicleShopId == shopId then
+    S.inspectingVehicleShopId = nil
     log("D", "Career", "Inspection finished for vehicle: " .. tostring(shopId))
   end
 end
 
 M.checkSpawnedVehicleStatus = function()
   local spawnedVehicleInfo = career_modules_inspectVehicle.getSpawnedVehicleInfo()
-  if spawnedVehicleInfo and inspectingVehicleShopId and spawnedVehicleInfo.shopId == inspectingVehicleShopId then
+  if spawnedVehicleInfo and S.inspectingVehicleShopId and spawnedVehicleInfo.shopId == S.inspectingVehicleShopId then
     return true
-  elseif inspectingVehicleShopId then
-    log("D", "Career", "Clearing inspection state for vehicle: " .. tostring(inspectingVehicleShopId))
-    inspectingVehicleShopId = nil
+  elseif S.inspectingVehicleShopId then
+    log("D", "Career", "Clearing inspection state for vehicle: " .. tostring(S.inspectingVehicleShopId))
+    S.inspectingVehicleShopId = nil
     return false
   end
   return false
 end
 
-M.cacheDealers = cacheDealers
-M.rebuildDealershipCache = rebuildDealershipCache
-M.getRandomVehicleFromCache = getRandomVehicleFromCache
-M.getCacheStats = getCacheStats
-M.getMapStats = getMapStats
-M.clearDataFromOtherMaps = clearDataFromOtherMaps
-M.getEligibleVehiclesWithoutDealershipVehicles = getEligibleVehiclesWithoutDealershipVehicles
+M.cacheDealers = U.cacheDealers
+M.rebuildDealershipCache = U.rebuildDealershipCache
+M.getRandomVehicleFromCache = U.getRandomVehicleFromCache
+M.getCacheStats = U.getCacheStats
+M.getMapStats = U.getMapStats
+M.clearDataFromOtherMaps = U.clearDataFromOtherMaps
+M.getEligibleVehiclesWithoutDealershipVehicles = U.getEligibleVehiclesWithoutDealershipVehicles
 
 function M.setRtBiz(id)
   if id == nil or id == "" then
-    rtBizId = nil
+    S.rtBizId = nil
     -- Do not clear currentSeller/originComputerId here:
     -- VehicleShoppingMain always calls setRtBiz(""), including normal in-person dealer flow.
     -- Clearing seller scope here unintentionally widens in-person shopping to global marketplace.
     return true
   end
-  rtBizId = tonumber(id) or id
+  S.rtBizId = tonumber(id) or id
   -- Entering the racing team computer's vehicle shopping context; drop any stale
   -- dealer scope so the shop isn't silently filtered to the last visited dealer.
-  currentSeller = nil
-  originComputerId = nil
-  selectedSellerId = nil
-  shoppingScreenTag = "buying"
-  buyingAvailable = true
-  marketplaceAvailable = false
-  sendShoppingDataToUI()
+  S.currentSeller = nil
+  S.originComputerId = nil
+  S.selectedSellerId = nil
+  S.shoppingScreenTag = "buying"
+  S.buyingAvailable = true
+  S.marketplaceAvailable = false
+  U.sendShoppingDataToUI()
   return true
 end
 

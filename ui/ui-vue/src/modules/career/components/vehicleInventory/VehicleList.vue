@@ -256,6 +256,7 @@ const handleButtonClick = async (buttonData, index) => {
   if (!vehicle) return
   // Capture before popHide/confirm: popover @hide clears selectedVehId.
   const vehicleId = vehicle.id
+  popHide()
 
   if (buttonData.retrievalAction) {
     const covered = vehicle.retrievalCoveredByInsurance
@@ -274,22 +275,20 @@ const handleButtonClick = async (buttonData, index) => {
       ]
     )
     if (res) {
-      popHide()
       vehicleInventoryStore.chooseVehicle(vehicleId, index)
     }
   } else if (buttonData.buttonText === "Deliver" || buttonData.buttonText === "Deliver and replace") {
     const cost = 5000
-    const message = buttonData.buttonText === "Deliver and replace" 
+    const message = buttonData.buttonText === "Deliver and replace"
       ? `Do you want to deliver this vehicle and replace your current one for ${units.beamBucks(cost)}?`
       : `Do you want to deliver this vehicle to your garage for ${units.beamBucks(cost)}?`
-    
+
     const res = await openConfirmation("", message, [
       { label: $translate.instant("ui.common.yes"), value: true, extras: { default: true } },
       { label: $translate.instant("ui.common.no"), value: false, extras: { accent: ACCENTS.secondary } },
     ])
-    
+
     if (res) {
-      popHide()
       vehicleInventoryStore.chooseVehicle(vehicleId, index)
     }
   } else {
@@ -461,10 +460,27 @@ const setFavoriteVehicle = () => {
 const storeVehicle = async () => {
   const vehicle = vehSelected.value
   if (!vehicle || isStoring.value) return
-  isStoring.value = true
+  const vehicleId = vehicle.id
   popHide()
+
+  if (vehicle.storageTowRequired) {
+    const covered = vehicle.storageTowCoveredByInsurance
+    const cost = Number(vehicle.storageTowCost) || 0
+    const paymentText = covered
+      ? "use one insurance roadside-assistance tow"
+      : `pay ${units.beamBucks(cost)}`
+    const confirmationText =
+      `Tow this vehicle to this garage and put it in storage, and ${paymentText}?`
+    const res = await openConfirmation("", confirmationText, [
+      { label: $translate.instant("ui.common.yes"), value: true, extras: { default: true } },
+      { label: $translate.instant("ui.common.no"), value: false, extras: { accent: ACCENTS.secondary } },
+    ])
+    if (!res) return
+  }
+
+  isStoring.value = true
   try {
-    await lua.career_modules_inventory.storeVehicleAtClosestGarage(vehicle.id)
+    await lua.career_modules_inventory.storeVehicleAtClosestGarage(vehicleId)
     lua.career_modules_inventory.sendDataToUi()
   } finally {
     isStoring.value = false
