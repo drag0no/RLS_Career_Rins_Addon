@@ -1,0 +1,4 @@
+{"name":"patching_stairs_city_red","class":"Prefab","__parent":"sidewalk_patches","filename":"/levels/west_coast_usa/art/prefabs/patching_stairs_city_red.prefab"}
+{"name":"city_patching_green2","class":"Prefab","__parent":"sidewalk_patches","filename":"levels/west_coast_usa/art/prefabs/city_patching_green2.prefab"}
+{"name":"gap_plugs_red_zone","class":"Prefab","__parent":"sidewalk_patches","filename":"/levels/west_coast_usa/art/prefabs/gap_plugs_red_zone.prefab"}
+{"name":"bluezone_prefab","class":"Prefab","__parent":"sidewalk_patches","filename":"/levels/west_coast_usa/art/prefabs/bluezone.prefab"}

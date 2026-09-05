@@ -1,0 +1,97 @@
+{
+  "tuningShops": [
+    {
+      "id": "fastAutoTuningShop",
+      "type": "tuningShop",
+      "name": "Tuning Shop",
+      "price": 500000,
+      "downPayment": 25000,
+      "description": "Professional vehicle tuning services. Accept tuning jobs and improve vehicle performance.",
+      
+      "icon": "poi_laptop_round",
+      "playModeIconName": "poi_laptop_round",
+      "iconOffsetHeight": 0.15,
+      "iconLift": 0.2,
+      "races" : [
+        "drag",
+        "track",
+        "track_alt"
+      ],
+      
+      "doors": [
+        [
+          "fastAutoTuningShop_area",
+          "fastAutoTuningShop_icon"
+        ],
+        [
+          "fastAutoTuningShop_area1",
+          "fastAutoTuningShop_icon1"
+        ]
+      ],
+      
+      "sitesFile": "tuningShops.sites.json",
+      
+      "businessGarageId": "fastAutoTuningShopGarage",
+      
+      "preview": "fastAutoBusiness.jpg",
+      
+      "activityAcceptProps": [
+        {
+          "icon": "checkmark",
+          "keyLabel": "Tuning Services",
+          "valueLabel": "Available"
+        },
+        {
+          "icon": "checkmark",
+          "keyLabel": "Vehicle Storage",
+          "valueLabel": "Available"
+        }
+      ]
+    }
+  ],
+  "racingTeams": [
+    {
+      "id": "rlsRacingComputer",
+      "type": "racingTeam",
+      "name": "Racing Team",
+      "price": 500000,
+      "downPayment": 25000,
+      "description": "Manage your racing team. Store and prepare vehicles for competition.",
+      "icon": "poi_laptop_round",
+      "playModeIconName": "poi_laptop_round",
+      "iconOffsetHeight": 0.15,
+      "iconLift": 0.2,
+      "doors": [
+        ["rlsRacingComputer_area", "rlsRacingComputer_icon"],
+        ["rlsRacingComputer_area1", "rlsRacingComputer_icon1"]
+      ],
+      "doorLocks": {
+        "rlsRacingComputer_area": { "treeId": "team-operations", "nodeId": "laptop" }
+      },
+      "sitesFile": "racingTeam.sites.json",
+      "businessGarageId": "rlsRacingComputerGarage",
+      "preview": "racingBusiness.jpg",
+      "activityAcceptProps": []
+    }
+  ],
+  "businessGarages": [
+    {
+      "id": "fastAutoTuningShopGarage",
+      "name": "Fast Auto Tuning Shop Garage",
+      "description": "Business garage for storing vehicles",
+      "sitesFile": "tuningShops.sites.json",
+      "parkingSpotNames": ["fastAutoTuningShopParking1", "fastAutoTuningShopParking2", "fastAutoTuningShopParking3", "fastAutoTuningShopParking4"],
+      "zoneNames": ["fastAutoTuningShopGarage1"],
+      "capacity": 5
+    },
+    {
+      "id": "rlsRacingComputerGarage",
+      "name": "RLS Racing Computer Garage",
+      "description": "Business garage for racing team vehicles",
+      "sitesFile": "racingTeam.sites.json",
+      "parkingSpotNames": ["rlsRacing_parking", "rlsRacing_parking2", "rlsRacing_parking3", "rlsRacing_parking4"],
+      "zoneNames": ["RLS Racing Garage"],
+      "capacity": 4
+    }
+  ]
+}
