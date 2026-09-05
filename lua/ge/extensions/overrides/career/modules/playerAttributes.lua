@@ -26,6 +26,7 @@ local attributeKeyAliases = {
   ["careerSkills-drag"] = "careerSkills-speed",
   ["careerSkills-drift"] = "careerSkills-mayhem",
   ["careerSkills-roadracing"] = "careerSkills-circuitRacing",
+  ["careerSkills-dirt"] = "careerSkills-offroad",
 
   -- Keep older FRE/map-expansion XP tags working while new content writes
   -- directly to the canonical parent skill attributes.
@@ -46,6 +47,8 @@ local attributeKeyAliases = {
   offroad = "careerSkills-offroad",
   ["off-road"] = "careerSkills-offroad",
   rally = "careerSkills-offroad",
+  dirt = "careerSkills-offroad",
+  rallycross = "careerSkills-offroad",
   trail = "careerSkills-offroad",
   mud = "careerSkills-offroad",
   mudding = "careerSkills-offroad",

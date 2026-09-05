@@ -45,26 +45,36 @@ Core modules and responsibilities:
 - `sanctionedRacing.lua`: sanctioned offer generation, commit/navigate/reschedule, podium settlement.
 - `ui.lua`: UI state snapshot + live push payloads.
 
-## 2) Discipline Model
+## 2) Parent Skill and Discipline Model
 
-Defined in `gameplay/fre/freProgression.config.json`:
+Defined across `gameplay/fre/freProgression.config.json` and `lua/ge/extensions/gameplay/fre/config.lua`:
 
-- crawling (`fre-crawling`)
-- roadracing (`fre-roadracing`)
-- drift (`fre-drift`)
-- drag (`fre-drag`)
-- trail (`fre-trail`, placeholderOnly=true)
-- oval (`fre-oval`)
-- offroad (`fre-offroad`)
-- rally (`fre-rally`)
-- landspeed (`fre-landspeed`, placeholderOnly=true)
-- mudding (`fre-mudding`)
+### Parent Skills:
+- **`dirt`** (Dirt): `skillKey = "careerSkills-dirt"`
+  - `rally`: Point-to-point Rally Tour across map stages (`rally1`..`rally4`).
+  - `dirt`: Closed dirt circuit racing (`quarryCircuit`, `beachCircuit`, `dirtOval`).
+  - `rallycross`: Rough dirt circuits with washboard/jumps (`dirtCircuit`, `rubberBand`).
+- **`offroad`** (Off-Road): `skillKey = "careerSkills-offroad"`
+  - `offroad`: Extreme / Ultra4 racing (`koh1`, `koh2`, `toughTruckBeach`).
+  - `crawling`: Rock crawling trials (`rockClimbS`, `rockClimbL`).
+  - `mudding`: Mud drag racing (`mudDrag1`, `mudDrag2`).
+  - `trail`: Trail (Legacy, placeholderOnly=true).
+- **`circuitRacing`** (Circuit Racing): `skillKey = "careerSkills-circuitRacing"`
+  - `roadracing`: Sanctioned paved road courses.
+  - `oval`: Paved oval tracks.
+- **`speed`** (Speed): `skillKey = "careerSkills-speed"`
+  - `drag`: Drag strip racing.
+  - `landspeed`: Top speed runs (placeholderOnly=true).
+- **`mayhem`** (Mayhem): `skillKey = "careerSkills-mayhem"`
+  - `drift`: Drift challenges.
+  - `burnout`: Burnout competitions.
+  - `demo`: Demolition derby.
 
 Notes:
-
 - `roadracing` has `sanctionedRacingUnlockLevel = 15`.
 - `trail` and `landspeed` are explicitly marked placeholder-only in FRE config.
-- `fre/config.lua` supports alias mapping so race type strings resolve to discipline IDs.
+- `state.lua` uses a 2-phase license reconciliation system (`reconcileParentSkillLicenses`) on save load that automatically and bidirectionally migrates unlocked licenses and spent points when any discipline is reassigned between parent skills.
+- Multi-stage Rally Events generate exclusively for `rally` point-to-point stages using `rallyAllStages` and `rallyDoneStages`. Standard contracts generate for closed circuits and other disciplines.
 
 ## 3) Leveling and Reward Scaling
 

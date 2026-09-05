@@ -13,6 +13,7 @@ local MAX_RELATIVE = 3.0
 
 -- Mirror economyAdjusterPolicy umbrella tree; progression keys are skill branches.
 local XP_SECTIONS = {
+  {id = "dirt", label = "Dirt", children = {{id = "dirt", label = "Dirt", skillKey = "careerSkills-dirt"}}},
   {id = "offroad", label = "Off-Road", children = {{id = "offroad", label = "Off-Road", skillKey = "careerSkills-offroad"}}},
   {id = "speed", label = "Speed", children = {{id = "speed", label = "Speed", skillKey = "careerSkills-speed"}}},
   {id = "mayhem", label = "Mayhem", children = {{id = "mayhem", label = "Mayhem", skillKey = "careerSkills-mayhem"}}},

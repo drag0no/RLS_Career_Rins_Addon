@@ -785,8 +785,202 @@
         {
             "id": "rally",
             "label": "Rally",
-            "parentSkillId": "offroad",
-            "skillKey": "careerSkills-offroad",
+            "parentSkillId": "dirt",
+            "skillKey": "careerSkills-dirt",
+            "placeholderOnly": false,
+            "contracts": {
+                "tierUnlockLevels": {
+                    "easy": 5,
+                    "medium": 20,
+                    "hard": 35
+                },
+                "targetMultiplierByTier": {
+                    "easy": {
+                        "min": 0.9,
+                        "max": 1
+                    },
+                    "medium": {
+                        "min": 0.8,
+                        "max": 0.9
+                    },
+                    "hard": {
+                        "min": 0.7,
+                        "max": 0.8
+                    }
+                },
+                "xpByTier": {
+                    "easy": {
+                        "xpAtTarget": 375,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "medium": {
+                        "xpAtTarget": 750,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "hard": {
+                        "xpAtTarget": 1750,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    }
+                },
+                "vehicleBlacklist": []
+            },
+            "sponsors": {
+                "tierUnlockLevels": {
+                    "easy": 10,
+                    "medium": 25,
+                    "hard": 40
+                },
+                "targetMultiplierByTier": {
+                    "easy": {
+                        "min": 1.08,
+                        "max": 1.25
+                    },
+                    "medium": {
+                        "min": 1,
+                        "max": 1.12
+                    },
+                    "hard": {
+                        "min": 0.94,
+                        "max": 1.04
+                    }
+                }
+            },
+            "eventXp": {
+                "tierUnlockLevels": {
+                    "easy": 1,
+                    "medium": 20,
+                    "hard": 35
+                },
+                "xpByTier": {
+                    "easy": {
+                        "xpAtTarget": 100,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "medium": {
+                        "xpAtTarget": 100,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "hard": {
+                        "xpAtTarget": 100,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    }
+                }
+            }
+        },
+        {
+            "id": "dirt",
+            "label": "Dirt",
+            "parentSkillId": "dirt",
+            "skillKey": "careerSkills-dirt",
+            "placeholderOnly": false,
+            "contracts": {
+                "tierUnlockLevels": {
+                    "easy": 5,
+                    "medium": 20,
+                    "hard": 35
+                },
+                "targetMultiplierByTier": {
+                    "easy": {
+                        "min": 0.9,
+                        "max": 1
+                    },
+                    "medium": {
+                        "min": 0.8,
+                        "max": 0.9
+                    },
+                    "hard": {
+                        "min": 0.7,
+                        "max": 0.8
+                    }
+                },
+                "xpByTier": {
+                    "easy": {
+                        "xpAtTarget": 375,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "medium": {
+                        "xpAtTarget": 750,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "hard": {
+                        "xpAtTarget": 1750,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    }
+                },
+                "vehicleBlacklist": []
+            },
+            "sponsors": {
+                "tierUnlockLevels": {
+                    "easy": 10,
+                    "medium": 25,
+                    "hard": 40
+                },
+                "targetMultiplierByTier": {
+                    "easy": {
+                        "min": 1.08,
+                        "max": 1.25
+                    },
+                    "medium": {
+                        "min": 1,
+                        "max": 1.12
+                    },
+                    "hard": {
+                        "min": 0.94,
+                        "max": 1.04
+                    }
+                }
+            },
+            "eventXp": {
+                "tierUnlockLevels": {
+                    "easy": 1,
+                    "medium": 20,
+                    "hard": 35
+                },
+                "xpByTier": {
+                    "easy": {
+                        "xpAtTarget": 100,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "medium": {
+                        "xpAtTarget": 100,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    },
+                    "hard": {
+                        "xpAtTarget": 100,
+                        "tenPercentBetterMultiplier": 1.25,
+                        "belowTargetFloorMultiplier": 0.25,
+                        "maxMultiplier": 3
+                    }
+                }
+            }
+        },
+        {
+            "id": "rallycross",
+            "label": "Rallycross",
+            "parentSkillId": "dirt",
+            "skillKey": "careerSkills-dirt",
             "placeholderOnly": false,
             "contracts": {
                 "tierUnlockLevels": {
@@ -1213,7 +1407,8 @@
         }
     ],
     "parentSkills": [
-        {"id": "offroad", "label": "Off-Road", "skillKey": "careerSkills-offroad", "laneIds": ["offroad", "rally", "crawling", "mudding"]},
+        {"id": "dirt", "label": "Dirt", "skillKey": "careerSkills-dirt", "laneIds": ["rally", "dirt", "rallycross"]},
+        {"id": "offroad", "label": "Off-Road", "skillKey": "careerSkills-offroad", "laneIds": ["offroad", "crawling", "mudding"]},
         {"id": "speed", "label": "Speed", "skillKey": "careerSkills-speed", "laneIds": ["drag", "landspeed"]},
         {"id": "mayhem", "label": "Mayhem", "skillKey": "careerSkills-mayhem", "laneIds": ["drift", "burnout", "demo"]},
         {"id": "circuitRacing", "label": "Circuit Racing", "skillKey": "careerSkills-circuitRacing", "laneIds": ["roadracing", "oval"]}
@@ -1238,6 +1433,8 @@
         "offroad": "offroad",
         "off-road": "offroad",
         "rally": "rally",
+        "dirt": "dirt",
+        "rallycross": "rallycross",
         "landspeed": "landspeed",
         "land_speed": "landspeed",
         "mud": "mudding",

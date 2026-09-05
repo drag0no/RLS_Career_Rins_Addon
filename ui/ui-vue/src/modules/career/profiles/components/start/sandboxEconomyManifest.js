@@ -52,7 +52,9 @@ export const SANDBOX_ECONOMY_SECTIONS = [
     id: "racing",
     label: "Racing & Events",
     children: [
-      { id: "rally", label: "Rally", skillKey: "careerSkills-offroad" },
+      { id: "rally", label: "Rally", skillKey: "careerSkills-dirt" },
+      { id: "dirt", label: "Dirt", skillKey: "careerSkills-dirt" },
+      { id: "rallycross", label: "Rallycross", skillKey: "careerSkills-dirt" },
       { id: "drift", label: "Drift", skillKey: "careerSkills-mayhem" },
       { id: "offroad", label: "Off-Road", skillKey: "careerSkills-offroad" },
       { id: "drag", label: "Drag", skillKey: "careerSkills-speed" },

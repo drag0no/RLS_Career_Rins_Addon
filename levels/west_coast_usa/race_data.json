@@ -22,7 +22,7 @@
       "minCheckpointDistance":45,
       "reward":125,
       "type":[
-        "offroad"
+        "dirt"
       ]
     },
     "dirtCircuit":{
@@ -44,7 +44,7 @@
       "label":"Dirt Circuit",
       "reward":300,
       "type":[
-        "offroad"
+        "rallycross"
       ]
     },
     "dirtOval":{
@@ -56,7 +56,7 @@
       "label":"Dirt Oval",
       "reward":50,
       "type":[
-        "oval"
+        "dirt"
       ]
     },
     "drag":{
@@ -308,7 +308,7 @@
       "label":"Quarry Circuit",
       "reward":100,
       "type":[
-        "rally"
+        "dirt"
       ]
     },
     "rally1":{
@@ -532,7 +532,7 @@
       "reward":300,
       "runningStart":true,
       "type":[
-        "offroad"
+        "rallycross"
       ]
     },
     "sealbrikDrift":{

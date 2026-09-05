@@ -117,8 +117,10 @@ end
 local defaultConfig = {
   version = 3,
   disciplines = {
+    makeDiscipline("rally", "Rally", "dirt", "careerSkills-dirt", false),
+    makeDiscipline("dirt", "Dirt", "dirt", "careerSkills-dirt", false),
+    makeDiscipline("rallycross", "Rallycross", "dirt", "careerSkills-dirt", false),
     makeDiscipline("offroad", "Off-Road", "offroad", "careerSkills-offroad", false),
-    makeDiscipline("rally", "Rally", "offroad", "careerSkills-offroad", false),
     makeDiscipline("crawling", "Crawling", "offroad", "careerSkills-offroad", false),
     makeDiscipline("mudding", "Mudding", "offroad", "careerSkills-offroad", false),
     makeDiscipline("trail", "Trail", "offroad", "careerSkills-offroad", true, true),
@@ -131,7 +133,8 @@ local defaultConfig = {
     makeDiscipline("oval", "Oval", "circuitRacing", "careerSkills-circuitRacing", false)
   },
   parentSkills = {
-    {id = "offroad", label = "Off-Road", skillKey = "careerSkills-offroad", laneIds = {"offroad", "rally", "crawling", "mudding"}},
+    {id = "dirt", label = "Dirt", skillKey = "careerSkills-dirt", laneIds = {"rally", "dirt", "rallycross"}},
+    {id = "offroad", label = "Off-Road", skillKey = "careerSkills-offroad", laneIds = {"offroad", "crawling", "mudding"}},
     {id = "speed", label = "Speed", skillKey = "careerSkills-speed", laneIds = {"drag", "landspeed"}},
     {id = "mayhem", label = "Mayhem", skillKey = "careerSkills-mayhem", laneIds = {"drift", "burnout", "demo"}},
     {id = "circuitRacing", label = "Circuit Racing", skillKey = "careerSkills-circuitRacing", laneIds = {"roadracing", "oval"}}
@@ -156,6 +159,8 @@ local defaultConfig = {
     offroad = "offroad",
     ["off-road"] = "offroad",
     rally = "rally",
+    dirt = "dirt",
+    rallycross = "rallycross",
     landspeed = "landspeed",
     land_speed = "landspeed",
     mud = "mudding",

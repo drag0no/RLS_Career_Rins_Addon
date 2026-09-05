@@ -65,7 +65,9 @@ local ECONOMY_SECTIONS = {
     id = "racing",
     label = "Racing & Events",
     children = {
-      { id = "rally", label = "Rally", skillKey = "careerSkills-offroad", economyKeys = { "rally" } },
+      { id = "rally", label = "Rally", skillKey = "careerSkills-dirt", economyKeys = { "rally" } },
+      { id = "dirt", label = "Dirt", skillKey = "careerSkills-dirt", economyKeys = { "dirt" } },
+      { id = "rallycross", label = "Rallycross", skillKey = "careerSkills-dirt", economyKeys = { "rallycross" } },
       { id = "offroad", label = "Off-Road", skillKey = "careerSkills-offroad", economyKeys = { "offroad" } },
       { id = "crawling", label = "Crawling", skillKey = "careerSkills-offroad", economyKeys = { "crawling", "crawl" } },
       { id = "mudding", label = "Mudding", skillKey = "careerSkills-offroad", economyKeys = { "mudding", "mud" } },
