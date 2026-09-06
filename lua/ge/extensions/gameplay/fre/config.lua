@@ -130,14 +130,14 @@ local defaultConfig = {
     makeDiscipline("burnout", "Burnout", "mayhem", "careerSkills-mayhem", false),
     makeDiscipline("demo", "Demolition Derby", "mayhem", "careerSkills-mayhem", false),
     makeDiscipline("roadracing", "Road Racing", "circuitRacing", "careerSkills-circuitRacing", false),
-    makeDiscipline("oval", "Oval", "circuitRacing", "careerSkills-circuitRacing", false)
+    makeDiscipline("oval", "Oval", "circuitRacing", "careerSkills-circuitRacing", true, true)
   },
   parentSkills = {
     {id = "dirt", label = "Dirt", skillKey = "careerSkills-dirt", laneIds = {"rally", "dirt", "rallycross"}},
     {id = "offroad", label = "Off-Road", skillKey = "careerSkills-offroad", laneIds = {"offroad", "crawling", "mudding"}},
     {id = "speed", label = "Speed", skillKey = "careerSkills-speed", laneIds = {"drag", "landspeed"}},
     {id = "mayhem", label = "Mayhem", skillKey = "careerSkills-mayhem", laneIds = {"drift", "burnout", "demo"}},
-    {id = "circuitRacing", label = "Circuit Racing", skillKey = "careerSkills-circuitRacing", laneIds = {"roadracing", "oval"}}
+    {id = "circuitRacing", label = "Circuit Racing", skillKey = "careerSkills-circuitRacing", laneIds = {"roadracing"}}
   },
   licenses = {
     pointAwards = { [5] = 1, [10] = 1, [15] = 1, [20] = 1, [25] = 2, [30] = 2, [35] = 1, [40] = 2, [45] = 1 },

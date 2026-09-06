@@ -77,7 +77,7 @@ local ECONOMY_SECTIONS = {
       { id = "drift", label = "Drift", skillKey = "careerSkills-mayhem", economyKeys = { "drift" } },
       { id = "demo", label = "Demolition Derby", skillKey = "careerSkills-mayhem", economyKeys = { "demo" } },
       { id = "burnout", label = "Burnout", skillKey = "careerSkills-mayhem", economyKeys = { "burnout", "burnoutComp", "freeroam" } },
-      { id = "oval", label = "Oval", skillKey = "careerSkills-circuitRacing", economyKeys = { "oval" } },
+      { id = "oval", label = "Oval (Legacy)", skillKey = "careerSkills-circuitRacing", economyKeys = { "oval" } },
       { id = "roadracing", label = "Road Racing", skillKey = "careerSkills-circuitRacing", economyKeys = { "roadracing", "apexracing" } },
     },
   },

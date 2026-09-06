@@ -74,7 +74,9 @@ A major priority of this feature was ensuring zero breakage for players with est
 - **Automatic Point Rebalancing**:
   Because spent license points are computed dynamically from active licenses (`sum(tierRanks[license.tier])`), moving a discipline automatically deducts its spent points from the old parent skill and credits them to the new parent skill. No points are lost or double-counted.
 - **Dedicated Dirt Parent Skill** (`dirt/info.json` & `playerAttributes.lua`):
-  `careerSkills-dirt` possesses its own canonical attribute and 1-50 level progression tree. Discipline XP tags (`rally`, `dirt`, `rallycross`, `fre-rally`) route directly into `careerSkills-dirt`. For legacy saves, previous `fre-rally` progress is seamlessly migrated into `careerSkills-dirt`.
+  `careerSkills-dirt` possesses its own canonical attribute and 1-50 level progression tree. Discipline XP tags (`rally`, `dirt`, `rallycross`, `fre-rally`, `fre-dirt`, `fre-rallycross`, `dirtOval`) route directly into `careerSkills-dirt`. For legacy saves, previous `fre-rally` and `fre-oval` progress is seamlessly migrated into `careerSkills-dirt`.
+- **Retirement of Oval from Circuit Racing**:
+  With `dirtOval` grouped under the `dirt` discipline, `oval` under Circuit Racing has been retired (`placeholderOnly = true`, `legacyOnly = true`) and removed from `circuitRacing.laneIds`. Circuit Racing now features Road Racing (`roadracing`) as its primary lane (+4% payout bonus per level up to +200% at level 50). Any existing spent license points in Oval are automatically refunded to Circuit Racing upon save load.
 
 ---
 

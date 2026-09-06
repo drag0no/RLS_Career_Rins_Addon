@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "Circuit Racing",
-  "description": "Compete on paved tracks and ovals.",
+  "description": "Compete on paved tracks and closed courses.",
   "order": 40,
   "isSkill": true,
   "attributeKey": "careerSkills-circuitRacing",
@@ -35,8 +35,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -52,8 +52,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -69,8 +69,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -86,8 +86,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         },
         {
           "type": "unlockCard",
@@ -109,8 +109,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -126,8 +126,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -143,8 +143,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -160,8 +160,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -177,8 +177,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         },
         {
           "type": "unlockCard",
@@ -200,8 +200,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -217,8 +217,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -234,8 +234,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -251,8 +251,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -268,8 +268,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         },
         {
           "type": "unlockCard",
@@ -291,8 +291,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -308,8 +308,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -325,8 +325,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -342,8 +342,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -359,8 +359,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         },
         {
           "type": "unlockCard",
@@ -382,8 +382,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -399,8 +399,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -416,8 +416,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -433,8 +433,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -450,8 +450,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         },
         {
           "type": "unlockCard",
@@ -473,8 +473,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -490,8 +490,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -507,8 +507,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -524,8 +524,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -541,8 +541,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         },
         {
           "type": "unlockCard",
@@ -564,8 +564,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -581,8 +581,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -598,8 +598,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -615,8 +615,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -632,8 +632,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -649,8 +649,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -666,8 +666,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -683,8 +683,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -700,8 +700,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -717,8 +717,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -734,8 +734,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -751,8 +751,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -768,8 +768,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -785,8 +785,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -802,8 +802,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -819,8 +819,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -836,8 +836,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -853,8 +853,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +8%",
-          "description": "Adds 8% money payout to the Road Racing reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },
@@ -870,8 +870,8 @@
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Oval Bonus +8%",
-          "description": "Adds 8% money payout to the Oval reward lane."
+          "heading": "Road Racing Bonus +4%",
+          "description": "Adds 4% money payout to the Road Racing reward lane."
         }
       ]
     },

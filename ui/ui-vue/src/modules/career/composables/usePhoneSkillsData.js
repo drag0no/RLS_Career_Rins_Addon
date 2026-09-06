@@ -31,7 +31,7 @@ const PHONE_SKILL_PRESENTATION = {
   'careerSkills-dirt': { order: 15, icon: 'beamsNodesOutline', description: 'Master loose-surface rally stages, dirt circuits and rallycross tracks.' },
   'careerSkills-speed': { order: 20, icon: 'gaugeFull', description: 'Build raw speed and control.' },
   'careerSkills-mayhem': { order: 30, icon: 'carCrash', description: 'High risk, high reward.' },
-  'careerSkills-circuitRacing': { order: 40, icon: 'flag', description: 'Compete on paved tracks and ovals.' },
+  'careerSkills-circuitRacing': { order: 40, icon: 'flag', description: 'Compete on paved tracks and closed courses.' },
   'careerSkills-emergency': { order: 50, icon: 'shieldCheckmark', description: 'Serve and protect when it matters.' },
   'careerSkills-passenger': { order: 60, icon: 'person', description: 'Transport passengers safely and efficiently.' },
   'careerSkills-operator': { order: 70, icon: 'cogs', description: 'Operate heavy equipment on the job.' },
