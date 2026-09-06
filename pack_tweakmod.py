@@ -39,7 +39,7 @@ def load_config():
 def get_default_output(config=None):
     if config is None:
         config = load_config()
-    return f"{config['title']}_{config['suffix']}_{config['version']}.zip"
+    return f"{config['title']}_{config['version']}.zip"
 
 
 def resolve_base_branch(base):
