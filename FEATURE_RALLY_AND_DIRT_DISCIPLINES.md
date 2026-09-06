@@ -73,8 +73,8 @@ A major priority of this feature was ensuring zero breakage for players with est
   When loading a save file, the game collects all unlocked discipline licenses across all parent skills. It then assigns each license strictly to the parent skill that currently owns that lane according to configuration.
 - **Automatic Point Rebalancing**:
   Because spent license points are computed dynamically from active licenses (`sum(tierRanks[license.tier])`), moving a discipline automatically deducts its spent points from the old parent skill and credits them to the new parent skill. No points are lost or double-counted.
-- **Career Attribute Aliasing** (`playerAttributes.lua`):
-  XP earned in `careerSkills-dirt`, `dirt`, and `rallycross` is aliased to `careerSkills-offroad`. This guarantees that players retain their existing level milestones and immediately have points to spend on unlocking the new Dirt and Rallycross discipline tiers.
+- **Dedicated Dirt Parent Skill** (`dirt/info.json` & `playerAttributes.lua`):
+  `careerSkills-dirt` possesses its own canonical attribute and 1-50 level progression tree. Discipline XP tags (`rally`, `dirt`, `rallycross`, `fre-rally`) route directly into `careerSkills-dirt`. For legacy saves, previous `fre-rally` progress is seamlessly migrated into `careerSkills-dirt`.
 
 ---
 

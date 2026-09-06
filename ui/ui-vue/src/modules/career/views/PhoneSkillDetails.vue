@@ -147,9 +147,9 @@ function parseSkillId(value) {
 const skillId = computed(() => parseSkillId(route.params.skillId))
 const skill = computed(() => getPhoneSkillById(skillId.value))
 const licenseSkillIds = new Set([
-  'careerSkills-offroad', 'careerSkills-speed', 'careerSkills-mayhem', 'careerSkills-circuitRacing',
+  'careerSkills-offroad', 'careerSkills-dirt', 'careerSkills-speed', 'careerSkills-mayhem', 'careerSkills-circuitRacing',
   'careerSkills-drag', 'careerSkills-drift', 'careerSkills-roadracing',
-  'offroad', 'speed', 'mayhem', 'circuitRacing', 'drag', 'drift', 'roadracing',
+  'offroad', 'dirt', 'speed', 'mayhem', 'circuitRacing', 'drag', 'drift', 'roadracing',
 ])
 const hasContractLicenses = computed(() => licenseSkillIds.has(skillId.value))
 
@@ -209,10 +209,10 @@ function formatNumber(value) {
 
 async function openLicenses() {
   const defaultLane = {
-    'careerSkills-offroad': 'offroad', 'careerSkills-speed': 'drag',
+    'careerSkills-offroad': 'offroad', 'careerSkills-dirt': 'rally', 'careerSkills-speed': 'drag',
     'careerSkills-mayhem': 'drift', 'careerSkills-circuitRacing': 'roadracing',
     'careerSkills-drag': 'drag', 'careerSkills-drift': 'drift', 'careerSkills-roadracing': 'roadracing',
-    offroad: 'offroad', drag: 'drag', drift: 'drift', roadracing: 'roadracing',
+    offroad: 'offroad', dirt: 'rally', drag: 'drag', drift: 'drift', roadracing: 'roadracing',
   }[skillId.value]
   try { localStorage.setItem('phoneFreContracts:selectedDiscipline', defaultLane) } catch (_) {}
   await lua.extensions.ui_router.navigate('phone-fre-contracts')

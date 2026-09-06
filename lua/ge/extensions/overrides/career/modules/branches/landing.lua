@@ -113,6 +113,7 @@ end
 -- career skill screen deterministic at the data boundary.
 local visibleCareerSkillIds = {
   ["careerSkills-offroad"] = true,
+  ["careerSkills-dirt"] = true,
   ["careerSkills-speed"] = true,
   ["careerSkills-mayhem"] = true,
   ["careerSkills-circuitRacing"] = true,

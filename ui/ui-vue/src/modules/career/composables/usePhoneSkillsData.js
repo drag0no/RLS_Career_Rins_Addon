@@ -14,6 +14,7 @@ export const PHONE_SKILLS_CIVIL_SERVICE_QUERY = 'civilService'
 const CIVIL_SERVICE_SKILL_PREFIX = 'careerSkills-civilService-'
 const VISIBLE_CAREER_SKILL_IDS = new Set([
   'careerSkills-offroad',
+  'careerSkills-dirt',
   'careerSkills-speed',
   'careerSkills-mayhem',
   'careerSkills-circuitRacing',
@@ -27,6 +28,7 @@ const VISIBLE_CAREER_SKILL_IDS = new Set([
 ])
 const PHONE_SKILL_PRESENTATION = {
   'careerSkills-offroad': { order: 10, icon: 'beamsNodesOutline', description: 'Master harsh terrain and off-road routes.' },
+  'careerSkills-dirt': { order: 15, icon: 'beamsNodesOutline', description: 'Master loose-surface rally stages, dirt circuits and rallycross tracks.' },
   'careerSkills-speed': { order: 20, icon: 'gaugeFull', description: 'Build raw speed and control.' },
   'careerSkills-mayhem': { order: 30, icon: 'carCrash', description: 'High risk, high reward.' },
   'careerSkills-circuitRacing': { order: 40, icon: 'flag', description: 'Compete on paved tracks and ovals.' },
