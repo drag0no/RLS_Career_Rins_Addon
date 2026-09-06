@@ -731,12 +731,6 @@
           "icon": "beamCurrency",
           "heading": "Rallycross Bonus +12%",
           "description": "Adds 12% money payout to the Rallycross reward lane."
-        },
-        {
-          "type": "unlockCard",
-          "icon": "cardMembership",
-          "heading": "2 License Points",
-          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         }
       ]
     },
@@ -822,12 +816,6 @@
           "icon": "beamCurrency",
           "heading": "Dirt Bonus +12%",
           "description": "Adds 12% money payout to the Dirt reward lane."
-        },
-        {
-          "type": "unlockCard",
-          "icon": "cardMembership",
-          "heading": "1 License Point",
-          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         }
       ]
     },

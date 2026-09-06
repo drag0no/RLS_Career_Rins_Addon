@@ -361,12 +361,6 @@
           "icon": "beamCurrency",
           "heading": "Road Racing Bonus +4%",
           "description": "Adds 4% money payout to the Road Racing reward lane."
-        },
-        {
-          "type": "unlockCard",
-          "icon": "cardMembership",
-          "heading": "1 License Point",
-          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         }
       ]
     },
@@ -452,12 +446,6 @@
           "icon": "beamCurrency",
           "heading": "Road Racing Bonus +4%",
           "description": "Adds 4% money payout to the Road Racing reward lane."
-        },
-        {
-          "type": "unlockCard",
-          "icon": "cardMembership",
-          "heading": "2 License Points",
-          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         }
       ]
     },
