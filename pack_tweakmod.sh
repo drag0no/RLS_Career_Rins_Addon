@@ -22,7 +22,7 @@ if [ -z "$PYTHON_BIN" ]; then
   exit 1
 fi
 
-OUTPUT_ZIP="${2:-rls_career_z_tweaks.zip}"
+OUTPUT_ZIP="${2:-$("$PYTHON_BIN" pack_tweakmod.py --name)}"
 
 "$PYTHON_BIN" pack_tweakmod.py "$@"
 

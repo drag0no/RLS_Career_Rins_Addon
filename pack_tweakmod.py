@@ -12,10 +12,11 @@ import sys
 import zipfile
 
 DEFAULT_BASE = "master"
-DEFAULT_OUTPUT = "rls_career_z_tweaks.zip"
+CONFIG_FILE = "pack_tweakmod.json"
 
-EXCLUDE_EXTS = (".md", ".txt", ".sh", ".py", ".zip")
-EXCLUDE_PREFIXES = ("guides/", "docs/", "licenses/", ".git", ".vscode/", ".idea/")
+EXCLUDE_EXTS = (".md", ".txt", ".sh", ".py", ".pyc", ".zip")
+EXCLUDE_PREFIXES = ("guides/", "docs/", "licenses/", ".git", ".vscode/", ".idea/", "__pycache__/")
+EXCLUDE_FILES = (CONFIG_FILE)
 
 
 def get_git_root():
@@ -27,6 +28,18 @@ def get_git_root():
         return res.stdout.strip()
     except Exception:
         return os.getcwd()
+
+
+def load_config():
+    config_path = os.path.join(get_git_root(), CONFIG_FILE)
+    with open(config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def get_default_output(config=None):
+    if config is None:
+        config = load_config()
+    return f"{config['title']}_{config['suffix']}_{config['version']}.zip"
 
 
 def resolve_base_branch(base):
@@ -56,13 +69,20 @@ def get_changed_files(base_branch):
 
 
 def is_game_file(path):
+    if os.path.basename(path) in EXCLUDE_FILES:
+        return False
     return not any(path.startswith(p) for p in EXCLUDE_PREFIXES) and not any(path.endswith(ext) for ext in EXCLUDE_EXTS)
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ("--name", "-n"):
+        print(get_default_output())
+        return
+
     os.chdir(get_git_root())
+    config = load_config()
     base_branch = resolve_base_branch(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_BASE)
-    output_zip = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_OUTPUT
+    output_zip = sys.argv[2] if len(sys.argv) > 2 else get_default_output(config)
 
     print(f"==> Comparing against '{base_branch}'...")
     changed = get_changed_files(base_branch)
@@ -79,14 +99,7 @@ def main():
     print(f"==> Packing into '{output_zip}'...")
     with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zf:
         # BeamNG Mod Manager manifest (enables mod detection in game)
-        mod_info = {
-            "name": "rls_career_z_tweaks",
-            "title": "RLS Career Overhaul - Tweaks",
-            "version": "1.0.0",
-            "author": "RLS Community",
-            "description": "Tweak overrides for RLS Career Overhaul"
-        }
-        zf.writestr("mod_info.json", json.dumps(mod_info, indent=2))
+        zf.writestr("mod_info.json", json.dumps(config, indent=2))
 
         # Pack game files ensuring strictly forward slashes for PhysFS
         for f in files_to_pack:
@@ -100,4 +113,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
