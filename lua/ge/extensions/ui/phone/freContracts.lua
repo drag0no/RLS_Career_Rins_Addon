@@ -97,36 +97,43 @@ local function rescheduleSanctionedRace()
   return actionResult(ok, err)
 end
 
-local function getNotificationFilterOptions()
-  local ownedCars = {}
-  if isCareerActive() and career_modules_inventory and career_modules_inventory.getVehicles then
-    local vehicles = career_modules_inventory.getVehicles() or {}
-    local vPool = gameplay_events_freContracts_vehiclePool
-    if not vPool and extensions and extensions.load then
-      pcall(extensions.load, "gameplay_events_freContracts_vehiclePool")
-      vPool = gameplay_events_freContracts_vehiclePool
-    end
-
-    for invId, veh in pairs(vehicles) do
-      local name = veh.niceName
-      if not name or name == "" then
-        local modelName = (vPool and vPool.getModelDisplayName and vPool.getModelDisplayName(veh.model)) or veh.model or "Vehicle"
-        if veh.configName and veh.configName ~= "" then
-          name = modelName .. " " .. veh.configName
-        else
-          name = modelName
-        end
+local function getVehicleNiceName(vehicle, vPool)
+    local name = vehicle.niceName
+    if not name or name == "" then
+      local displayName = vPool and vPool.getModelDisplayName and vPool.getModelDisplayName(vehicle.model)
+      local modelName = displayName or vehicle.model or "Vehicle"
+      if vehicle.configName and vehicle.configName ~= "" then
+        name = modelName .. " " .. vehicle.configName
+      else
+        name = modelName
       end
-      table.insert(ownedCars, {
-        id = tostring(invId),
-        name = name,
-        model = veh.model or "",
-      })
     end
-    table.sort(ownedCars, function(a, b)
-      return string.lower(a.name) < string.lower(b.name)
-    end)
+    return name
+end
+
+local function getNotificationFilterOptions()
+  local vPool = gameplay_events_freContracts_vehiclePool
+  if not vPool and extensions and extensions.load then
+    pcall(extensions.load, "gameplay_events_freContracts_vehiclePool")
+    vPool = gameplay_events_freContracts_vehiclePool
   end
+
+  local vehicles = {}
+  if isCareerActive() and career_modules_inventory and career_modules_inventory.getVehicles then
+    vehicles = career_modules_inventory.getVehicles() or {}
+  end
+
+  local ownedCars = {}
+  for invId, veh in pairs(vehicles) do
+    table.insert(ownedCars, {
+      id = tostring(invId),
+      name = getVehicleNiceName(veh, vPool),
+      model = veh.model or "",
+    })
+  end
+  table.sort(ownedCars, function(a, b)
+    return string.lower(a.name) < string.lower(b.name)
+  end)
 
   local disciplinesList = {}
   if freConfig and freConfig.getDisciplines then

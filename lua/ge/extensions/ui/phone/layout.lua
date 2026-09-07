@@ -154,34 +154,14 @@ local function getDefaultFreNotificationFilters()
 end
 
 local function normalizeFreNotificationFilters(raw)
-  local defaults = getDefaultFreNotificationFilters()
+  local out = getDefaultFreNotificationFilters()
   if type(raw) ~= "table" then
-    return defaults
+    return out
   end
-  local out = {
-    cars = {
-      all = true,
-      owned = {},
-      other = true,
-    },
-    difficulty = {
-      all = true,
-      easy = true,
-      medium = true,
-      hard = true,
-    },
-    discipline = {
-      all = true,
-    },
-  }
 
   if type(raw.cars) == "table" then
-    if raw.cars.all ~= nil then
-      out.cars.all = raw.cars.all ~= false
-    end
-    if raw.cars.other ~= nil then
-      out.cars.other = raw.cars.other ~= false
-    end
+    if raw.cars.all ~= nil then out.cars.all = raw.cars.all ~= false end
+    if raw.cars.other ~= nil then out.cars.other = raw.cars.other ~= false end
     if type(raw.cars.owned) == "table" then
       for k, v in pairs(raw.cars.owned) do
         out.cars.owned[tostring(k)] = v ~= false
@@ -190,18 +170,14 @@ local function normalizeFreNotificationFilters(raw)
   end
 
   if type(raw.difficulty) == "table" then
-    if raw.difficulty.all ~= nil then
-      out.difficulty.all = raw.difficulty.all ~= false
-    end
+    if raw.difficulty.all ~= nil then out.difficulty.all = raw.difficulty.all ~= false end
     if raw.difficulty.easy ~= nil then out.difficulty.easy = raw.difficulty.easy ~= false end
     if raw.difficulty.medium ~= nil then out.difficulty.medium = raw.difficulty.medium ~= false end
     if raw.difficulty.hard ~= nil then out.difficulty.hard = raw.difficulty.hard ~= false end
   end
 
   if type(raw.discipline) == "table" then
-    if raw.discipline.all ~= nil then
-      out.discipline.all = raw.discipline.all ~= false
-    end
+    if raw.discipline.all ~= nil then out.discipline.all = raw.discipline.all ~= false end
     for k, v in pairs(raw.discipline) do
       if type(k) == "string" and k ~= "all" then
         out.discipline[k] = v ~= false
@@ -909,7 +885,6 @@ end
 
 local function isFreContractNotificationAllowed(offer)
   if type(offer) ~= "table" then return true end
-
   if not isNotificationEnabled("fre.contractReady") then
     return false
   end
@@ -920,20 +895,28 @@ local function isFreContractNotificationAllowed(offer)
   local filters = settings.freNotificationFilters
   if type(filters) ~= "table" then return true end
 
-  -- 1. Difficulty check
+  local vPool = gameplay_events_freContracts_vehiclePool
+  if not vPool and extensions and extensions.load then
+    pcall(extensions.load, "gameplay_events_freContracts_vehiclePool")
+    vPool = gameplay_events_freContracts_vehiclePool
+  end
+
   local diff = filters.difficulty
   if type(diff) == "table" then
-    if diff.all == false then return false end
+    if diff.all == false then
+      return false
+    end
     local tier = string.lower(tostring(offer.tier or "easy"))
     if diff[tier] == false then
       return false
     end
   end
 
-  -- 2. Discipline check
   local disc = filters.discipline
   if type(disc) == "table" then
-    if disc.all == false then return false end
+    if disc.all == false then
+      return false
+    end
     local discId = tostring(offer.disciplineId or "")
     if disc[discId] == false then
       return false
@@ -945,46 +928,36 @@ local function isFreContractNotificationAllowed(offer)
   if type(cars) == "table" then
     if cars.all == false then return false end
 
-    local vPool = gameplay_events_freContracts_vehiclePool
-    if not vPool and extensions and extensions.load then
-      pcall(extensions.load, "gameplay_events_freContracts_vehiclePool")
-      vPool = gameplay_events_freContracts_vehiclePool
+    local requiredModel = offer.requiredModel
+    -- Contract does not require a specific vehicle ("any car")
+    if not requiredModel or requiredModel == "" then
+      return true
     end
 
-    local requiredModel = offer.requiredModel
-
-    -- Find matching owned vehicles in career inventory
-    local matchingOwnedVehicles = {}
+    local ownedFilters = type(cars.owned) == "table" and cars.owned or {}
     local vehicles = career_modules_inventory and career_modules_inventory.getVehicles and career_modules_inventory.getVehicles() or {}
+
+    -- Contract requires a specific vehicle model
+    local reqLower = string.lower(tostring(requiredModel))
+    local playerCarId = ""
     for invId, veh in pairs(vehicles) do
       local vm = type(veh.model) == "string" and string.lower(veh.model) or nil
-      if vm and requiredModel then
+      if not vm then
+        local isMatches = false
         if vPool and vPool.modelFamilyMatches then
-          if vPool.modelFamilyMatches(requiredModel, vm) then
-            table.insert(matchingOwnedVehicles, tostring(invId))
-          end
-        elseif vm == string.lower(tostring(requiredModel)) then
-          table.insert(matchingOwnedVehicles, tostring(invId))
+          isMatches = vPool.modelFamilyMatches(requiredModel, vm)
+        else
+          isMatches = (vm == reqLower)
         end
-      end
-    end
-
-    if #matchingOwnedVehicles > 0 then
-      local anyEnabled = false
-      local ownedFilters = type(cars.owned) == "table" and cars.owned or {}
-      for _, invIdStr in ipairs(matchingOwnedVehicles) do
-        if ownedFilters[invIdStr] ~= false then
-          anyEnabled = true
+        if isMatches then
+          playerCarId = tostring(invId)
           break
         end
       end
-      if not anyEnabled then
-        return false
-      end
-    else
-      if cars.other == false then
-        return false
-      end
+    end
+
+    if ownedFilters[playerCarId] == false and cars.other == false then
+      return false
     end
   end
 

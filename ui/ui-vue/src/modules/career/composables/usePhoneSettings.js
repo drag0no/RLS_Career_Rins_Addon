@@ -112,25 +112,8 @@ function getDefaultFreNotificationFilters() {
 }
 
 function normalizeFreNotificationFilters(raw) {
-  const defaults = getDefaultFreNotificationFilters()
-  if (!raw || typeof raw !== 'object') return defaults
-
-  const out = {
-    cars: {
-      all: true,
-      owned: {},
-      other: true,
-    },
-    difficulty: {
-      all: true,
-      easy: true,
-      medium: true,
-      hard: true,
-    },
-    discipline: {
-      all: true,
-    },
-  }
+  const out = getDefaultFreNotificationFilters()
+  if (!raw || typeof raw !== 'object') return out
 
   if (raw.cars && typeof raw.cars === 'object') {
     if (raw.cars.all !== undefined) out.cars.all = raw.cars.all !== false
