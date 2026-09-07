@@ -97,20 +97,6 @@ local function rescheduleSanctionedRace()
   return actionResult(ok, err)
 end
 
-local function getVehicleNiceName(vehicle, vPool)
-    local name = vehicle.niceName
-    if not name or name == "" then
-      local displayName = vPool and vPool.getModelDisplayName and vPool.getModelDisplayName(vehicle.model)
-      local modelName = displayName or vehicle.model or "Vehicle"
-      if vehicle.configName and vehicle.configName ~= "" then
-        name = modelName .. " " .. vehicle.configName
-      else
-        name = modelName
-      end
-    end
-    return name
-end
-
 local function getNotificationFilterOptions()
   local vPool = gameplay_events_freContracts_vehiclePool
   if not vPool and extensions and extensions.load then
@@ -124,12 +110,18 @@ local function getNotificationFilterOptions()
   end
 
   local ownedCars = {}
-  for invId, veh in pairs(vehicles) do
-    table.insert(ownedCars, {
-      id = tostring(invId),
-      name = getVehicleNiceName(veh, vPool),
-      model = veh.model or "",
-    })
+  local seenModels = {}
+  for _, veh in pairs(vehicles) do
+    local model = type(veh.model) == "string" and string.lower(veh.model) or nil
+    if model and model ~= "" and not seenModels[model] then
+      seenModels[model] = true
+      local displayName = vPool and vPool.getModelDisplayName and vPool.getModelDisplayName(model)
+      table.insert(ownedCars, {
+        id = model,
+        name = displayName or model,
+        model = model,
+      })
+    end
   end
   table.sort(ownedCars, function(a, b)
     return string.lower(a.name) < string.lower(b.name)

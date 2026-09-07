@@ -27,7 +27,7 @@
     </summary>
     <div class="notif-sub-content">
       <div v-if="filterOptions.ownedCars.length === 0" class="notif-empty-sub">
-        No owned vehicles in garage
+        No owned vehicle models in garage
       </div>
       <button
         v-for="car in filterOptions.ownedCars"
@@ -284,8 +284,9 @@ function isCarEnabled(carId) {
   const cars = phoneSettings.freNotificationFilters?.cars
   if (!cars) return true
   if (cars.all === false) return false
-  if (cars.owned && cars.owned[carId] !== undefined) {
-    return cars.owned[carId] !== false
+  const key = String(carId).toLowerCase()
+  if (cars.owned && cars.owned[key] !== undefined) {
+    return cars.owned[key] !== false
   }
   return true
 }
@@ -323,27 +324,31 @@ function toggleCarsCategory() {
       filters.cars.all = true
       filters.cars.other = true
       for (const car of filterOptions.value.ownedCars) {
-        filters.cars.owned[car.id] = true
+        filters.cars.owned[String(car.id).toLowerCase()] = true
       }
     } else {
       filters.cars.all = false
       filters.cars.other = false
       for (const car of filterOptions.value.ownedCars) {
-        filters.cars.owned[car.id] = false
+        filters.cars.owned[String(car.id).toLowerCase()] = false
       }
     }
   })
 }
 
 function toggleCar(carId) {
+  const key = String(carId).toLowerCase()
   updateFilters(filters => {
-    const nextVal = !isCarEnabled(carId)
-    filters.cars.owned[carId] = nextVal
+    const nextVal = !isCarEnabled(key)
+    filters.cars.owned[key] = nextVal
     if (nextVal) {
       filters.cars.all = true
     } else {
       const anyOwnedStillOn = filterOptions.value.ownedCars.some(
-        c => c.id !== carId && (filters.cars.owned[c.id] !== undefined ? filters.cars.owned[c.id] : isCarEnabled(c.id))
+        c => {
+          const cKey = String(c.id).toLowerCase()
+          return cKey !== key && (filters.cars.owned[cKey] !== undefined ? filters.cars.owned[cKey] : isCarEnabled(cKey))
+        }
       )
       const otherOn = filters.cars.other !== false
       if (!anyOwnedStillOn && !otherOn) {
@@ -361,7 +366,10 @@ function toggleOtherCars() {
       filters.cars.all = true
     } else {
       const anyOwnedStillOn = filterOptions.value.ownedCars.some(
-        c => filters.cars.owned[c.id] !== undefined ? filters.cars.owned[c.id] : isCarEnabled(c.id)
+        c => {
+          const cKey = String(c.id).toLowerCase()
+          return filters.cars.owned[cKey] !== undefined ? filters.cars.owned[cKey] : isCarEnabled(cKey)
+        }
       )
       if (!anyOwnedStillOn) {
         filters.cars.all = false

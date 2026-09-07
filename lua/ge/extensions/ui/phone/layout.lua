@@ -167,7 +167,8 @@ local function normalizeFreNotificationFilters(raw)
     if raw.cars.other ~= nil then out.cars.other = raw.cars.other ~= false end
     if type(raw.cars.owned) == "table" then
       for k, v in pairs(raw.cars.owned) do
-        out.cars.owned[tostring(k)] = v ~= false
+        local carModel = string.lower(tostring(k))
+        out.cars.owned[carModel] = v ~= false
       end
     end
   end
@@ -940,28 +941,18 @@ local function isFreContractNotificationAllowed(offer)
     local ownedFilters = type(cars.owned) == "table" and cars.owned or {}
     local vehicles = career_modules_inventory and career_modules_inventory.getVehicles and career_modules_inventory.getVehicles() or {}
 
-    -- Contract requires a specific vehicle model
     local reqLower = string.lower(tostring(requiredModel))
-    local playerCarId = ""
-    for invId, veh in pairs(vehicles) do
+    for _, veh in pairs(vehicles) do
       local vm = type(veh.model) == "string" and string.lower(veh.model) or nil
-      if not vm then
-        local isMatches = false
-        if vPool and vPool.modelFamilyMatches then
-          isMatches = vPool.modelFamilyMatches(requiredModel, vm)
-        else
-          isMatches = (vm == reqLower)
-        end
-        if isMatches then
-          playerCarId = tostring(invId)
-          break
+      if vm then
+        local isMatch = (vPool and vPool.modelFamilyMatches) and vPool.modelFamilyMatches(requiredModel, vm) or (vm == reqLower)
+        if isMatch then
+          return ownedFilters[vm] ~= false
         end
       end
     end
 
-    if ownedFilters[playerCarId] == false and cars.other == false then
-      return false
-    end
+    return cars.other ~= false
   end
 
   return true

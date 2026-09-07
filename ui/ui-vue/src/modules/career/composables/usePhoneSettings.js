@@ -120,7 +120,7 @@ function normalizeFreNotificationFilters(raw) {
     if (raw.cars.other !== undefined) out.cars.other = raw.cars.other !== false
     if (raw.cars.owned && typeof raw.cars.owned === 'object') {
       for (const [k, v] of Object.entries(raw.cars.owned)) {
-        out.cars.owned[String(k)] = v !== false
+        out.cars.owned[String(k).toLowerCase()] = v !== false
       }
     }
   }
