@@ -112,15 +112,17 @@ local function getNotificationFilterOptions()
   local ownedCars = {}
   local seenModels = {}
   for _, veh in pairs(vehicles) do
-    local model = type(veh.model) == "string" and string.lower(veh.model) or nil
-    if model and model ~= "" and not seenModels[model] then
-      seenModels[model] = true
-      local displayName = vPool and vPool.getModelDisplayName and vPool.getModelDisplayName(model)
-      table.insert(ownedCars, {
-        id = model,
-        name = displayName or model,
-        model = model,
-      })
+    if veh.owned ~= false then
+      local model = type(veh.model) == "string" and string.lower(veh.model) or nil
+      if model and model ~= "" and not seenModels[model] then
+        seenModels[model] = true
+        local displayName = vPool and vPool.getModelDisplayName and vPool.getModelDisplayName(model)
+        table.insert(ownedCars, {
+          id = model,
+          name = displayName or model,
+          model = model,
+        })
+      end
     end
   end
   table.sort(ownedCars, function(a, b)

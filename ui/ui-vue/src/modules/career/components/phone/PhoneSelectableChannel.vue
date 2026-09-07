@@ -2,30 +2,31 @@
   <!-- 1. Cars -->
   <details
     v-if="channel.selectableType === 'fre-cars'"
-    class="notif-sub-dropdown"
+    class="settings-dropdown notif-sub-dropdown"
     :class="{ muted: disabled }"
   >
-    <summary class="notif-sub-summary">
+    <summary class="dropdown-summary notif-sub-summary">
       <div class="notif-sub-summary-left">
         <span class="notif-sub-title">{{ channel.label || 'Cars' }}</span>
       </div>
-      <div class="notif-sub-meta">
-        <span class="notif-count-badge">{{ carsEnabledCount }}/{{ totalCarsCount }}</span>
-        <span
-          class="notif-switch"
-          :class="{ on: isCarsCategoryAllOn }"
-          role="button"
-          tabindex="0"
-          :aria-label="`Toggle all ${channel.label || 'cars'}`"
-          @click.stop.prevent="toggleCarsCategory"
-          @keydown.enter.stop.prevent="toggleCarsCategory"
-          @keydown.space.stop.prevent="toggleCarsCategory"
-        >
+      <span class="dropdown-meta notif-sub-meta">{{ carsEnabledCount }}/{{ totalCarsCount }}</span>
+    </summary>
+    <div class="dropdown-content notif-sub-content">
+      <button
+        type="button"
+        class="notif-row notif-row--subchild notif-row--all"
+        :class="{ on: isCarsCategoryAllOn }"
+        @click="toggleCarsCategory"
+      >
+        <span class="notif-copy">
+          <span class="notif-label">All car alerts</span>
+          <span class="notif-desc">Toggle all owned and unowned vehicle alerts</span>
+        </span>
+        <span class="notif-switch" :class="{ on: isCarsCategoryAllOn }">
           <span class="notif-knob"></span>
         </span>
-      </div>
-    </summary>
-    <div class="notif-sub-content">
+      </button>
+
       <div v-if="filterOptions.ownedCars.length === 0" class="notif-empty-sub">
         No owned vehicle models in garage
       </div>
@@ -64,30 +65,30 @@
   <!-- 2. Difficulty -->
   <details
     v-else-if="channel.selectableType === 'fre-difficulty'"
-    class="notif-sub-dropdown"
+    class="settings-dropdown notif-sub-dropdown"
     :class="{ muted: disabled }"
   >
-    <summary class="notif-sub-summary">
+    <summary class="dropdown-summary notif-sub-summary">
       <div class="notif-sub-summary-left">
         <span class="notif-sub-title">{{ channel.label || 'Difficulty' }}</span>
       </div>
-      <div class="notif-sub-meta">
-        <span class="notif-count-badge">{{ difficultyEnabledCount }}/{{ totalDifficultyCount }}</span>
-        <span
-          class="notif-switch"
-          :class="{ on: isDifficultyCategoryAllOn }"
-          role="button"
-          tabindex="0"
-          :aria-label="`Toggle all ${channel.label || 'difficulties'}`"
-          @click.stop.prevent="toggleDifficultyCategory"
-          @keydown.enter.stop.prevent="toggleDifficultyCategory"
-          @keydown.space.stop.prevent="toggleDifficultyCategory"
-        >
+      <span class="dropdown-meta notif-sub-meta">{{ difficultyEnabledCount }}/{{ totalDifficultyCount }}</span>
+    </summary>
+    <div class="dropdown-content notif-sub-content">
+      <button
+        type="button"
+        class="notif-row notif-row--subchild notif-row--all"
+        :class="{ on: isDifficultyCategoryAllOn }"
+        @click="toggleDifficultyCategory"
+      >
+        <span class="notif-copy">
+          <span class="notif-label">All difficulty alerts</span>
+        </span>
+        <span class="notif-switch" :class="{ on: isDifficultyCategoryAllOn }">
           <span class="notif-knob"></span>
         </span>
-      </div>
-    </summary>
-    <div class="notif-sub-content">
+      </button>
+
       <button
         v-for="diff in filterOptions.difficulties"
         :key="diff.id"
@@ -109,30 +110,30 @@
   <!-- 3. Discipline -->
   <details
     v-else-if="channel.selectableType === 'fre-discipline'"
-    class="notif-sub-dropdown"
+    class="settings-dropdown notif-sub-dropdown"
     :class="{ muted: disabled }"
   >
-    <summary class="notif-sub-summary">
+    <summary class="dropdown-summary notif-sub-summary">
       <div class="notif-sub-summary-left">
         <span class="notif-sub-title">{{ channel.label || 'Discipline' }}</span>
       </div>
-      <div class="notif-sub-meta">
-        <span class="notif-count-badge">{{ disciplineEnabledCount }}/{{ totalDisciplineCount }}</span>
-        <span
-          class="notif-switch"
-          :class="{ on: isDisciplineCategoryAllOn }"
-          role="button"
-          tabindex="0"
-          :aria-label="`Toggle all ${channel.label || 'disciplines'}`"
-          @click.stop.prevent="toggleDisciplineCategory"
-          @keydown.enter.stop.prevent="toggleDisciplineCategory"
-          @keydown.space.stop.prevent="toggleDisciplineCategory"
-        >
+      <span class="dropdown-meta notif-sub-meta">{{ disciplineEnabledCount }}/{{ totalDisciplineCount }}</span>
+    </summary>
+    <div class="dropdown-content notif-sub-content">
+      <button
+        type="button"
+        class="notif-row notif-row--subchild notif-row--all"
+        :class="{ on: isDisciplineCategoryAllOn }"
+        @click="toggleDisciplineCategory"
+      >
+        <span class="notif-copy">
+          <span class="notif-label">All discipline alerts</span>
+        </span>
+        <span class="notif-switch" :class="{ on: isDisciplineCategoryAllOn }">
           <span class="notif-knob"></span>
         </span>
-      </div>
-    </summary>
-    <div class="notif-sub-content">
+      </button>
+
       <div v-if="filterOptions.disciplines.length === 0" class="notif-empty-sub">
         No disciplines available
       </div>
@@ -156,7 +157,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onActivated, onDeactivated, onUnmounted } from 'vue'
 import { lua } from '@/bridge'
 import { usePhoneSettings } from '../../composables/usePhoneSettings'
 
@@ -177,8 +178,8 @@ const {
   getPhoneSettingsSnapshot,
 } = usePhoneSettings()
 
-// Shared filter options across all selectable channels
-const filterOptions = ref({
+// Module-level cache so the 3 sibling instances share options without duplicate Lua roundtrips
+const sharedFilterOptions = ref({
   ownedCars: [],
   disciplines: [],
   difficulties: [
@@ -187,6 +188,36 @@ const filterOptions = ref({
     { id: 'hard', label: 'Hard' },
   ],
 })
+
+let filterOptionsPromise = null
+
+async function loadSharedFilterOptions() {
+  if (filterOptionsPromise) {
+    return filterOptionsPromise
+  }
+  filterOptionsPromise = (async () => {
+    try {
+      await lua.extensions.load('ui_phone_freContracts')
+      const res = await lua.ui_phone_freContracts?.getNotificationFilterOptions?.()
+      if (res && typeof res === 'object') {
+        sharedFilterOptions.value = {
+          ownedCars: Array.isArray(res.ownedCars) ? res.ownedCars : [],
+          disciplines: Array.isArray(res.disciplines) ? res.disciplines : [],
+          difficulties: Array.isArray(res.difficulties) && res.difficulties.length
+            ? res.difficulties
+            : sharedFilterOptions.value.difficulties,
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load filter options', e)
+    } finally {
+      filterOptionsPromise = null
+    }
+  })()
+  return filterOptionsPromise
+}
+
+const filterOptions = sharedFilterOptions
 
 let saveTimer = null
 
@@ -207,39 +238,24 @@ function queueSave() {
   }, 180)
 }
 
-async function fetchFilterOptions() {
-  try {
-    await lua.extensions.load('ui_phone_freContracts')
-    const res = await lua.ui_phone_freContracts?.getNotificationFilterOptions?.()
-    if (res && typeof res === 'object') {
-      filterOptions.value = {
-        ownedCars: Array.isArray(res.ownedCars) ? res.ownedCars : [],
-        disciplines: Array.isArray(res.disciplines) ? res.disciplines : [],
-        difficulties: Array.isArray(res.difficulties) && res.difficulties.length
-          ? res.difficulties
-          : filterOptions.value.difficulties,
-      }
-    }
-  } catch (e) {
-    console.warn('Failed to load filter options', e)
-  }
-}
-
-onMounted(() => {
-  fetchFilterOptions()
-})
-
-onActivated(() => {
-  fetchFilterOptions()
-})
-
-onUnmounted(() => {
+function flushPendingSave() {
   if (saveTimer) {
     clearTimeout(saveTimer)
     saveTimer = null
     persistSettings()
   }
+}
+
+onMounted(() => {
+  loadSharedFilterOptions()
 })
+
+onActivated(() => {
+  loadSharedFilterOptions()
+})
+
+onDeactivated(flushPendingSave)
+onUnmounted(flushPendingSave)
 
 function updateFilters(updater) {
   const current = phoneSettings.freNotificationFilters || {}
@@ -500,3 +516,7 @@ function toggleDiscipline(discId) {
   })
 }
 </script>
+
+<style scoped lang="scss">
+@use '../../styles/phone-notification-settings' as *;
+</style>

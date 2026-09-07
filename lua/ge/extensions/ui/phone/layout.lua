@@ -907,7 +907,7 @@ local function isFreContractNotificationAllowed(offer)
 
   local diff = filters.difficulty
   if type(diff) == "table" then
-    if diff.all == false then
+    if diff.all == false or not isNotificationEnabled("fre.difficulty") then
       return false
     end
     local tier = string.lower(tostring(offer.tier or "easy"))
@@ -918,7 +918,7 @@ local function isFreContractNotificationAllowed(offer)
 
   local disc = filters.discipline
   if type(disc) == "table" then
-    if disc.all == false then
+    if disc.all == false or not isNotificationEnabled("fre.discipline") then
       return false
     end
     local discId = tostring(offer.disciplineId or "")
@@ -930,9 +930,11 @@ local function isFreContractNotificationAllowed(offer)
   -- 3. Cars check
   local cars = filters.cars
   if type(cars) == "table" then
-    if cars.all == false then return false end
+    if cars.all == false or not isNotificationEnabled("fre.cars") then
+      return false
+    end
 
-    local requiredModel = offer.requiredModel
+    local requiredModel = offer.requiredModel or offer.requiredModelFamily or offer.model
     -- Contract does not require a specific vehicle ("any car")
     if not requiredModel or requiredModel == "" then
       return true
@@ -943,11 +945,13 @@ local function isFreContractNotificationAllowed(offer)
 
     local reqLower = string.lower(tostring(requiredModel))
     for _, veh in pairs(vehicles) do
-      local vm = type(veh.model) == "string" and string.lower(veh.model) or nil
-      if vm then
-        local isMatch = (vPool and vPool.modelFamilyMatches) and vPool.modelFamilyMatches(requiredModel, vm) or (vm == reqLower)
-        if isMatch then
-          return ownedFilters[vm] ~= false
+      if veh.owned ~= false then
+        local vm = type(veh.model) == "string" and string.lower(veh.model) or nil
+        if vm then
+          local isMatch = (vPool and vPool.modelFamilyMatches) and vPool.modelFamilyMatches(requiredModel, vm) or (vm == reqLower)
+          if isMatch then
+            return ownedFilters[vm] ~= false
+          end
         end
       end
     end

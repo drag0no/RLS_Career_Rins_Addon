@@ -376,6 +376,11 @@
     display: none;
   }
 
+  &::marker {
+    display: none;
+    content: '';
+  }
+
   &::after {
     content: '';
     width: 8px;
@@ -467,6 +472,11 @@
     display: none;
   }
 
+  &::marker {
+    display: none;
+    content: '';
+  }
+
   &::after {
     content: '';
     width: 7px;
@@ -474,7 +484,7 @@
     border-right: 2px solid rgba(255, 255, 255, 0.6);
     border-bottom: 2px solid rgba(255, 255, 255, 0.6);
     transform: rotate(45deg);
-    margin-left: 2px;
+    margin-left: 6px;
     transition: transform 0.16s ease;
     flex-shrink: 0;
   }
@@ -500,8 +510,12 @@
 .notif-sub-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-left: auto;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.76);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .notif-count-badge {
@@ -545,6 +559,12 @@
   .notif-desc {
     font-size: 10px;
   }
+}
+
+.notif-row--all {
+  border-color: rgba(255, 255, 255, 0.12);
+  margin-bottom: 2px;
+  background: rgba(15, 23, 42, 0.42);
 }
 
 .notif-empty-sub {
