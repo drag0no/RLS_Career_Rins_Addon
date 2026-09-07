@@ -47,6 +47,9 @@ function loadNotificationChannels() {
         appColor: manifest.color || '#6b7280',
         appCategory: manifest.category || '',
         unlockCondition: typeof manifest.unlockCondition === 'function' ? manifest.unlockCondition : null,
+        selectable: decl.selectable === true,
+        selectableType: typeof decl.selectableType === 'string' ? decl.selectableType : null,
+        requiresChannel: typeof decl.requiresChannel === 'string' ? decl.requiresChannel : null,
       })
     }
   }

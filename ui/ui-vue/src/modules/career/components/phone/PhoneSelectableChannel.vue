@@ -1,175 +1,156 @@
 <template>
-  <details class="settings-dropdown notif-app-dropdown">
-    <summary class="dropdown-summary notif-app-summary">
-      <div class="summary-copy notif-app-summary-copy">
-        <span class="notif-group-dot" style="background-color: #ff6a00"></span>
-        <span class="dropdown-title">FRE Contracts</span>
+  <!-- 1. Cars -->
+  <details
+    v-if="channel.selectableType === 'fre-cars'"
+    class="notif-sub-dropdown"
+    :class="{ muted: disabled }"
+  >
+    <summary class="notif-sub-summary">
+      <div class="notif-sub-summary-left">
+        <span class="notif-sub-title">{{ channel.label || 'Cars' }}</span>
       </div>
-      <span class="dropdown-meta">{{ summaryMeta }}</span>
+      <div class="notif-sub-meta">
+        <span class="notif-count-badge">{{ carsEnabledCount }}/{{ totalCarsCount }}</span>
+        <span
+          class="notif-switch"
+          :class="{ on: isCarsCategoryAllOn }"
+          role="button"
+          tabindex="0"
+          :aria-label="`Toggle all ${channel.label || 'cars'}`"
+          @click.stop.prevent="toggleCarsCategory"
+          @keydown.enter.stop.prevent="toggleCarsCategory"
+          @keydown.space.stop.prevent="toggleCarsCategory"
+        >
+          <span class="notif-knob"></span>
+        </span>
+      </div>
     </summary>
-
-    <div class="dropdown-content notif-app-dropdown-content">
-      <!-- Master toggle for fre.contractReady channel -->
+    <div class="notif-sub-content">
+      <div v-if="filterOptions.ownedCars.length === 0" class="notif-empty-sub">
+        No owned vehicles in garage
+      </div>
       <button
+        v-for="car in filterOptions.ownedCars"
+        :key="car.id"
         type="button"
-        class="notif-row notif-row--child"
-        :class="{ on: isContractReadyEnabled }"
-        @click="toggleContractReady"
+        class="notif-row notif-row--subchild"
+        :class="{ on: isCarEnabled(car.id) }"
+        @click="toggleCar(car.id)"
       >
         <span class="notif-copy">
-          <span class="notif-label">Contract Ready Notifications</span>
-          <span class="notif-desc">Turn on or mute FRE contract offer alerts</span>
+          <span class="notif-label">{{ car.name }}</span>
         </span>
-        <span class="notif-switch" :class="{ on: isContractReadyEnabled }">
+        <span class="notif-switch" :class="{ on: isCarEnabled(car.id) }">
           <span class="notif-knob"></span>
         </span>
       </button>
+      <button
+        type="button"
+        class="notif-row notif-row--subchild"
+        :class="{ on: isOtherCarsEnabled }"
+        @click="toggleOtherCars"
+      >
+        <span class="notif-copy">
+          <span class="notif-label">Other vehicles</span>
+          <span class="notif-desc">Unowned & loaner cars</span>
+        </span>
+        <span class="notif-switch" :class="{ on: isOtherCarsEnabled }">
+          <span class="notif-knob"></span>
+        </span>
+      </button>
+    </div>
+  </details>
 
-      <template v-if="isContractReadyEnabled">
-        <div class="notif-info-note">
-          Filter contract notifications by vehicles, difficulty tiers, or disciplines.
-        </div>
+  <!-- 2. Difficulty -->
+  <details
+    v-else-if="channel.selectableType === 'fre-difficulty'"
+    class="notif-sub-dropdown"
+    :class="{ muted: disabled }"
+  >
+    <summary class="notif-sub-summary">
+      <div class="notif-sub-summary-left">
+        <span class="notif-sub-title">{{ channel.label || 'Difficulty' }}</span>
+      </div>
+      <div class="notif-sub-meta">
+        <span class="notif-count-badge">{{ difficultyEnabledCount }}/{{ totalDifficultyCount }}</span>
+        <span
+          class="notif-switch"
+          :class="{ on: isDifficultyCategoryAllOn }"
+          role="button"
+          tabindex="0"
+          :aria-label="`Toggle all ${channel.label || 'difficulties'}`"
+          @click.stop.prevent="toggleDifficultyCategory"
+          @keydown.enter.stop.prevent="toggleDifficultyCategory"
+          @keydown.space.stop.prevent="toggleDifficultyCategory"
+        >
+          <span class="notif-knob"></span>
+        </span>
+      </div>
+    </summary>
+    <div class="notif-sub-content">
+      <button
+        v-for="diff in filterOptions.difficulties"
+        :key="diff.id"
+        type="button"
+        class="notif-row notif-row--subchild"
+        :class="{ on: isDifficultyEnabled(diff.id) }"
+        @click="toggleDifficulty(diff.id)"
+      >
+        <span class="notif-copy">
+          <span class="notif-label">{{ diff.label }}</span>
+        </span>
+        <span class="notif-switch" :class="{ on: isDifficultyEnabled(diff.id) }">
+          <span class="notif-knob"></span>
+        </span>
+      </button>
+    </div>
+  </details>
 
-        <!-- 1. Cars -->
-        <details class="notif-sub-dropdown">
-          <summary class="notif-sub-summary">
-            <div class="notif-sub-summary-left">
-              <span class="notif-sub-title">Cars</span>
-            </div>
-            <div class="notif-sub-meta">
-              <span class="notif-count-badge">{{ carsEnabledCount }}/{{ totalCarsCount }}</span>
-              <span
-                class="notif-switch"
-                :class="{ on: isCarsCategoryAllOn }"
-                role="button"
-                tabindex="0"
-                aria-label="Toggle all cars"
-                @click.stop.prevent="toggleCarsCategory"
-                @keydown.enter.stop.prevent="toggleCarsCategory"
-                @keydown.space.stop.prevent="toggleCarsCategory"
-              >
-                <span class="notif-knob"></span>
-              </span>
-            </div>
-          </summary>
-          <div class="notif-sub-content">
-            <div v-if="filterOptions.ownedCars.length === 0" class="notif-empty-sub">
-              No owned vehicles in garage
-            </div>
-            <button
-              v-for="car in filterOptions.ownedCars"
-              :key="car.id"
-              type="button"
-              class="notif-row notif-row--subchild"
-              :class="{ on: isCarEnabled(car.id) }"
-              @click="toggleCar(car.id)"
-            >
-              <span class="notif-copy">
-                <span class="notif-label">{{ car.name }}</span>
-              </span>
-              <span class="notif-switch" :class="{ on: isCarEnabled(car.id) }">
-                <span class="notif-knob"></span>
-              </span>
-            </button>
-            <button
-              type="button"
-              class="notif-row notif-row--subchild"
-              :class="{ on: isOtherCarsEnabled }"
-              @click="toggleOtherCars"
-            >
-              <span class="notif-copy">
-                <span class="notif-label">Other vehicles</span>
-                <span class="notif-desc">Unowned & loaner cars</span>
-              </span>
-              <span class="notif-switch" :class="{ on: isOtherCarsEnabled }">
-                <span class="notif-knob"></span>
-              </span>
-            </button>
-          </div>
-        </details>
-
-        <!-- 2. Difficulty -->
-        <details class="notif-sub-dropdown">
-          <summary class="notif-sub-summary">
-            <div class="notif-sub-summary-left">
-              <span class="notif-sub-title">Difficulty</span>
-            </div>
-            <div class="notif-sub-meta">
-              <span class="notif-count-badge">{{ difficultyEnabledCount }}/{{ totalDifficultyCount }}</span>
-              <span
-                class="notif-switch"
-                :class="{ on: isDifficultyCategoryAllOn }"
-                role="button"
-                tabindex="0"
-                aria-label="Toggle all difficulties"
-                @click.stop.prevent="toggleDifficultyCategory"
-                @keydown.enter.stop.prevent="toggleDifficultyCategory"
-                @keydown.space.stop.prevent="toggleDifficultyCategory"
-              >
-                <span class="notif-knob"></span>
-              </span>
-            </div>
-          </summary>
-          <div class="notif-sub-content">
-            <button
-              v-for="diff in filterOptions.difficulties"
-              :key="diff.id"
-              type="button"
-              class="notif-row notif-row--subchild"
-              :class="{ on: isDifficultyEnabled(diff.id) }"
-              @click="toggleDifficulty(diff.id)"
-            >
-              <span class="notif-copy">
-                <span class="notif-label">{{ diff.label }}</span>
-              </span>
-              <span class="notif-switch" :class="{ on: isDifficultyEnabled(diff.id) }">
-                <span class="notif-knob"></span>
-              </span>
-            </button>
-          </div>
-        </details>
-
-        <!-- 3. Discipline -->
-        <details class="notif-sub-dropdown">
-          <summary class="notif-sub-summary">
-            <div class="notif-sub-summary-left">
-              <span class="notif-sub-title">Discipline</span>
-            </div>
-            <div class="notif-sub-meta">
-              <span class="notif-count-badge">{{ disciplineEnabledCount }}/{{ totalDisciplineCount }}</span>
-              <span
-                class="notif-switch"
-                :class="{ on: isDisciplineCategoryAllOn }"
-                role="button"
-                tabindex="0"
-                aria-label="Toggle all disciplines"
-                @click.stop.prevent="toggleDisciplineCategory"
-                @keydown.enter.stop.prevent="toggleDisciplineCategory"
-                @keydown.space.stop.prevent="toggleDisciplineCategory"
-              >
-                <span class="notif-knob"></span>
-              </span>
-            </div>
-          </summary>
-          <div class="notif-sub-content">
-            <button
-              v-for="disc in filterOptions.disciplines"
-              :key="disc.id"
-              type="button"
-              class="notif-row notif-row--subchild"
-              :class="{ on: isDisciplineEnabled(disc.id) }"
-              @click="toggleDiscipline(disc.id)"
-            >
-              <span class="notif-copy">
-                <span class="notif-label">{{ disc.label }}</span>
-              </span>
-              <span class="notif-switch" :class="{ on: isDisciplineEnabled(disc.id) }">
-                <span class="notif-knob"></span>
-              </span>
-            </button>
-          </div>
-        </details>
-      </template>
+  <!-- 3. Discipline -->
+  <details
+    v-else-if="channel.selectableType === 'fre-discipline'"
+    class="notif-sub-dropdown"
+    :class="{ muted: disabled }"
+  >
+    <summary class="notif-sub-summary">
+      <div class="notif-sub-summary-left">
+        <span class="notif-sub-title">{{ channel.label || 'Discipline' }}</span>
+      </div>
+      <div class="notif-sub-meta">
+        <span class="notif-count-badge">{{ disciplineEnabledCount }}/{{ totalDisciplineCount }}</span>
+        <span
+          class="notif-switch"
+          :class="{ on: isDisciplineCategoryAllOn }"
+          role="button"
+          tabindex="0"
+          :aria-label="`Toggle all ${channel.label || 'disciplines'}`"
+          @click.stop.prevent="toggleDisciplineCategory"
+          @keydown.enter.stop.prevent="toggleDisciplineCategory"
+          @keydown.space.stop.prevent="toggleDisciplineCategory"
+        >
+          <span class="notif-knob"></span>
+        </span>
+      </div>
+    </summary>
+    <div class="notif-sub-content">
+      <div v-if="filterOptions.disciplines.length === 0" class="notif-empty-sub">
+        No disciplines available
+      </div>
+      <button
+        v-for="disc in filterOptions.disciplines"
+        :key="disc.id"
+        type="button"
+        class="notif-row notif-row--subchild"
+        :class="{ on: isDisciplineEnabled(disc.id) }"
+        @click="toggleDiscipline(disc.id)"
+      >
+        <span class="notif-copy">
+          <span class="notif-label">{{ disc.label }}</span>
+        </span>
+        <span class="notif-switch" :class="{ on: isDisciplineEnabled(disc.id) }">
+          <span class="notif-knob"></span>
+        </span>
+      </button>
     </div>
   </details>
 </template>
@@ -179,12 +160,24 @@ import { ref, computed, onMounted, onActivated, onUnmounted } from 'vue'
 import { lua } from '@/bridge'
 import { usePhoneSettings } from '../../composables/usePhoneSettings'
 
+const props = defineProps({
+  channel: {
+    type: Object,
+    required: true,
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+})
+
 const {
   phoneSettings,
   setPhoneSettings,
   getPhoneSettingsSnapshot,
 } = usePhoneSettings()
 
+// Shared filter options across all selectable channels
 const filterOptions = ref({
   ownedCars: [],
   disciplines: [],
@@ -202,7 +195,7 @@ async function persistSettings() {
     await lua.extensions.load('ui_phone_layout')
     await lua.ui_phone_layout?.updateSettings?.(getPhoneSettingsSnapshot())
   } catch (e) {
-    console.warn('Failed to save FRE notification settings', e)
+    console.warn('Failed to save notification settings', e)
   }
 }
 
@@ -228,7 +221,7 @@ async function fetchFilterOptions() {
       }
     }
   } catch (e) {
-    console.warn('Failed to load FRE notification filter options', e)
+    console.warn('Failed to load filter options', e)
   }
 }
 
@@ -247,19 +240,6 @@ onUnmounted(() => {
     persistSettings()
   }
 })
-
-// Master toggle for fre.contractReady
-const isContractReadyEnabled = computed(() => {
-  const val = phoneSettings.notifications?.['fre.contractReady']
-  return val === undefined ? true : val !== false
-})
-
-function toggleContractReady() {
-  const nextNotifs = { ...(phoneSettings.notifications || {}) }
-  nextNotifs['fre.contractReady'] = !isContractReadyEnabled.value
-  setPhoneSettings({ notifications: nextNotifs })
-  queueSave()
-}
 
 function updateFilters(updater) {
   const current = phoneSettings.freNotificationFilters || {}
@@ -281,7 +261,21 @@ function updateFilters(updater) {
     },
   }
   updater(nextFilters)
-  setPhoneSettings({ freNotificationFilters: nextFilters })
+
+  // Sync with phoneSettings.notifications for this channel key
+  const nextNotifs = { ...(phoneSettings.notifications || {}) }
+  if (props.channel.key === 'fre.cars') {
+    nextNotifs['fre.cars'] = nextFilters.cars.all !== false
+  } else if (props.channel.key === 'fre.difficulty') {
+    nextNotifs['fre.difficulty'] = nextFilters.difficulty.all !== false
+  } else if (props.channel.key === 'fre.discipline') {
+    nextNotifs['fre.discipline'] = nextFilters.discipline.all !== false
+  }
+
+  setPhoneSettings({
+    freNotificationFilters: nextFilters,
+    notifications: nextNotifs,
+  })
   queueSave()
 }
 
@@ -469,13 +463,13 @@ function toggleDisciplineCategory() {
   updateFilters(filters => {
     if (disciplineEnabledCount.value < totalDisciplineCount.value) {
       filters.discipline.all = true
-      for (const d of filterOptions.value.disciplines) {
-        filters.discipline[d.id] = true
+      for (const disc of filterOptions.value.disciplines) {
+        filters.discipline[disc.id] = true
       }
     } else {
       filters.discipline.all = false
-      for (const d of filterOptions.value.disciplines) {
-        filters.discipline[d.id] = false
+      for (const disc of filterOptions.value.disciplines) {
+        filters.discipline[disc.id] = false
       }
     }
   })
@@ -497,24 +491,4 @@ function toggleDiscipline(discId) {
     }
   })
 }
-
-// ---------------- Overall Summary ----------------
-const totalFilterItemsCount = computed(() => {
-  return totalCarsCount.value + totalDifficultyCount.value + totalDisciplineCount.value
-})
-
-const activeFilterItemsCount = computed(() => {
-  return carsEnabledCount.value + difficultyEnabledCount.value + disciplineEnabledCount.value
-})
-
-const summaryMeta = computed(() => {
-  if (!isContractReadyEnabled.value) return 'Muted'
-  if (totalFilterItemsCount.value === 0) return 'On'
-  return `${activeFilterItemsCount.value}/${totalFilterItemsCount.value}`
-})
 </script>
-
-<style scoped lang="scss">
-@use '../../styles/phone-notification-settings' as *;
-</style>
-
