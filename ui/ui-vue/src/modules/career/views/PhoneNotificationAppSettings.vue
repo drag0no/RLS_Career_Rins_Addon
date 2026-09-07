@@ -62,8 +62,9 @@
           </span>
         </button>
 
-        <template v-if="multiChannelGroups.length">
+        <template v-if="hasFreContracts || multiChannelGroups.length">
           <div class="notif-section-header">Detailed alerts</div>
+          <PhoneFreNotificationFilter v-if="hasFreContracts" />
           <details
             v-for="group in multiChannelGroups"
             :key="group.appId"
@@ -104,6 +105,7 @@
 <script setup>
 import { computed } from 'vue'
 import PhoneWrapper from './PhoneWrapper.vue'
+import PhoneFreNotificationFilter from '../components/phone/PhoneFreNotificationFilter.vue'
 import {
   useNotificationAccentStyle,
   usePhoneNotificationSettings,
@@ -132,8 +134,12 @@ const bannerDisplayLabel = computed(() =>
   clampNotificationDisplaySeconds(bannerDisplaySlider.value)
 )
 
+const hasFreContracts = computed(() =>
+  notificationGroups.value.some(g => g.appId === 'fre-contracts')
+)
+
 const singleChannelGroups = computed(() =>
-  notificationGroups.value.filter(g => g.channels.length === 1)
+  notificationGroups.value.filter(g => g.channels.length === 1 && g.appId !== 'fre-contracts')
 )
 
 const multiChannelGroups = computed(() =>

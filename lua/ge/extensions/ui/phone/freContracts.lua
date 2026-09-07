@@ -1,3 +1,5 @@
+local freConfig = require('gameplay/fre/config')
+
 local M = {}
 
 M.dependencies = {'gameplay_events_freContracts'}
@@ -95,6 +97,62 @@ local function rescheduleSanctionedRace()
   return actionResult(ok, err)
 end
 
+local function getNotificationFilterOptions()
+  local ownedCars = {}
+  if isCareerActive() and career_modules_inventory and career_modules_inventory.getVehicles then
+    local vehicles = career_modules_inventory.getVehicles() or {}
+    local vPool = gameplay_events_freContracts_vehiclePool
+    if not vPool and extensions and extensions.load then
+      pcall(extensions.load, "gameplay_events_freContracts_vehiclePool")
+      vPool = gameplay_events_freContracts_vehiclePool
+    end
+
+    for invId, veh in pairs(vehicles) do
+      local name = veh.niceName
+      if not name or name == "" then
+        local modelName = (vPool and vPool.getModelDisplayName and vPool.getModelDisplayName(veh.model)) or veh.model or "Vehicle"
+        if veh.configName and veh.configName ~= "" then
+          name = modelName .. " " .. veh.configName
+        else
+          name = modelName
+        end
+      end
+      table.insert(ownedCars, {
+        id = tostring(invId),
+        name = name,
+        model = veh.model or "",
+      })
+    end
+    table.sort(ownedCars, function(a, b)
+      return string.lower(a.name) < string.lower(b.name)
+    end)
+  end
+
+  local disciplinesList = {}
+  if freConfig and freConfig.getDisciplines then
+    for _, disc in ipairs(freConfig.getDisciplines() or {}) do
+      if not disc.legacyOnly and not disc.placeholderOnly then
+        table.insert(disciplinesList, {
+          id = disc.id,
+          label = disc.label or disc.id,
+        })
+      end
+    end
+  end
+
+  local difficulties = {
+    { id = "easy", label = "Easy" },
+    { id = "medium", label = "Medium" },
+    { id = "hard", label = "Hard" },
+  }
+
+  return {
+    ownedCars = ownedCars,
+    disciplines = disciplinesList,
+    difficulties = difficulties,
+  }
+end
+
 M.getState = getState
 M.startLiveUpdates = startLiveUpdates
 M.stopLiveUpdates = stopLiveUpdates
@@ -107,5 +165,6 @@ M.upgradeLicense = upgradeLicense
 M.commitSanctionedRace = commitSanctionedRace
 M.navigateSanctionedRace = navigateSanctionedRace
 M.rescheduleSanctionedRace = rescheduleSanctionedRace
+M.getNotificationFilterOptions = getNotificationFilterOptions
 
 return M
