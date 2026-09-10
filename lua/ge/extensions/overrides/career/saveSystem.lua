@@ -27,12 +27,14 @@ local FFB_RESTORE_DELAY = 10
 
 local AUTOSAVE_INTERVAL_S = 300
 local AUTOSAVE_MAX_SPEED = 2
+local AUTOSAVE_STOP_DELAY_S = 10
 local SAVE_IN_FLIGHT_TIMEOUT_S = 45
 local lastAutosaveAt = 0
 local saveStartedAt = 0
 local preSaveInfoBackup = nil
 local preSaveInfoExisted = false
 local simPaused = false
+local playerStoppedTimer = 0
 
 local DEFER_AUTOSAVE_ROUTES = {
   ["career.computer.partShopping"] = true,
@@ -54,6 +56,7 @@ end
 
 local function markAutosaveDone()
   lastAutosaveAt = os.time()
+  playerStoppedTimer = 0
 end
 
 -- Missing player vehicle is not "stopped": spawn/swap frames would otherwise
@@ -64,6 +67,10 @@ local function playerIsNearlyStopped()
     return false
   end
   return playerVeh:getVelocity():length() < AUTOSAVE_MAX_SPEED
+end
+
+local function playerHasBeenStopped(minDuration)
+  return playerStoppedTimer >= (minDuration or AUTOSAVE_STOP_DELAY_S)
 end
 
 local function getCurrentUiRouteName()
@@ -580,6 +587,7 @@ local function beginQueuedSave()
   pendingSaveName = nil
   pendingForceSave = false
   queueSave = false
+  playerStoppedTimer = 0
   saveCurrentActual(vehiclesThumbnailUpdate, name, force or name ~= nil)
 end
 
@@ -592,7 +600,7 @@ tryStartPendingSave = function()
   if shouldDeferAutosave() then
     return
   end
-  if playerIsNearlyStopped() then
+  if playerHasBeenStopped(AUTOSAVE_STOP_DELAY_S) then
     disableFFBForSave()
   end
 end
@@ -727,6 +735,11 @@ local function onUpdate(dt, dtSim)
   if dtSim ~= nil then
     simPaused = dtSim == 0
   end
+  if not simPaused and playerIsNearlyStopped() then
+    playerStoppedTimer = playerStoppedTimer + (dtSim or dt or 0)
+  else
+    playerStoppedTimer = 0
+  end
 
   if saveInProgress and saveStartedAt > 0 and (os.time() - saveStartedAt) >= SAVE_IN_FLIGHT_TIMEOUT_S then
     abortSaveInFlight("timed out after " .. tostring(SAVE_IN_FLIGHT_TIMEOUT_S) .. "s")
@@ -772,7 +785,7 @@ local function onUpdate(dt, dtSim)
     if pendingForceSave or pendingSaveName then
       tryStartPendingSave()
     elseif autosaveIntervalReady() and not shouldDeferAutosave() then
-      if playerIsNearlyStopped() then
+      if playerHasBeenStopped(AUTOSAVE_STOP_DELAY_S) then
         disableFFBForSave()
       end
     end

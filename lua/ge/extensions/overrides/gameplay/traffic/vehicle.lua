@@ -322,19 +322,24 @@ function C:checkCollisions() -- checks for contact with other tracked vehicles
   for id, veh in pairs(map.objects) do
     if self.id ~= id then
       if not veh or not veh.pos then goto continue end
+
+      local objectCollisions = veh.objectCollisions
+      local isCurrentCollision = objectCollisions and objectCollisions[self.id] == 1
+      local collision = self.collisions[id]
+
+      if not collision and not isCurrentCollision then
+        goto continue
+      end
+
       local otherObj = getObjectByID(id)
       if not otherObj then
-        if self.collisions[id] then
+        if collision then
           self.collisions[id] = nil
         end
         goto continue
       end
 
-      local mapObj = map.objects[id]
-      local objectCollisions = mapObj and mapObj.objectCollisions
-      local isCurrentCollision = objectCollisions and objectCollisions[self.id] == 1
-
-      if not self.collisions[id] and isCurrentCollision then
+      if not collision and isCurrentCollision then
         local bb1 = selfObj:getSpawnWorldOOBB()
         local bb2 = otherObj:getSpawnWorldOOBB()
 
