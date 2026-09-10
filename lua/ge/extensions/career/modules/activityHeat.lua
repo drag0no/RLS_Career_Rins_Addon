@@ -130,6 +130,8 @@ local suspendedForChallenge = false
 local pendingTransientPush = false
 local suppressDemandNotifs = false
 local marketDirty = false
+local npcDrainTimer = 0
+local toEndBuffer = {}
 
 -- ── Helpers ──
 
@@ -538,19 +540,19 @@ end
 local function drainNpcDemand(dtSim)
   if dtSim <= 0 then return end
   local days = dtSim / SIM_SECONDS_PER_GAME_DAY
-  local toEnd = {}
+  table.clear(toEndBuffer)
   for id, ep in pairs(episodes) do
     if not isLeafUsable(id) then
-      toEnd[#toEnd + 1] = { id = id, reason = "unusable" }
+      toEndBuffer[#toEndBuffer + 1] = { id = id, reason = "unusable" }
     else
       local rate = tonumber(ep.npcRate) or 0
       ep.pool = (tonumber(ep.pool) or 0) - rate * days
       if ep.pool <= 1e-6 then
-        toEnd[#toEnd + 1] = { id = id, reason = "npc" }
+        toEndBuffer[#toEndBuffer + 1] = { id = id, reason = "npc" }
       end
     end
   end
-  for _, item in ipairs(toEnd) do
+  for _, item in ipairs(toEndBuffer) do
     endSurge(item.id, item.reason)
   end
   for id, untilT in pairs(cooldownUntil) do
@@ -558,7 +560,7 @@ local function drainNpcDemand(dtSim)
       cooldownUntil[id] = nil
     end
   end
-  if #toEnd > 0 or marketDirty then
+  if #toEndBuffer > 0 or marketDirty then
     refreshMarket()
     tickCount = tickCount + 1
   end
@@ -708,7 +710,12 @@ local function onUpdate(dtReal, dtSim, dtRaw)
   local dt = tonumber(dtSim) or 0
   if dt <= 0 then return end
   simTime = simTime + dt
-  drainNpcDemand(dt)
+  npcDrainTimer = npcDrainTimer + dt
+  if npcDrainTimer >= 1.0 then
+    local elapsed = npcDrainTimer
+    npcDrainTimer = 0
+    drainNpcDemand(elapsed)
+  end
 end
 
 M.onPlayerAttributesChanged = function(change, reason)
