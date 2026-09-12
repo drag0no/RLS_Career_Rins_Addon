@@ -130,8 +130,8 @@ local winConditions = {
   }
 }
 
-local typeValidators = {
-  number = function(value, definition)
+local typeValidators = {}
+typeValidators.number = function(value, definition)
     if type(value) ~= "number" then
       return false, "Value must be a number"
     end
@@ -142,16 +142,16 @@ local typeValidators = {
       return false, string.format("Value must be <= %s", tostring(definition.max))
     end
     return true
-  end,
-  integer = function(value, definition)
+  end
+typeValidators.integer = function(value, definition)
     local ok, msg = typeValidators.number(value, definition)
     if not ok then return ok, msg end
     if math.floor(value) ~= value then
       return false, "Value must be an integer"
     end
     return true
-  end,
-  string = function(value, definition)
+  end
+typeValidators.string = function(value, definition)
     if type(value) ~= "string" then
       return false, "Value must be a string"
     end
@@ -162,26 +162,14 @@ local typeValidators = {
       return false, string.format("Maximum length is %d", definition.maxLength)
     end
     return true
-  end,
-  boolean = function(value)
+  end
+typeValidators.boolean = function(value)
     if type(value) ~= "boolean" then
       return false, "Value must be a boolean"
     end
     return true
-  end,
-  array = function(value, definition)
-    if type(value) ~= "table" then
-      return false, "Value must be an array"
-    end
-    if definition.minLength and #value < definition.minLength then
-      return false, string.format("Minimum length is %d", definition.minLength)
-    end
-    if definition.maxLength and #value > definition.maxLength then
-      return false, string.format("Maximum length is %d", definition.maxLength)
-    end
-    return true
-  end,
-  multiselect = function(value, definition)
+  end
+typeValidators.array = function(value, definition)
     if type(value) ~= "table" then
       return false, "Value must be an array"
     end
@@ -193,7 +181,18 @@ local typeValidators = {
     end
     return true
   end
-}
+typeValidators.multiselect = function(value, definition)
+    if type(value) ~= "table" then
+      return false, "Value must be an array"
+    end
+    if definition.minLength and #value < definition.minLength then
+      return false, string.format("Minimum length is %d", definition.minLength)
+    end
+    if definition.maxLength and #value > definition.maxLength then
+      return false, string.format("Maximum length is %d", definition.maxLength)
+    end
+    return true
+  end
 
 -- ============================================================================
 -- HELPER FUNCTIONS

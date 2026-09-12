@@ -1836,7 +1836,8 @@ function M.preloadAiPathsForTrack()
     local aiRacers = gameplay_events_freeroam_aiRacers
     if not aiRacers or not aiRacers.preloadPathForRace then return end
     local levelId = getCurrentLevelIdentifier()
-    local races = sess().races
+    local session = sess()
+    local races = session and session.races
     if not levelId or not races or not races.track then return end
     aiRacers.preloadPathForRace(races.track)
     if races.track.altRoute and races.track.altRoute.checkpointRoad then

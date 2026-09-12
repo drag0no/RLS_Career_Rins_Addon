@@ -3,7 +3,7 @@
 -- file, You can obtain one at http://beamng.com/bCDDL-1.1.txt
 local M = {}
 
-M.dependencies = {'gameplay_events_freContracts'}
+M.dependencies = {'gameplay_events_freContracts', 'gameplay_events_freeroam_session'}
 
 local processRoad, leaderboardManager, checkpointManager
 local raceSession
@@ -1277,6 +1277,9 @@ local function beamngTrigger_pits(data, event, raceName)
 end
 
 local function onBeamNGTrigger(data)
+  if not session or not utils then
+    return
+  end
   syncReplayFlagFromCore()
   if session.isReplay then
     return
@@ -1339,7 +1342,8 @@ local function onBeamNGTrigger(data)
 
   local isAlt = altFlag == "alt"
 
-  if circuitRaceAi.tryHandleAiTrigger(data, event, triggerType, raceName, checkpointIndex, isAiAlt, isAlt, isPlayer) then
+  if circuitRaceAi and circuitRaceAi.tryHandleAiTrigger
+      and circuitRaceAi.tryHandleAiTrigger(data, event, triggerType, raceName, checkpointIndex, isAiAlt, isAlt, isPlayer) then
     return
   end
 
@@ -1419,15 +1423,91 @@ local function onVehicleSwitched(oldId, newId, player)
 end
 
 local function preloadFreeroamAiPathsForTrack()
-  competitiveTrackFlow.preloadAiPathsForTrack()
+  if competitiveTrackFlow and competitiveTrackFlow.preloadAiPathsForTrack then
+    competitiveTrackFlow.preloadAiPathsForTrack()
+  end
+end
+
+local function bindChildModules()
+  session = gameplay_events_freeroam_session
+  processRoad = gameplay_events_freeroam_processRoad
+  leaderboardManager = gameplay_events_freeroam_leaderboardManager
+  checkpointManager = gameplay_events_freeroam_checkpointManager
+  utils = gameplay_events_freeroam_utils
+  pits = gameplay_events_freeroam_pits
+  aiRacers = gameplay_events_freeroam_aiRacers
+  circuitRaceAi = gameplay_events_freeroam_circuitRaceAi
+  competitiveTrackFlow = gameplay_events_freeroam_competitiveTrackFlow
+  demolitionDerby = gameplay_events_freeroam_demolitionDerby
+  raceSession = gameplay_events_freeroam_raceSession
+  if gameplay_events_freeroam_activeAssets and gameplay_events_freeroam_activeAssets.ActiveAssets then
+    Assets = gameplay_events_freeroam_activeAssets.ActiveAssets.new()
+  end
+  if competitiveTrackFlow then
+    trackFlowState = competitiveTrackFlow.trackFlowState
+    TRACK_RACE_ID = competitiveTrackFlow.TRACK_RACE_ID
+  end
+end
+
+local function reloadForCurrentLevel()
+  local sessionExt = "gameplay_events_freeroam_session"
+  setExtensionUnloadMode(sessionExt, "manual")
+  if not extensions.isExtensionLoaded(sessionExt) then
+    extensions.load(sessionExt)
+  end
+  bindChildModules()
+  if not session or not utils then
+    return
+  end
+  if session.resetState then
+    session.resetState()
+  end
+  if raceSession and raceSession.hideFreeroamRaceHud then
+    raceSession.hideFreeroamRaceHud(true)
+  end
+  if competitiveTrackFlow then
+    if competitiveTrackFlow.resetTrackGridFlowFlags then
+      competitiveTrackFlow.resetTrackGridFlowFlags()
+    end
+    if competitiveTrackFlow.trackFlowState then
+      competitiveTrackFlow.trackFlowState.inTrackFlowContext = false
+    end
+    if competitiveTrackFlow.clearSanctionedCareerGoToRaceActive then
+      competitiveTrackFlow.clearSanctionedCareerGoToRaceActive()
+    end
+  end
+  if processRoad and processRoad.reset then
+    processRoad.reset()
+  end
+  if checkpointManager and checkpointManager.removeCheckpoints then
+    checkpointManager.removeCheckpoints()
+  end
+  if circuitRaceAi and circuitRaceAi.clearAll then
+    circuitRaceAi.clearAll()
+  end
+  if utils.resetSceneBoundCaches then
+    utils.resetSceneBoundCaches()
+  end
+  session.races = utils.loadRaceData()
+  syncReplayFlagFromCore()
+  preloadFreeroamAiPathsForTrack()
+  if gameplay_rawPois and gameplay_rawPois.clear then
+    gameplay_rawPois.clear()
+  end
+  if gameplay_events_freContracts_raceCache and gameplay_events_freContracts_raceCache.refreshRaceCache then
+    gameplay_events_freContracts_raceCache.refreshRaceCache()
+  end
 end
 
 local function onWorldReadyState(state)
-  if state ~= 2 or not session or not utils or not competitiveTrackFlow then
+  if state ~= 2 then
     return
   end
-  session.races = utils.loadRaceData()
-  preloadFreeroamAiPathsForTrack()
+  reloadForCurrentLevel()
+end
+
+local function onClientStartMission()
+  reloadForCurrentLevel()
 end
 
 local function loadExtensions()
@@ -1447,8 +1527,8 @@ local function loadExtensions()
     end)
     local sessionExt = "gameplay_events_freeroam_session"
     for _, extensionName in ipairs(names) do
+      setExtensionUnloadMode(extensionName, "manual")
       if extensionName ~= sessionExt then
-        setExtensionUnloadMode(extensionName, "manual")
         extensions.unload(extensionName)
         table.insert(loadedExtensions, extensionName)
       end
@@ -1465,25 +1545,7 @@ end
 
 local function onExtensionLoaded()
   loadExtensions()
-  session = gameplay_events_freeroam_session
-  processRoad = gameplay_events_freeroam_processRoad
-  leaderboardManager = gameplay_events_freeroam_leaderboardManager
-  checkpointManager = gameplay_events_freeroam_checkpointManager
-  utils = gameplay_events_freeroam_utils
-  pits = gameplay_events_freeroam_pits
-  aiRacers = gameplay_events_freeroam_aiRacers
-  circuitRaceAi = gameplay_events_freeroam_circuitRaceAi
-  competitiveTrackFlow = gameplay_events_freeroam_competitiveTrackFlow
-  demolitionDerby = gameplay_events_freeroam_demolitionDerby
-  Assets = gameplay_events_freeroam_activeAssets.ActiveAssets.new()
-  trackFlowState = competitiveTrackFlow.trackFlowState
-  TRACK_RACE_ID = competitiveTrackFlow.TRACK_RACE_ID
-  raceSession = gameplay_events_freeroam_raceSession
-  syncReplayFlagFromCore()
-  if getCurrentLevelIdentifier() then
-    session.races = utils.loadRaceData()
-    preloadFreeroamAiPathsForTrack()
-  end
+  reloadForCurrentLevel()
 end
 
 local function onExtensionUnloaded()
@@ -1496,9 +1558,6 @@ end
 local function onUpdate(dtReal, dtSim, dtRaw)
   if not session or not competitiveTrackFlow or not raceSession or not processRoad or not circuitRaceAi then
     return
-  end
-  if aiRacers and aiRacers.onUpdate then
-    aiRacers.onUpdate(dtReal or 0)
   end
 
   -- Demolition derby per-frame update
@@ -1789,6 +1848,8 @@ M.payoutDragRace = function(raceName, finishTime, finishSpeed, vehId)
   return 0
 end
 M.onWorldReadyState = onWorldReadyState
+M.onClientStartMission = onClientStartMission
+M.reloadForCurrentLevel = reloadForCurrentLevel
 M.getRace = function(raceName)
   if not session or not session.races then
     return nil

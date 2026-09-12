@@ -21,9 +21,14 @@ local categoryDefinitions = {
   engine = {
     label = "Engine",
     keywords = {"engine", "longblock", "cylinderhead", "headgasket", "block", "oilpan", "turbo", "supercharger", "intake", "exhaust"},
-    installedKeywords = {"longblock", "cylinderhead", "headgasket", "block"},
+    installedKeywords = {"engine", "longblock", "cylinderhead", "headgasket", "block"},
     installedSlotSuffixes = {"engine"},
-    installedExcludeKeywords = {"subframe", "mount"},
+    installedExcludeKeywords = {
+      "subframe", "mount", "ecu", "motor", "intake", "exhaust", "oilpan", "turbo", "supercharger",
+      "radiator", "intercooler", "transmission", "gearbox", "transaxle", "compressor", "wastegate",
+      "nitrous", "n2o", "fan", "hose", "shroud", "cooler",
+    },
+    installedPowertrainDevices = {"combustionEngine"},
     items = {
       {
         name = "oilLevel",

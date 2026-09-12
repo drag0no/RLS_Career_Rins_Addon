@@ -534,6 +534,9 @@ local function refreshTaskGuidance(force)
   )
   local signature = table.concat({label, subtext}, "|")
   if force or signature ~= lastTaskGuidanceSignatures[active.id] then
+    if ui_appContainers and ui_appContainers.showApp then
+      ui_appContainers.showApp("topLeft", "tasks")
+    end
     guihooks.trigger("SetTasklistTask", {
       id = materialTaskId(active.id),
       label = label,

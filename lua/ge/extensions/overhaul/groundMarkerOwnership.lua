@@ -29,6 +29,11 @@ local function hasActiveDestination()
   return gm ~= nil and gm.endWP ~= nil
 end
 
+local function isBusRouteActive()
+  local bus = rawget(_G, 'gameplay_bus')
+  return bus ~= nil and type(bus.isBusRouteActive) == 'function' and bus.isBusRouteActive() == true
+end
+
 local function hasRoutePath()
   local gm = rawget(_G, 'core_groundMarkers')
   local path = gm and gm.routePlanner and gm.routePlanner.path
@@ -36,7 +41,7 @@ local function hasRoutePath()
 end
 
 local function reseedIfNeeded()
-  if not origSetPath or not hasActiveDestination() or hasRoutePath() then
+  if isBusRouteActive() or not origSetPath or not hasActiveDestination() or hasRoutePath() then
     return
   end
   local now = os.clock()
@@ -87,12 +92,15 @@ end
 local function wrappedOnPreRender(dt)
   local gm = rawget(_G, 'core_groundMarkers')
   if gm and gm.endWP then
-    local veh = getPlayerVehicle(0)
-    if veh and gm.routePlanner and gm.routePlanner.trackVehicle then
-      gm.routePlanner:trackVehicle(veh)
-    end
-    if not hasRoutePath() then
-      reseedIfNeeded()
+    local busRoute = isBusRouteActive()
+    if not busRoute then
+      local veh = getPlayerVehicle(0)
+      if veh and gm.routePlanner and gm.routePlanner.trackVehicle then
+        gm.routePlanner:trackVehicle(veh)
+      end
+      if not hasRoutePath() then
+        reseedIfNeeded()
+      end
     end
     if not hasRoutePath() then
       return
@@ -110,6 +118,16 @@ local function clearOwnedPath(token)
   return true
 end
 
+local function capturePredecessor(current, wrapped, existingOrig)
+  if current == wrapped then
+    return existingOrig
+  end
+  if not existingOrig then
+    return current
+  end
+  return existingOrig
+end
+
 local function install()
   local gm = rawget(_G, 'core_groundMarkers')
   if type(gm) ~= 'table' or type(gm.setPath) ~= 'function' then
@@ -117,8 +135,10 @@ local function install()
   end
 
   if gm.setPath ~= wrappedSetPath then
-    origSetPath = gm.setPath
-    origResetAll = gm.resetAll
+    origSetPath = capturePredecessor(gm.setPath, wrappedSetPath, origSetPath)
+    if type(gm.resetAll) == 'function' then
+      origResetAll = capturePredecessor(gm.resetAll, wrappedResetAll, origResetAll)
+    end
     gm.setPath = wrappedSetPath
     if type(origResetAll) == 'function' then
       gm.resetAll = wrappedResetAll
@@ -128,15 +148,15 @@ local function install()
   end
 
   if type(gm.sendToApp) == 'function' and gm.sendToApp ~= wrappedSendToApp then
-    origSendToApp = gm.sendToApp
+    origSendToApp = capturePredecessor(gm.sendToApp, wrappedSendToApp, origSendToApp)
     gm.sendToApp = wrappedSendToApp
   end
   if type(gm.generateRouteDecals) == 'function' and gm.generateRouteDecals ~= wrappedGenerateRouteDecals then
-    origGenerateRouteDecals = gm.generateRouteDecals
+    origGenerateRouteDecals = capturePredecessor(gm.generateRouteDecals, wrappedGenerateRouteDecals, origGenerateRouteDecals)
     gm.generateRouteDecals = wrappedGenerateRouteDecals
   end
   if type(gm.onPreRender) == 'function' and gm.onPreRender ~= wrappedOnPreRender then
-    origOnPreRender = gm.onPreRender
+    origOnPreRender = capturePredecessor(gm.onPreRender, wrappedOnPreRender, origOnPreRender)
     gm.onPreRender = wrappedOnPreRender
     if extensions and extensions.hookUpdate then
       extensions.hookUpdate('onPreRender')
@@ -154,7 +174,10 @@ local function onClientStartMission()
 end
 
 local function onPreRender()
-  install()
+  local gm = rawget(_G, 'core_groundMarkers')
+  if not gm or gm.setPath ~= wrappedSetPath then
+    install()
+  end
   reseedIfNeeded()
 end
 

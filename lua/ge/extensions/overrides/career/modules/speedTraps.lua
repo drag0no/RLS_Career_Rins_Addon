@@ -41,14 +41,20 @@ local function getFineFromSpeed(overSpeed)
   return deepcopy(maxFine)
 end
 
-local function hasLicensePlate(inventoryId)
-  for partId, part in pairs(career_modules_partInventory.getInventory()) do
-    if part.location == inventoryId then
-      if string.find(part.name, "licenseplate") then
+local function hasLicensePlate(inventoryId, vehicle)
+  -- Owned vehicles have their plate part in the career part inventory. Work
+  -- loaners are temporary inventory records, however, so their installed plate
+  -- never appears there even though it is visible and readable in the world.
+  if career_modules_partInventory and career_modules_partInventory.getInventory then
+    for _, part in pairs(career_modules_partInventory.getInventory() or {}) do
+      if part.location == inventoryId and type(part.name) == "string" and string.find(part.name, "licenseplate") then
         return true
       end
     end
   end
+
+  local plateText = vehicle and core_vehicles.getVehicleLicenseText(vehicle)
+  return type(plateText) == "string" and plateText:match("%S") ~= nil
 end
 
 -- Handles a triggered speed trap: validates context and vehicle, then issues fines or reputation penalties, adds tickets, plays audio, shows UI messages, and updates speed-trap leaderboards.
@@ -86,7 +92,7 @@ local function onSpeedTrapTriggered(speedTrapData, playerSpeed, overSpeed)
   local penaltyType
   if not inventoryId then
     penaltyType = "default"
-  elseif hasLicensePlate(inventoryId) then
+  elseif hasLicensePlate(inventoryId, veh) then
     if vehInfo.owned then
       penaltyType = "default"
     elseif vehInfo.loanType == "work" then
@@ -173,7 +179,7 @@ local function onRedLightCamTriggered(speedTrapData, playerSpeed)
   local inventoryId = career_modules_inventory.getInventoryIdFromVehicleId(vehId)
 
   local veh = getPlayerVehicle(0)
-  if not inventoryId or hasLicensePlate(inventoryId) then
+  if not inventoryId or hasLicensePlate(inventoryId, veh) then
     local redLightGlobalIndex = career_modules_globalEconomy and career_modules_globalEconomy.getGlobalIndex() or 1.0
     local fine = {money = {amount = math.floor(500 * (isHardcoreMode() and 2 or 1) * redLightGlobalIndex), canBeNegative = true}}
     local message = ""

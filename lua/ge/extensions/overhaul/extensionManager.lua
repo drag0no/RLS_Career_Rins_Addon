@@ -264,6 +264,9 @@ local function startup()
     setExtensionUnloadMode("overhaul_dragFreeroamBridge", "manual")
     extensions.load("overhaul_dragFreeroamBridge")
 
+    setExtensionUnloadMode("overhaul_bigMapVehicleGuard", "manual")
+    extensions.load("overhaul_bigMapVehicleGuard")
+
     setExtensionUnloadMode("overhaul_settings", "manual")
     setExtensionUnloadMode("overhaul_maps", "manual")
     setExtensionUnloadMode("overhaul_clearLevels", "manual")
@@ -468,8 +471,11 @@ local function ensureFreeroamEventsLoaded()
     if not extensions.isExtensionLoaded("gameplay_events_freContracts") then
         extensions.load("gameplay_events_freContracts")
     end
-    if not extensions.isExtensionLoaded("gameplay_events_freeroamEvents") then
+    local alreadyLoaded = extensions.isExtensionLoaded("gameplay_events_freeroamEvents")
+    if not alreadyLoaded then
         extensions.load("gameplay_events_freeroamEvents")
+    elseif gameplay_events_freeroamEvents and gameplay_events_freeroamEvents.reloadForCurrentLevel then
+        gameplay_events_freeroamEvents.reloadForCurrentLevel()
     end
 end
 

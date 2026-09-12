@@ -191,6 +191,8 @@ local function isPersonalVehicleId(vehicleId)
   return str:sub(1, 9) == "personal_"
 end
 
+local getInventoryIdFromPersonalVehicleId
+
 local function partsTreeCacheKeyForBusinessVehicle(businessId, vehicleIdStr, initialVehicle, isPersonal)
   if isPersonal then
     local invId = getInventoryIdFromPersonalVehicleId(vehicleIdStr, businessId)
@@ -277,7 +279,7 @@ local function getPersonalVehicleData(vehicleId, businessId)
   return getActivePersonalVehicleRecord(vehicleId, businessId)
 end
 
-local function getInventoryIdFromPersonalVehicleId(vehicleId, businessId)
+getInventoryIdFromPersonalVehicleId = function(vehicleId, businessId)
   local rec = getActivePersonalVehicleRecord(vehicleId, businessId)
   return rec and rec.inventoryId or nil
 end

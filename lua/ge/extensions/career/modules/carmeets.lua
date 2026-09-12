@@ -207,6 +207,8 @@ local function ensureVehiclePopularity()
     return career_modules_vehiclePopularity
 end
 
+local getCurrentInventoryId
+
 local function getMeetVehicleInventoryId(state)
     state = state or meetState
     if not state or not state.flags then return nil end
@@ -291,7 +293,7 @@ local function sortedStableSerialize(value)
     return "{" .. table.concat(parts, "|") .. "}"
 end
 
-local function getCurrentInventoryId()
+getCurrentInventoryId = function()
     if career_modules_inventory and career_modules_inventory.getCurrentVehicle then
         return career_modules_inventory.getCurrentVehicle()
     end

@@ -367,6 +367,9 @@ end
 
 local function getRaceLabel(raceName, altRoute, hotlap)
   local race = races[raceName]
+  if not race then
+    return tostring(raceName or "")
+  end
   local raceLabel = race.label
 
   if altRoute then
@@ -810,7 +813,15 @@ local function onPursuitAction(id, pursuitData)
   end
 end
 
+local function resetSceneBoundCaches()
+  table.clear(leftTimeDigits)
+  table.clear(rightTimeDigits)
+  table.clear(leftSpeedDigits)
+  table.clear(rightSpeedDigits)
+end
+
 local function loadRaceData()
+  races = {}
   if getCurrentLevelIdentifier() then
     local levelIdentifier = getCurrentLevelIdentifier()
     local level = "levels/" .. levelIdentifier .. "/race_data.json"
@@ -852,6 +863,7 @@ M.tableContains = tableContains
 M.hasFinishTrigger = hasFinishTrigger
 M.setActiveLight = setActiveLight
 M.loadRaceData = loadRaceData
+M.resetSceneBoundCaches = resetSceneBoundCaches
 M.calculateAverageMultiplier = calculateAverageMultiplier
 M.onExtensionLoaded = onExtensionLoaded
 M.getVehicleDamage = getVehicleDamage

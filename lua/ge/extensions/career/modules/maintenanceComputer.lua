@@ -21,6 +21,8 @@ local originComputerId
 local activeInventoryId
 local returnRoute = nil
 
+local closeMenu
+
 local function deepCopy(value)
   if type(deepcopy) == "function" then
     return deepcopy(value)
@@ -167,6 +169,43 @@ local function endsWithKeywordToken(text, keyword)
   return prefixLength == 0 or not text:sub(prefixLength, prefixLength):match("[%w]")
 end
 
+local function containsKeywordToken(text, keyword)
+  text = string.lower(tostring(text or ""))
+  keyword = string.lower(tostring(keyword or ""))
+  if keyword == "" then
+    return false
+  end
+
+  local startPos = 1
+  while true do
+    local foundAt = string.find(text, keyword, startPos, true)
+    if not foundAt then
+      return false
+    end
+
+    local beforeOk = foundAt == 1 or not text:sub(foundAt - 1, foundAt - 1):match("[%w]")
+    local afterPos = foundAt + #keyword
+    local afterOk = afterPos > #text or not text:sub(afterPos, afterPos):match("[%w]")
+    if beforeOk and afterOk then
+      return true
+    end
+
+    startPos = foundAt + 1
+  end
+end
+
+local function containsAnyKeywordToken(text, keywords)
+  if text == "" then
+    return false
+  end
+  for _, keyword in ipairs(keywords or {}) do
+    if containsKeywordToken(text, keyword) then
+      return true
+    end
+  end
+  return false
+end
+
 local function matchesInstalledHardware(categoryDefinition, partName, slotName)
   local excludeKeywords = categoryDefinition.installedExcludeKeywords
   local lowerPartName = string.lower(tostring(partName or ""))
@@ -174,7 +213,7 @@ local function matchesInstalledHardware(categoryDefinition, partName, slotName)
   local haystacks = {lowerPartName, lowerSlotName}
 
   for _, haystack in ipairs(haystacks) do
-    if containsAnyKeyword(haystack, categoryDefinition.installedKeywords) and
+    if containsAnyKeywordToken(haystack, categoryDefinition.installedKeywords) and
        not containsAnyKeyword(haystack, excludeKeywords) then
       return true, haystack
     end
@@ -182,13 +221,144 @@ local function matchesInstalledHardware(categoryDefinition, partName, slotName)
 
   if not containsAnyKeyword(lowerSlotName, excludeKeywords) then
     for _, suffix in ipairs(categoryDefinition.installedSlotSuffixes or {}) do
-      if endsWithKeywordToken(lowerSlotName, suffix) then
+      if endsWithKeywordToken(lowerSlotName, suffix) or containsKeywordToken(lowerSlotName, suffix) then
         return true, lowerSlotName
       end
     end
   end
 
   return false
+end
+
+local jbeamIO = nil
+pcall(function()
+  jbeamIO = require("jbeam/io")
+end)
+
+local ioCtxCache = {}
+
+local function getVehicleIoCtx(vehicleData)
+  if type(vehicleData) ~= "table" then
+    return nil
+  end
+  if vehicleData.ioCtx then
+    return vehicleData.ioCtx
+  end
+
+  local model = vehicleData.model or vehicleData.vehicleModel
+  if type(model) ~= "string" or model == "" or not jbeamIO or not jbeamIO.startLoading then
+    return nil
+  end
+
+  local cached = ioCtxCache[model]
+  if cached then
+    return cached
+  end
+
+  local ok, ioCtx = pcall(jbeamIO.startLoading, {
+    "/vehicles/" .. model .. "/",
+    "/vehicles/common/",
+  })
+  if ok and ioCtx then
+    ioCtxCache[model] = ioCtx
+    return ioCtx
+  end
+  return nil
+end
+
+local function partDataHasDeviceType(partData, deviceType)
+  if type(partData) ~= "table" or type(deviceType) ~= "string" or deviceType == "" then
+    return false
+  end
+
+  local target = string.lower(deviceType)
+  local function walk(value)
+    if type(value) == "string" then
+      return string.find(string.lower(value), target, 1, true) ~= nil
+    end
+    if type(value) ~= "table" then
+      return false
+    end
+    for _, child in pairs(value) do
+      if walk(child) then
+        return true
+      end
+    end
+    return false
+  end
+
+  return walk(partData.powertrain)
+end
+
+local function collectInstalledPartNames(vehicleData)
+  local partNames = {}
+  local seen = {}
+
+  local function addName(name)
+    if type(name) == "string" and name ~= "" and not seen[name] then
+      seen[name] = true
+      table.insert(partNames, name)
+    end
+  end
+
+  local function walkNode(node)
+    if type(node) ~= "table" then
+      return
+    end
+    addName(node.chosenPartName)
+    for _, child in pairs(node.children or {}) do
+      walkNode(child)
+    end
+  end
+
+  local partsTree = vehicleData and vehicleData.config and vehicleData.config.partsTree
+  if type(partsTree) == "table" and next(partsTree) ~= nil then
+    walkNode(partsTree)
+  else
+    local flatParts = vehicleData and vehicleData.config and vehicleData.config.parts
+    if type(flatParts) == "table" then
+      for _, chosenPartName in pairs(flatParts) do
+        addName(chosenPartName)
+      end
+    end
+  end
+
+  return partNames
+end
+
+local function categoryHasInstalledPowertrainDevice(vehicleData, deviceTypes)
+  if type(deviceTypes) ~= "table" or not deviceTypes[1] then
+    return false, nil
+  end
+
+  local activePartsData = vehicleData and vehicleData.vdata and vehicleData.vdata.activePartsData
+  if type(activePartsData) == "table" then
+    for _, partData in pairs(activePartsData) do
+      for _, deviceType in ipairs(deviceTypes) do
+        if partDataHasDeviceType(partData, deviceType) then
+          return true, {source = "activePartsData", deviceType = deviceType}
+        end
+      end
+    end
+  end
+
+  local ioCtx = getVehicleIoCtx(vehicleData)
+  if not ioCtx or not jbeamIO or not jbeamIO.getPart then
+    return false, nil
+  end
+
+  for _, partName in ipairs(collectInstalledPartNames(vehicleData)) do
+    local ok, partData = pcall(jbeamIO.getPart, ioCtx, partName)
+    if ok and type(partData) == "table" then
+      for _, deviceType in ipairs(deviceTypes) do
+        if partDataHasDeviceType(partData, deviceType) then
+          return true, {source = "jbeam", partName = partName, deviceType = deviceType}
+        end
+      end
+    end
+  end
+
+  return false, nil
 end
 
 local function categoryHardwareIsInstalled(vehicleData, categoryName)
@@ -256,10 +426,28 @@ local function categoryHardwareIsInstalled(vehicleData, categoryName)
     end
   end
 
+  if not found then
+    local hasDevice, deviceMatch = categoryHasInstalledPowertrainDevice(
+      vehicleData,
+      categoryDefinition.installedPowertrainDevices
+    )
+    if hasDevice then
+      found = true
+      foundMatch = deviceMatch
+    end
+  end
+
   if log and foundMatch then
-    log("D", "maintenanceComputer", string.format("categoryHardwareIsInstalled(%s) = true via %s: partName=%s slotName=%s path=%s haystack=%s",
-      categoryName, tostring(foundMatch.source), tostring(foundMatch.partName), tostring(foundMatch.slotName),
-      tostring(foundMatch.path), tostring(foundMatch.haystack)))
+    log("D", "maintenanceComputer", string.format(
+      "categoryHardwareIsInstalled(%s) = true via %s: partName=%s slotName=%s path=%s haystack=%s deviceType=%s",
+      categoryName,
+      tostring(foundMatch.source),
+      tostring(foundMatch.partName),
+      tostring(foundMatch.slotName),
+      tostring(foundMatch.path),
+      tostring(foundMatch.haystack),
+      tostring(foundMatch.deviceType)
+    ))
   end
 
   return found
@@ -1297,7 +1485,10 @@ local function performCartCheckout(inventoryId, cart)
     return buildErrorResult("Maintenance checkout failed; payment was refunded.")
   end
 
-  pcall(closeMenu)
+  local closedOk = pcall(closeMenu)
+  if not closedOk and log then
+    log("W", "maintenanceComputer", "closeMenu after checkout failed")
+  end
   return {
     ok = true,
     completed = true,
@@ -1397,7 +1588,7 @@ local function openMenuFromComputer(inventoryId, computerId, _returnRoute)
   return true
 end
 
-local function closeMenu()
+closeMenu = function()
   local route = returnRoute
   returnRoute = nil
 

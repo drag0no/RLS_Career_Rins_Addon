@@ -260,6 +260,8 @@ local function saveMultipliers(currentSavePath)
     career_saveSystem.jsonWriteFileSafe(dirPath .. "/economyAdjuster.json", data, true)
 end
 
+local getEffectiveSectionMultiplier
+
 local function calculateAdjustedReward(raceData, baseReward)
     if not raceData then
         return baseReward or 0
@@ -502,7 +504,7 @@ local function getSectionMultipliers(sections)
     return multipliers
 end
 
-local function getEffectiveSectionMultiplier(sectionTypes)
+getEffectiveSectionMultiplier = function(sectionTypes)
     if not sectionTypes or type(sectionTypes) ~= "table" then
         return 1.0
     end

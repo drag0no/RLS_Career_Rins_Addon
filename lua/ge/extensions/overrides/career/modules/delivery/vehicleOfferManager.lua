@@ -284,16 +284,16 @@ local function addOffer(offer)
   table.insert(allOffers, offer)
 end
 
-local function sameLocationOffer(offer, otherLoc)
-  return sameLocation(offer.origin, otherLoc)
-end
-
 local function sameLocation(a,b)
   local same = true
   for k, v in pairs(a) do
     same = same and a[k] == b[k]
   end
   return same
+end
+
+local function sameLocationOffer(offer, otherLoc)
+  return sameLocation(offer.origin, otherLoc)
 end
 
 local function getAllOfferCustomFilter(filter, ...)
@@ -366,15 +366,140 @@ end
 
 local spawnQueue = {}
 local spawnOfferInProgress = false
+local BRIDGE_WAIT_SEC = 8
+
+local function ensureOfferSpawnReady(offer, context)
+  if not offer or not offer.vehicle then
+    return false, "offer missing vehicle data"
+  end
+  if dGenerator and dGenerator.finalizeVehicleOffer then
+    dGenerator.finalizeVehicleOffer(offer)
+  end
+  local model = offer.vehicle.model
+  local config = offer.vehicle.config
+  if not model or model == "" then
+    return false, string.format(
+      "no model after finalize (filterId=%s, context=%s)",
+      tostring(offer.vehicle.filterId),
+      tostring(context))
+  end
+  if not config or config == "" then
+    return false, string.format(
+      "no config after finalize (filterId=%s, model=%s, context=%s)",
+      tostring(offer.vehicle.filterId),
+      tostring(model),
+      tostring(context))
+  end
+  local modelData = core_vehicles.getModel(model)
+  if not modelData then
+    return false, string.format("unknown model '%s' (context=%s)", tostring(model), tostring(context))
+  end
+  if not modelData.configs or not modelData.configs[config] then
+    return false, string.format(
+      "unknown config '%s' for model '%s' (context=%s)",
+      tostring(config),
+      tostring(model),
+      tostring(context))
+  end
+  if not offer.spawnLocation or not offer.spawnLocation.psPath then
+    return false, string.format("missing spawn parking spot (context=%s)", tostring(context))
+  end
+  local ps = dGenerator and dGenerator.getParkingSpotByPath and dGenerator.getParkingSpotByPath(offer.spawnLocation.psPath)
+  if not ps then
+    return false, string.format(
+      "spawn parking spot not found: %s (context=%s)",
+      tostring(offer.spawnLocation.psPath),
+      tostring(context))
+  end
+  return true
+end
+
+local function isOfferSpawnReady(offer)
+  return ensureOfferSpawnReady(offer, "isOfferSpawnReady")
+end
+
+local function getSpawnParkingSpot(offer, vehId)
+  local defaultPath = offer and offer.spawnLocation and offer.spawnLocation.psPath
+  local defaultSpot = defaultPath and dGenerator.getParkingSpotByPath(defaultPath)
+  if not offer or not offer.data or offer.data.type ~= "trailer" then return defaultSpot end
+
+  -- Trailer offers can share one provider facility but originate from several
+  -- compatible spots. Pick an open one when the offer is actually spawned;
+  -- otherwise every accepted offer uses the randomly selected spot recorded
+  -- at generation time and they stack on top of one another.
+  local facility = offer.origin and dGenerator.getFacilityById and dGenerator.getFacilityById(offer.origin.facId)
+  local logisticType = offer.task and offer.task.lookupType
+  if not facility or not logisticType then return defaultSpot end
+
+  local candidates, seen = {}, {}
+  local function addSpot(spot)
+    if not spot then return end
+    local path = spot.getPath and spot:getPath()
+    if path and not seen[path] then
+      seen[path] = true
+      candidates[#candidates + 1] = spot
+    end
+  end
+
+  addSpot(defaultSpot)
+  local extra = {}
+  for _, accessPoint in pairs(facility.accessPointsByName or {}) do
+    if accessPoint.logisticTypesProvidedLookup and accessPoint.logisticTypesProvidedLookup[logisticType] then
+      extra[#extra + 1] = accessPoint
+    end
+  end
+  table.sort(extra, function(a, b) return tostring(a.psPath or a.name) < tostring(b.psPath or b.name) end)
+  for _, accessPoint in ipairs(extra) do addSpot(accessPoint.ps) end
+
+  local emptyFallback
+  local sawOccupied = false
+  for _, spot in ipairs(candidates) do
+    local fits = not spot.vehicleFits or spot:vehicleFits(vehId)
+    local occupied = spot.hasAnyVehicles and spot:hasAnyVehicles(vehId)
+    if occupied then
+      sawOccupied = true
+    else
+      if fits then return spot end
+      emptyFallback = emptyFallback or spot
+    end
+  end
+  if emptyFallback then return emptyFallback end
+  if sawOccupied or candidates[1] then return nil, "occupied" end
+  return nil, "noSpot"
+end
 
 local function makeSpawnOfferSteps(offerId, fadeToBlack, postDelay)
   local offer = getOfferById(offerId)
   if not offer or offer.spawned or offer._spawning then return {} end
 
+  local spawnReady, spawnErr = ensureOfferSpawnReady(offer, string.format("offer %s", tostring(offerId)))
+  if not spawnReady then
+    log("E", "vehicleOfferManager", string.format("Cannot spawn offer %s: %s", tostring(offerId), spawnErr))
+    ui_message("Could not spawn the assigned vehicle. Try again or pick a different job.", 8, "warning")
+    return {}
+  end
+
   offer._spawning = true
+  offer._lastSpawnFailReason = nil
   local startedAt = dGeneral.time()
+  local startedAtReal = os.clock()
   if fadeToBlack == nil then fadeToBlack = true end
   local vehId = nil
+
+  local function abortSpawn(reason)
+    if vehId then
+      local veh = getObjectByID(vehId)
+      if veh then veh:delete() end
+      vehId = nil
+    end
+    if offer.vehicle then
+      offer.vehicle.vehId = nil
+    end
+    offer._spawning = nil
+    offer.spawned = false
+    offer._lastSpawnFailReason = reason or "aborted"
+    return true
+  end
 
   local options = {
     model = offer.vehicle.model,
@@ -386,26 +511,30 @@ local function makeSpawnOfferSteps(offerId, fadeToBlack, postDelay)
     step.makeStepSpawnVehicle(options, function(_, id) vehId = id end),
     step.makeStepReturnTrueFunction(function()
       if not vehId then
-        if (dGeneral.time() - startedAt) > 15 then
-          offer._spawning = nil
-          return true
+        if (dGeneral.time() - startedAt) > 15 or (os.clock() - startedAtReal) > 15 then
+          return abortSpawn("spawnTimeout")
         end
         return false
       end
-      local ps = dGenerator.getParkingSpotByPath(offer.spawnLocation.psPath)
+      local ps, spotFail = getSpawnParkingSpot(offer, vehId)
+      if not ps then
+        local reason = spotFail or "noSpot"
+        if spotFail == "occupied" then
+          ui_message("Pickup spot is blocked. Clear the marked spawn area - dispatch will retry automatically.", 8, "warning")
+        else
+          ui_message("Could not spawn the assigned vehicle: no free pickup spot. Clear the pickup area and try again.", 8, "warning")
+        end
+        return abortSpawn(reason)
+      end
       local ok = pcall(function()
       ps:moveResetVehicleTo(vehId, nil, false, nil, nil, true)
       end)
       if not ok then
-        offer._spawning = nil
-        offer.vehicle.vehId = nil
-        return true
+        return abortSpawn("placement")
       end
       local veh = getObjectByID(vehId)
       if not veh then
-        offer._spawning = nil
-        offer.vehicle.vehId = nil
-        return true
+        return abortSpawn("missingVehicle")
       end
       local mileage = offer.vehicle.mileage or 0
       offer.vehicle.vehId = vehId
@@ -417,16 +546,22 @@ local function makeSpawnOfferSteps(offerId, fadeToBlack, postDelay)
       if not vehId then return true end
       if not stepState.sentCommand then
         stepState.sentCommand = true
+        stepState.sentAtReal = os.clock()
         local veh = getObjectByID(vehId)
-        if not veh then return true end
+        if not veh then return abortSpawn("missingVehicle") end
         core_vehicleBridge.requestValue(veh, function() stepState.pingComplete = true end, 'ping')
       end
-      return stepState.pingComplete or false
+      if stepState.pingComplete then return true end
+      if stepState.sentAtReal and (os.clock() - stepState.sentAtReal) > BRIDGE_WAIT_SEC then
+        return abortSpawn("pingTimeout")
+      end
+      return false
     end),
     step.makeStepReturnTrueFunction(function(stepState)
       if not vehId then return true end
       if not stepState.sentCommand then
         stepState.sentCommand = true
+        stepState.sentAtReal = os.clock()
         local vehData = core_vehicle_manager.getVehicleData(vehId)
         if not vehData or not vehData.config or not vehData.config.mainPartName then
           stepState.odometerComplete = true
@@ -435,9 +570,7 @@ local function makeSpawnOfferSteps(offerId, fadeToBlack, postDelay)
         end
         local veh = getObjectByID(vehId)
         if not veh then
-          stepState.odometerComplete = true
-          offer.startingOdometer = -1
-          return true
+          return abortSpawn("missingVehicle")
         end
         core_vehicleBridge.requestValue(veh, function(res)
           stepState.odometerComplete = true
@@ -446,15 +579,16 @@ local function makeSpawnOfferSteps(offerId, fadeToBlack, postDelay)
           offer.startingOdometer = part and part.odometer or -1
         end, 'getPartConditions')
       end
-      return stepState.odometerComplete or false
+      if stepState.odometerComplete then return true end
+      if stepState.sentAtReal and (os.clock() - stepState.sentAtReal) > BRIDGE_WAIT_SEC then
+        return abortSpawn("conditionsTimeout")
+      end
+      return false
     end),
     step.makeStepReturnTrueFunction(function()
-      if not vehId then
-        if (dGeneral.time() - startedAt) > 15 then
-          offer._spawning = nil
-          return true
-        end
-        return false
+      if not vehId or offer._lastSpawnFailReason then
+        offer._spawning = nil
+        return true
       end
       if gameplay_walk.isWalking() then
         local veh = getObjectByID(vehId)
@@ -505,21 +639,31 @@ local function spawnOfferInternal(offerId, fadeToBlack, callback, postDelay)
   local offer = getOfferById(offerId)
   if not offer then
     log("E","","Could not find offer with id "..dumps(offerId))
-    if callback then callback() end
+    if callback then callback(false) end
     return
   end
   if offer.spawned then
-    if callback then callback() end
+    if callback then callback(true) end
     return
   end
   if offer._spawning then
-    if callback then callback() end
+    if callback then callback(false) end
     return
   end
 
   log("I","","Spawning offer " .. offerId)
   local sequence = makeSpawnOfferSteps(offerId, fadeToBlack, postDelay)
-   step.startStepSequence(sequence, callback)
+  if not sequence[1] then
+    if callback then callback(false) end
+    return
+  end
+  step.startStepSequence(sequence, function()
+    local spawnedOffer = getOfferById(offerId)
+    local ok = spawnedOffer and spawnedOffer.spawned and true or false
+    local failReason = not ok and spawnedOffer and spawnedOffer._lastSpawnFailReason or nil
+    if spawnedOffer then spawnedOffer._lastSpawnFailReason = nil end
+    if callback then callback(ok, failReason) end
+  end)
 end
 
 local function tryStartNextSpawn()
@@ -596,6 +740,8 @@ M.getAllOfferForLocation = getAllOfferForLocation
 M.getAllOfferAtFacilityUnexpired = getAllOfferAtFacilityUnexpired
 M.spawnOffer = spawnOffer
 M.makeSpawnOfferSteps = makeSpawnOfferSteps
+M.isOfferSpawnReady = isOfferSpawnReady
+M.ensureOfferSpawnReady = ensureOfferSpawnReady
 M.dependencies = dependencies
 M.onCareerActivated = onCareerActivated
 M.makeTaskLabel = makeTaskLabel

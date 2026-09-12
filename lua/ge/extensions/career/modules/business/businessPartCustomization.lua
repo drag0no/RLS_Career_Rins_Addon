@@ -167,6 +167,8 @@ local function resolveBaselineVehicleConfig(vehicle, vehicleData, isPersonal, in
   return originalConfig
 end
 
+local getPersonalVehicleData
+
 local function resolveRestoreBaseline(businessId, vehicleId, session)
   local isPersonal = isPersonalVehicleId(vehicleId)
   local vehicle = nil
@@ -577,7 +579,7 @@ local function replaceVehicleWithFuelHandling(vehObj, modelKey, config, beforeRe
   end)
 end
 
-local function getPersonalVehicleData(vehicleId, businessId)
+getPersonalVehicleData = function(vehicleId, businessId)
   local bc = career_modules_business_businessComputer
   if bc and bc.getPersonalVehicleData then
     return bc.getPersonalVehicleData(vehicleId, businessId)

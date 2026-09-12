@@ -1,0 +1,61 @@
+{
+  "label": "v2.7.1 Hotfix",
+  "continueLabel": "Continue",
+  "loadingLabel": "Loading career...",
+  "dontShowLabel": "Don't show again",
+  "slides": [
+    {
+      "kind": "intro",
+      "image": "hero.jpg",
+      "eyebrow": "Update log",
+      "title": "RLS Career Overhaul v2.7.1 Hotfix",
+      "subtitle": "Hotfix · September 2026",
+      "summary": "Mod engines show up in maintenance again, and a pass of fixes for delivery, racing and career UI.",
+      "contentsLabel": "In this update"
+    },
+    {
+      "image": "maintenance.jpg",
+      "textSide": "top-left",
+      "kicker": "Garage",
+      "title": "Mod engines in maintenance",
+      "summary": "Engines with differently named part slots now appear correctly on the maintenance computer.",
+      "facts": [
+        "Fallback visibility for non-standard mod engine slot names",
+        "Maintenance computer reads those engines the same way as stock packages"
+      ]
+    },
+    {
+      "kind": "list",
+      "image": "everything-else.jpg",
+      "title": "And everything else",
+      "lead": "The smaller fixes that keep career running.",
+      "columns": [
+        {
+          "heading": "Delivery and travel",
+          "items": [
+            "Delivery spawns no longer report success after a timeout or failed placement",
+            "Trailers no longer land in occupied parking spots",
+            "GPS and ground-marker routing is more stable"
+          ]
+        },
+        {
+          "heading": "Driving and events",
+          "items": [
+            "Pause gear guard no longer fights intentional Neutral or 1st at road speed",
+            "Freeroam drag HUD idle spam near the strip is gone",
+            "Racing AI no longer updates twice per frame; power request fallback works again"
+          ]
+        },
+        {
+          "heading": "Career reliability",
+          "items": [
+            "Full-garage purchase and put-away no longer error on checkout",
+            "Business, car-meet, economy and challenge helpers hardened against nil crashes",
+            "Temporary OBD Scanner phone app removed pending further work"
+          ]
+        }
+      ],
+      "imageBlur": 6
+    }
+  ]
+}

@@ -216,10 +216,10 @@ local function specificCapacityCases(partName)
         end
     end
 
-    if partName:find("schoolbus_seats_R_c") then
+    if partName:find("schoolbus_seats_r_c") then
         return 10
     end
-    if partName:find("schoolbus_seats_L_c") then
+    if partName:find("schoolbus_seats_l_c") then
         return 10
     end
     if partName:find("limo_seat") then
@@ -227,6 +227,24 @@ local function specificCapacityCases(partName)
     end
 
     return nil
+end
+
+local function isCountableSeatPartName(partName)
+    return partName:find("seat")
+        and not partName:find("cargo")
+        and not partName:find("captains")
+        and not partName:find("seatbase")
+        and not partName:find("skin")
+end
+
+-- A rear bench often has a seat-slot container, the actual bench, and a
+-- seat-base beneath it. Only the bench represents passenger capacity.
+local function hasCountableSeatChild(partData)
+    for _, child in pairs(partData.children or {}) do
+        local childName = string.lower(child.chosenPartName or "")
+        if isCountableSeatPartName(childName) then return true end
+    end
+    return false
 end
 
 -- Recursively traverses a vehicle parts tree to accumulate seating capacity based on seat-related parts and special-case part names.
@@ -237,17 +255,17 @@ local function cyclePartsTree(partData, seatingCapacity)
     for _, part in pairs(partData) do
         local partName = part.chosenPartName or ""
 
-        if partName:find("seat") and not partName:find("cargo") and not partName:find("captains") then
+        partName = string.lower(partName)
+        local specialCapacity = specificCapacityCases(partName)
+        if specialCapacity or (isCountableSeatPartName(partName) and not hasCountableSeatChild(part)) then
             local seatSize = 1
             if partName:find("seats") then
                 seatSize = 3
             elseif partName:find("ext") then
                 seatSize = 2
-            elseif partName:find("skin") then
-                seatSize = 0
             end
 
-            seatSize = specificCapacityCases(partName) or seatSize
+            seatSize = specialCapacity or seatSize
             seatingCapacity = seatingCapacity + seatSize
         end
 
@@ -704,13 +722,13 @@ end
 local function setupRoutePlannerWithWaypoints(pathPoints, targetPos)
     if not pathPoints or #pathPoints == 0 then
         print("[bus] Warning: No path points provided, using direct path to target")
-        core_groundMarkers.setPath(targetPos)
+        core_groundMarkers.setPath(targetPos, {clearPathOnReachingTarget = false})
         return
     end
 
     local vehicle = be:getPlayerVehicle(0)
     if not vehicle then
-        core_groundMarkers.setPath(targetPos)
+        core_groundMarkers.setPath(targetPos, {clearPathOnReachingTarget = false})
         return
     end
 
@@ -741,11 +759,14 @@ local function setupRoutePlannerWithWaypoints(pathPoints, targetPos)
         table.insert(adjustedPathPoints, targetPos)
     end
 
-    core_groundMarkers.setPath(targetPos)
+    core_groundMarkers.setPath(targetPos, {clearPathOnReachingTarget = false})
 
     if core_groundMarkers.routePlanner then
         core_groundMarkers.routePlanner:setRouteParams(nil, 1e6, nil, nil, nil, nil)
         core_groundMarkers.routePlanner:setupPathMulti(adjustedPathPoints)
+        if core_groundMarkers.sendToApp then
+            core_groundMarkers.sendToApp()
+        end
 
         if DEBUG then
             print(string.format("[bus] Direction-aware path set with %d nodes through %d waypoints (target %s vehicle, dot=%.2f)",
@@ -787,7 +808,7 @@ local function showNextStopMarker(targetStopIndex)
 
         setupRoutePlannerWithWaypoints(pathPoints, targetPos)
     else
-        core_groundMarkers.setPath(targetPos)
+        core_groundMarkers.setPath(targetPos, {clearPathOnReachingTarget = false})
     end
 
     showCurrentStopMarkers(nextStopIndex)
@@ -1101,7 +1122,7 @@ end
 -- @param targetStopIndex Index of the target stop within the current route used to construct waypoint path.
 local function setupRouteNavigation(vehicle, targetPos, targetStopIndex)
     if not vehicle then
-        core_groundMarkers.setPath(targetPos)
+        core_groundMarkers.setPath(targetPos, {clearPathOnReachingTarget = false})
         return
     end
 

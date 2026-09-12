@@ -140,6 +140,12 @@ local mPlayerUnfreezeAt = nil  -- os.clock() time when to unfreeze player after 
 local mDnfCallback = nil  -- called with vehId when an AI is despawned (DNF)
 -- Cache for per-race AI config (aiRacingConfig.json byRace): [levelId] = { byRace = { pathKey -> overrides } }
 local mRaceConfigCache = {}
+local pendingPowerCallback = nil
+local pendingPowerVehId = nil
+local pendingPowerRequestGen = 0
+local pendingPowerRequestDeadline = nil
+local POWER_REQUEST_MAX_RETRIES = 20
+local POWER_REQUEST_DEADLINE_SEC = 8
 -- Forward declarations for helpers used before their definitions.
 local cancelDelayedDespawn
 local queueEngineStart
@@ -2588,14 +2594,23 @@ function M.onUpdate(dtReal)
     local dt = tonumber(dtReal) or 0
     if dt <= 0 then return end
 
-    -- If we asked UI for player power (Option C) and it didn't respond in time, fall back to Option B.
-    if type(pendingPowerCallback) == "function" and pendingPowerVehId and M._powerRequestUiFallbackTimer and (os.clock() - M._powerRequestUiFallbackTimer) > 1.5 then
-        M._powerRequestUiFallbackTimer = nil
-        local vehObj = be and be:getObjectByID(pendingPowerVehId)
-        if vehObj and vehObj.queueLuaCommand then
-            vehObj:queueLuaCommand(string.format(M._powerRequestScriptTemplate, 0, POWER_REQUEST_MAX_RETRIES))
-        else
-            M.onPlayerVehiclePowerWeight(0, nil)
+    if type(pendingPowerCallback) == "function" and pendingPowerVehId and pendingPowerRequestGen > 0 then
+        local now = os.clock()
+        local activeGen = pendingPowerRequestGen
+        if pendingPowerRequestDeadline and now > pendingPowerRequestDeadline then
+            if activeGen == pendingPowerRequestGen then
+                M.onPlayerVehiclePowerWeight(0, nil)
+            end
+        elseif M._powerRequestUiFallbackTimer and (now - M._powerRequestUiFallbackTimer) > 1.5 then
+            if activeGen == pendingPowerRequestGen then
+                M._powerRequestUiFallbackTimer = nil
+                local vehObj = be and be:getObjectByID(pendingPowerVehId)
+                if vehObj and vehObj.queueLuaCommand then
+                    vehObj:queueLuaCommand(string.format(M._powerRequestScriptTemplate, 0, POWER_REQUEST_MAX_RETRIES, activeGen))
+                else
+                    M.onPlayerVehiclePowerWeight(0, nil)
+                end
+            end
         end
     end
 
@@ -2834,10 +2849,6 @@ local ELIGIBILITY_PCT = 0.75
 -- XP thresholds: at least this much business XP to be in that class (D=0, C=1500, B=5000, A=15000).
 local XP_FOR_CLASS = { D = 0, C = 1500, B = 5000, A = 15000 }
 
-local pendingPowerCallback = nil
-local pendingPowerVehId = nil  -- used by Option B retry so we can re-queue on same vehicle
-local POWER_REQUEST_MAX_RETRIES = 20
-
 -- Fresh live sample (from vehicle VM): HP + weight → hp/kg for staging UI and podium cap.
 local mCachedLivePlayerHp = nil
 local mCachedLivePlayerWeightKg = nil
@@ -2886,6 +2897,7 @@ end
 M._powerRequestScriptTemplate = [[
 local retry = %d
 local maxR = %d
+local reqGen = %d
 local power, weight = 0, 0
 local engines = powertrain.getDevicesByCategory("engine")
 if engines then
@@ -2900,9 +2912,9 @@ local stats = obj:calcBeamStats()
 if stats and stats.total_weight then weight = stats.total_weight end
 local ready = power > 0 and weight > 0
 if ready or retry >= maxR then
-  obj:queueGameEngineLua("(function() local g = _G.career_modules_competitiveRace_aiRacers if g and type(g.onPlayerVehiclePowerWeight) == \"function\" then g.onPlayerVehiclePowerWeight(" .. tostring(power) .. "," .. tostring(weight) .. ") end end)()")
+  obj:queueGameEngineLua("(function() local g = _G.career_modules_competitiveRace_aiRacers if g and type(g.onPlayerVehiclePowerWeight) == \"function\" then g.onPlayerVehiclePowerWeight(" .. tostring(power) .. "," .. tostring(weight) .. "," .. tostring(reqGen) .. ") end end)()")
 else
-  obj:queueGameEngineLua("(function() local g = _G.career_modules_competitiveRace_aiRacers if g and type(g.onPlayerVehiclePowerWeightRetry) == \"function\" then g.onPlayerVehiclePowerWeightRetry(" .. tostring(retry) .. ") end end)()")
+  obj:queueGameEngineLua("(function() local g = _G.career_modules_competitiveRace_aiRacers if g and type(g.onPlayerVehiclePowerWeightRetry) == \"function\" then g.onPlayerVehiclePowerWeightRetry(" .. tostring(retry) .. "," .. tostring(reqGen) .. ") end end)()")
 end
 ]]
 
@@ -3053,8 +3065,10 @@ end
 
 -- Called from vehicle Lua (queueGameEngineLua) or from UI (careerRequestPlayerPower response) with live power/weight.
 -- Power may be HP-scale or watts; normalize to watts before callback (see liveMaxPowerRawToWatts).
-function M.onPlayerVehiclePowerWeight(power, weight)
+function M.onPlayerVehiclePowerWeight(power, weight, gen)
+    if gen ~= nil and gen ~= pendingPowerRequestGen then return end
     M._powerRequestUiFallbackTimer = nil
+    pendingPowerRequestDeadline = nil
     local cb = pendingPowerCallback
     local vidForCache = pendingPowerVehId
     pendingPowerCallback = nil
@@ -3070,18 +3084,35 @@ function M.onPlayerVehiclePowerWeight(power, weight)
 end
 
 -- Vehicle calls this when engine not ready yet; we re-queue the script with retry+1 (Option B).
-function M.onPlayerVehiclePowerWeightRetry(retryCount)
+function M.onPlayerVehiclePowerWeightRetry(retryCount, gen)
+    if gen ~= nil and gen ~= pendingPowerRequestGen then return end
     if type(pendingPowerCallback) ~= "function" or not pendingPowerVehId then return end
     if type(retryCount) ~= "number" or retryCount >= POWER_REQUEST_MAX_RETRIES then
-        M.onPlayerVehiclePowerWeight(0, nil)
+        M.onPlayerVehiclePowerWeight(0, nil, pendingPowerRequestGen)
         return
     end
     local vehObj = be and be:getObjectByID(pendingPowerVehId)
     if vehObj and vehObj.queueLuaCommand then
-        vehObj:queueLuaCommand(string.format(M._powerRequestScriptTemplate, retryCount + 1, POWER_REQUEST_MAX_RETRIES))
+        vehObj:queueLuaCommand(string.format(M._powerRequestScriptTemplate, retryCount + 1, POWER_REQUEST_MAX_RETRIES, pendingPowerRequestGen))
     else
-        M.onPlayerVehiclePowerWeight(0, nil)
+        M.onPlayerVehiclePowerWeight(0, nil, pendingPowerRequestGen)
     end
+end
+
+local function beginPendingPowerRequest(callback, vehId)
+    if type(pendingPowerCallback) == "function" then
+        local oldCb = pendingPowerCallback
+        pendingPowerCallback = nil
+        pendingPowerVehId = nil
+        pendingPowerRequestDeadline = nil
+        M._powerRequestUiFallbackTimer = nil
+        oldCb(nil, nil)
+    end
+    pendingPowerRequestGen = pendingPowerRequestGen + 1
+    pendingPowerCallback = callback
+    pendingPowerVehId = vehId
+    pendingPowerRequestDeadline = os.clock() + POWER_REQUEST_DEADLINE_SEC
+    return pendingPowerRequestGen
 end
 
 -- Request live power/weight. opts.preferLive: skip sync getVehicleDetails; use vehicle queueLuaCommand only (tuning-shop style, no UI activeObjectLua).
@@ -3113,8 +3144,7 @@ function M.getPlayerVehiclePowerReliable(callback, opts)
 
     -- Option C: UI activeObjectLua (skipped for preferLive — unreliable vs explicit vehObj:queueLuaCommand on player id).
     if not preferLive and guihooks and guihooks.trigger then
-        pendingPowerCallback = callback
-        pendingPowerVehId = vehId
+        beginPendingPowerRequest(callback, vehId)
         guihooks.trigger("careerRequestPlayerPower")
         M._powerRequestUiFallbackTimer = os.clock()
         return
@@ -3125,10 +3155,9 @@ function M.getPlayerVehiclePowerReliable(callback, opts)
         callback(nil, nil)
         return
     end
-    pendingPowerCallback = callback
-    pendingPowerVehId = vehId
+    local reqGen = beginPendingPowerRequest(callback, vehId)
     -- Option B: vehicle script retries until engine has maxPower or max retries (same vehicle via pendingPowerVehId).
-    vehObj:queueLuaCommand(string.format(M._powerRequestScriptTemplate, 0, POWER_REQUEST_MAX_RETRIES))
+    vehObj:queueLuaCommand(string.format(M._powerRequestScriptTemplate, 0, POWER_REQUEST_MAX_RETRIES, reqGen))
 end
 
 -- Sync eligibility: returns ok, msg. Fails open if power cannot be read.

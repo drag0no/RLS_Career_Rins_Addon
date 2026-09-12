@@ -74,6 +74,10 @@ angular.module('beamng.stuff')
       panel.style.top = position.top + 'px'
       panel.style.right = 'auto'
       panel.style.bottom = 'auto'
+      // bng-blur tracks size but deliberately does not observe position. Its
+      // registered blur rectangle otherwise stays behind at the old location
+      // after this absolutely-positioned panel is dragged.
+      $scope.$broadcast('windowResize')
       if (save) {
         try { window.localStorage.setItem(panelStorageKey, JSON.stringify(position)) } catch (_error) {}
       }

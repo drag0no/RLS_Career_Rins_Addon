@@ -12,8 +12,8 @@ M.dependencies = {"career_career"}
 -- so a hotfix can keep the old id and stay silent.
 local currentCycle = {
   enabled = true,
-  id = "2.7.1",
-  folder = "2.7.1",
+  id = "2.7.1_hotifx",
+  folder = "2.7.1_hotifx",
 }
 
 local CONTENT_ROOT = "/ui/modules/whatsnew/"

@@ -1280,10 +1280,16 @@ end
 
 local function startDeliveryMode()
   if deliveryModeActive then return end
+  bindDeliveryDeps()
   log("I","","Delivery Mode Started.")
   deliveryModeActive = true
   gameplay_rawPois.clear()
   requestDeliveryPoiRefresh(true)
+  if dTasklist and dTasklist.sendCargoToTasklist then
+    dTasklist.sendCargoToTasklist()
+  elseif career_modules_delivery_tasklist and career_modules_delivery_tasklist.sendCargoToTasklist then
+    career_modules_delivery_tasklist.sendCargoToTasklist()
+  end
   extensions.hook("onDeliveryModeStarted")
 end
 
@@ -1345,6 +1351,13 @@ local function isAutomaticRouteEnabled()
 end
 M.isAutomaticRouteEnabled = isAutomaticRouteEnabled
 
+local settingDeliveryNavFocus = false
+M.setDeliveryNavFocus = function(pos)
+  settingDeliveryNavFocus = true
+  freeroam_bigMapMode.setNavFocus(pos)
+  settingDeliveryNavFocus = false
+end
+
 local function setAutomaticRoute(enabled)
   loadData.settings.automaticRoute = enabled
   if enabled then
@@ -1363,7 +1376,7 @@ end
 
 -- Deactivate automatic route when setting a manual waypoint
 local function onSetBigmapNavFocus()
-  if M.isDeliveryModeActive() then
+  if M.isDeliveryModeActive() and not settingDeliveryNavFocus then
     setAutomaticRoute(false)
   end
 end

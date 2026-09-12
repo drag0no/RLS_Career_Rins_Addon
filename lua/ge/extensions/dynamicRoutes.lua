@@ -742,6 +742,10 @@ local function applyGroup(groupName)
 end
 
 local function reapplyGroundMarkersWithExistingOptions()
+  local bus = rawget(_G, 'gameplay_bus')
+  if bus and type(bus.isBusRouteActive) == 'function' and bus.isBusRouteActive() then
+    return
+  end
   if not core_groundMarkers or not core_groundMarkers.setPath then
     return
   end

@@ -22,6 +22,8 @@ local frs = {
     altLabel = nil,
     openLoop = false,
 }
+local vanillaDragHudSuppressed = false
+local vanillaDragHudSuppressedAt = nil
 
 local function utils()
     return gameplay_events_freeroam_utils
@@ -1008,6 +1010,8 @@ function M.payoutDragRace(raceName, finishTime, finishSpeed, vehId)
         sess().mActiveRace = nil
         sess().timerActive = false
         sess().dragPracticeActive = false
+        vanillaDragHudSuppressed = false
+        vanillaDragHudSuppressedAt = nil
         notifyFreContractsFreeroamUi()
         M.pushRaceHudCompletion(hudCompletionPayload, raceName, raceData.label, races["drag"].label, finishTime, true)
     end
@@ -1310,11 +1314,18 @@ end
 
 -- Stock drag UI (topCenter tree staging + topLeft dragInfo) is forced on by
 -- gameplay_drag_core/display/dragBridge. Hide while FRE drag HUD owns the run.
-function M.suppressVanillaDragHudApps()
+function M.suppressVanillaDragHudApps(force)
     if not ui_appContainers then return end
+    local now = os.clock()
+    if force ~= true and vanillaDragHudSuppressed and vanillaDragHudSuppressedAt
+        and (now - vanillaDragHudSuppressedAt) < 0.5 then
+      return
+    end
     ui_appContainers.hideApp("topCenter", "drag")
     ui_appContainers.hideApp("topLeft", "dragInfo")
     ui_appContainers.hideApp("topLeft", "dragDialControl")
+    vanillaDragHudSuppressed = true
+    vanillaDragHudSuppressedAt = now
 end
 
 function M.beginDragPracticeFreeroamHud(vehId)
@@ -1326,7 +1337,7 @@ function M.beginDragPracticeFreeroamHud(vehId)
     sess().staged = "drag"
     M.prepareNewRaceHudState("drag")
     M.setStagingSubjectId(resolveSessionInventoryFromSpawnId(vehId))
-    M.suppressVanillaDragHudApps()
+    M.suppressVanillaDragHudApps(true)
     M.showFreeroamRaceHud()
     notifyFreContractsFreeroamUi()
 end
@@ -1350,7 +1361,7 @@ function M.beginDragPracticeFreeroamRace(vehId)
     sess().invalidLap = false
     local u = utils()
     M.setRaceHudBanner(u.getRaceStartBannerText("drag"), "good", 5)
-    M.suppressVanillaDragHudApps()
+    M.suppressVanillaDragHudApps(true)
     M.pushFreeroamRaceHudState(true)
     notifyFreContractsFreeroamUi()
 end
@@ -1365,6 +1376,8 @@ function M.endDragPracticeFreeroamHud()
     sess().mActiveRace = nil
     sess().timerActive = false
     sess().in_race_time = 0
+    vanillaDragHudSuppressed = false
+    vanillaDragHudSuppressedAt = nil
     M.setStagingSubjectId(nil)
     M.hideFreeroamRaceHud()
     notifyFreContractsFreeroamUi()

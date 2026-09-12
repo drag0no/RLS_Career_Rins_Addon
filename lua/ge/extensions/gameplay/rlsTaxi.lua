@@ -1259,6 +1259,10 @@ local function update(_, dt)
     end
 
     if currentFare and state == "dropoff" then
+        if core_groundMarkers.getPathLength() == 0 then
+            core_groundMarkers.setPath(currentFare.destination.pos, {clearPathOnReachingTarget = true})
+        end
+
         updateSensorData()
         
         local vehicle = be:getPlayerVehicle(0)

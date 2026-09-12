@@ -16,6 +16,8 @@ local spawnedBusinessVehicles = {}
 local vehicleIdCounters = {}
 local pendingConfigCallbacks = {}
 
+local putAwayVehicle
+
 local function normalizeBusinessId(businessId)
   return tonumber(businessId) or businessId
 end
@@ -1198,7 +1200,7 @@ local function persistSpawnedVehiclePartConditions(businessId, normalizedVehicle
   end, 'getPartConditions')
 end
 
-local function putAwayVehicle(businessId, vehicleId, onComplete, opts)
+putAwayVehicle = function(businessId, vehicleId, onComplete, opts)
   if not businessId then
     if onComplete then
       onComplete(false)

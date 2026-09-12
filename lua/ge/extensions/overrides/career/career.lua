@@ -460,6 +460,9 @@ local function onCareerActive(active)
     core_recoveryPrompt.setDefaultsForCareer()
   end
   guihooks.trigger('ClearTasklist')
+  if ui_appContainers and ui_appContainers.showApp then
+    ui_appContainers.showApp("topLeft", "tasks")
+  end
   publish("onUpdate", onUpdate)
   gameplay_rawPois.clear()
   setupCareerActionsAndUnpause()
@@ -1365,6 +1368,9 @@ local function onClientStartMission(levelPath)
     gameplay_rawPois.clear()
     setupCareerActionsAndUnpause()
     core_gamestate.setGameState("career","career", nil)
+    if ui_appContainers and ui_appContainers.showApp then
+      ui_appContainers.showApp("topLeft", "tasks")
+    end
   end
 end
 

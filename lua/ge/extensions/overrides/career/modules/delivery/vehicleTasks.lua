@@ -19,6 +19,19 @@ end
 
 local vehicleTasks = {}
 local taskThatChangedThisFrame
+local tasklistRefreshPending = false
+
+-- Keep this in sync with delivery/tasklist.lua. Vehicle task entries use a
+-- stable UI id, while the task-list module's offer-id lookup can be stale when
+-- a coupled dolly is deleted during its completion callback.
+local function clearVehicleTasklistEntry(taskData)
+  if not taskData or not taskData.offer then return end
+  if dTasklist and dTasklist.clearTasklistForOfferId then
+    dTasklist.clearTasklistForOfferId(taskData.offer.id)
+  end
+  guihooks.trigger("DiscardTasklistItem", "trailer" .. tostring(taskData.offer.id))
+  tasklistRefreshPending = true
+end
 
 -- setup for data
 local function expandTasks(offerTask, offer)
@@ -128,7 +141,12 @@ local function addVehicleTask(vehId, offer)
     startedTimestamp = dGeneral.time(),
   }
   table.insert(vehicleTasks, taskData)
-  dTasklist.sendCargoToTasklist()
+  dTasklist = career_modules_delivery_tasklist or dTasklist
+  if dTasklist and dTasklist.sendCargoToTasklist then
+    dTasklist.sendCargoToTasklist()
+  else
+    tasklistRefreshPending = true
+  end
   navigateToActiveTasks()
   if dGeneral and dGeneral.requestDeliveryPoiRefresh then
     dGeneral.requestDeliveryPoiRefresh(true)
@@ -593,7 +611,7 @@ local function processFinished(taskData)
       spawn.safeTeleport(unicycle, psPos)
     end
 
-    dTasklist.clearTasklistForOfferId(taskData.offer.id)
+    clearVehicleTasklistEntry(taskData)
 
     taskData.remove = true
     taskData.processFinishedComplete = true
@@ -626,7 +644,7 @@ local function processGiveBack(taskData)
     end
     local veh = scenetree.findObjectById(taskData.vehId)
     if veh then veh:delete() end
-    dTasklist.clearTasklistForOfferId(taskData.offer.id)
+    clearVehicleTasklistEntry(taskData)
 
     local fine = M.getFineForAbandon(taskData)
 
@@ -650,6 +668,7 @@ end
 
 local toDeleteActiveTrailerIndexes = {}
 local function onUpdate(dtReal, dtSim, dtRaw)
+  dTasklist = career_modules_delivery_tasklist or dTasklist
   taskThatChangedThisFrame = nil
   for _, taskData in ipairs(vehicleTasks) do
     if not taskData.remove then
@@ -681,6 +700,15 @@ local function onUpdate(dtReal, dtSim, dtRaw)
     end
 
     dGeneral.checkExitDeliveryMode()
+    -- Rebuild only after the completed task is gone from vehicleTasks, so an
+    -- asynchronous task-list refresh cannot re-add its stale dolly entry.
+    if tasklistRefreshPending then
+      dTasklist = career_modules_delivery_tasklist or dTasklist
+      if dTasklist and dTasklist.sendCargoToTasklist then
+        dTasklist.sendCargoToTasklist()
+        tasklistRefreshPending = false
+      end
+    end
   end
 
   if taskThatChangedThisFrame or not tableIsEmpty(idsToRemove) then

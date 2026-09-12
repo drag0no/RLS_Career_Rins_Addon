@@ -125,6 +125,15 @@ local function processRoadNodes(mainNodes, altNodes)
 
     local function processRoute(nodes, isAlt)
         print("Processing route with " .. #nodes .. " nodes")
+        local loopTrack = false
+        if #nodes >= 3 then
+            local firstNode = nodes[1]
+            local lastNode = nodes[#nodes]
+            local threshold = MAX_MERGE_DISTANCE
+            loopTrack = math.abs(firstNode.x - lastNode.x) < threshold
+                and math.abs(firstNode.y - lastNode.y) < threshold
+                and math.abs(firstNode.z - lastNode.z) < threshold
+        end
         local segments = {}
         local checkpoints = {}
         local currentSegment = {
@@ -216,7 +225,7 @@ local function processRoadNodes(mainNodes, altNodes)
             end
             
             -- If it's a loop, check between last and first checkpoint
-            if isLoop then
+            if loopTrack then
                 insertMiddleCheckpoint(checkpoints[#checkpoints], checkpoints[1])
             end
             

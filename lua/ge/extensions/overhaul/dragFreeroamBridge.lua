@@ -2,10 +2,11 @@ local M = {}
 
 M.dependencies = {"gameplay_drag_core", "gameplay_drag_saveSystem"}
 
-local freeroamEvents = require("gameplay/events/freeroamEvents")
-local freeroamUtils = require("gameplay/events/freeroam/utils")
 local logTag = "dragFreeroamBridge"
 local legacyTypeWrapped = false
+local wrappedGuihooksTrigger = nil
+local stopFlashWrapped = false
+local STOP_VEHICLE_FLASH = "Stop the vehicle!"
 
 -- BeamNG 0.39 removed dragPracticeRace / headsUpDrag; only headsUpRace and
 -- bracketRace remain. Map packs (AR, JRI, etc.) still ship the old type.
@@ -253,6 +254,101 @@ local function isFreeroamDrag()
   return gameplay_drag_core.getGameplayContext() == "freeroam"
 end
 
+local trafficSuppressed = false
+
+local function suppressTrafficIfNeeded()
+  if trafficSuppressed then return end
+  if not gameplay_events_freeroam_utils or not gameplay_events_freeroam_utils.saveAndSetTrafficAmount then
+    return
+  end
+  gameplay_events_freeroam_utils.saveAndSetTrafficAmount(0)
+  trafficSuppressed = true
+end
+
+local function restoreTrafficIfNeeded()
+  if not trafficSuppressed then return end
+  if gameplay_events_freeroam_utils and gameplay_events_freeroam_utils.restoreTrafficAmount then
+    gameplay_events_freeroam_utils.restoreTrafficAmount()
+  end
+  trafficSuppressed = false
+end
+
+local function hideVanillaSystemResetFlash()
+  if guihooks and guihooks.trigger then
+    guihooks.trigger("ScenarioFlashMessageClear")
+  end
+  if ui_appContainers and ui_appContainers.hideApp then
+    ui_appContainers.hideApp("topCenter", "flashMessage")
+  end
+  local gc = extensions and (extensions.ui_gameplayAppContainers or extensions.ge_extensions_ui_gameplayAppContainers)
+  if gc and gc.hideApp then
+    gc.hideApp("gameplayApps", "flashMessage")
+  end
+end
+
+local function flashPayloadMessage(payload)
+  if type(payload) == "string" then return payload end
+  if type(payload) ~= "table" then return nil end
+  if type(payload.msg) == "string" then return payload.msg end
+  local first = payload[1]
+  if type(first) == "string" then return first end
+  if type(first) == "table" then
+    if type(first.msg) == "string" then return first.msg end
+    if type(first[1]) == "string" then return first[1] end
+  end
+  return nil
+end
+
+local function payloadIsSystemReset(payload)
+  return flashPayloadMessage(payload) == "SYSTEM RESET"
+end
+
+local function payloadIsFreeroamStopFlash(payload)
+  return flashPayloadMessage(payload) == STOP_VEHICLE_FLASH and isFreeroamDrag()
+end
+
+local function wrapGuihooksSystemReset()
+  if not guihooks or type(guihooks.trigger) ~= "function" then
+    return false
+  end
+  if guihooks.trigger == wrappedGuihooksTrigger then
+    return true
+  end
+  local originalTrigger = guihooks.trigger
+  local function rlsTrigger(hookName, payload, ...)
+    if hookName == "ScenarioFlashMessage" or hookName == "TopCenterAppsFlashMessage" then
+      if payloadIsSystemReset(payload) or payloadIsFreeroamStopFlash(payload) then
+        hideVanillaSystemResetFlash()
+        return
+      end
+    end
+    return originalTrigger(hookName, payload, ...)
+  end
+  guihooks.trigger = rlsTrigger
+  wrappedGuihooksTrigger = rlsTrigger
+  return true
+end
+
+local function wrapStoppingVehicleFlash()
+  local display = gameplay_drag_display
+  if not display or type(display.stoppingVehicleDrag) ~= "function" then
+    return false
+  end
+  if stopFlashWrapped then
+    return true
+  end
+  local original = display.stoppingVehicleDrag
+  display.stoppingVehicleDrag = function(vehId)
+    if isFreeroamDrag() then
+      hideVanillaSystemResetFlash()
+      return
+    end
+    return original(vehId)
+  end
+  stopFlashWrapped = true
+  return true
+end
+
 local function getPlayableRacer(vehId)
   local dragData = gameplay_drag_core and gameplay_drag_core.getData and gameplay_drag_core.getData()
   if not dragData or not dragData.racers then return nil end
@@ -261,13 +357,10 @@ local function getPlayableRacer(vehId)
   return nil
 end
 
-local function suppressVanillaDragHudIfPractice()
+local function suppressVanillaDragHud(force)
   local raceSession = gameplay_events_freeroam_raceSession
-  local freeroamSession = gameplay_events_freeroam_session
   if not raceSession or not raceSession.suppressVanillaDragHudApps then return end
-  if freeroamSession and (freeroamSession.dragPracticeFlow or freeroamSession.dragPracticeActive) then
-    raceSession.suppressVanillaDragHudApps()
-  end
+  raceSession.suppressVanillaDragHudApps(force)
 end
 
 local function onDragDataSet(dragData)
@@ -275,7 +368,9 @@ local function onDragDataSet(dragData)
     log("I", logTag, "Bound legacy christmas-tree light scene objects")
   end
   -- dragBridge.onDragDataSet re-shows topLeft dragInfo; hide again for FRE practice.
-  suppressVanillaDragHudIfPractice()
+  if isFreeroamDrag() then
+    suppressVanillaDragHud()
+  end
 end
 
 local function onDragRacersSetup(dragData)
@@ -290,7 +385,7 @@ local function onDragRacersSetup(dragData)
       break
     end
   end
-  suppressVanillaDragHudIfPractice()
+  suppressVanillaDragHud(true)
 end
 
 local function onRacerPhaseTransition(vehId, oldPhase, newPhase, newPhaseName)
@@ -302,22 +397,27 @@ local function onRacerPhaseTransition(vehId, oldPhase, newPhase, newPhaseName)
 
   if newPhaseName == "countdown" then
     if not raceSession or not raceSession.isRaceHudShown or not raceSession.isRaceHudShown() then
-      freeroamUtils.displayStagedMessage(vehId, "drag")
+      if raceSession and raceSession.beginDragPracticeFreeroamHud then
+        raceSession.beginDragPracticeFreeroamHud(vehId)
+      end
     end
   elseif newPhaseName == "race" then
-    freeroamUtils.saveAndSetTrafficAmount(0)
+    suppressTrafficIfNeeded()
+    if raceSession and raceSession.isRaceHudShown and not raceSession.isRaceHudShown() and raceSession.beginDragPracticeFreeroamHud then
+      raceSession.beginDragPracticeFreeroamHud(vehId)
+    end
     if raceSession and raceSession.isRaceHudShown and raceSession.isRaceHudShown() then
       raceSession.beginDragPracticeFreeroamRace(vehId)
-    else
-      freeroamUtils.displayStartMessage("drag")
     end
   elseif newPhaseName == "stop" then
     -- Pay on race-phase completion (end line), not after the stop phase.
     if racer.timers and racer.timers.time_1_4 and racer.timers.time_1_4.value and racer.timers.time_1_4.value > 0 then
-      freeroamEvents.payoutDragRace("drag", racer.timers.time_1_4.value, racer.vehSpeed * 2.2369362921, vehId)
+      if gameplay_events_freeroamEvents and gameplay_events_freeroamEvents.payoutDragRace then
+        gameplay_events_freeroamEvents.payoutDragRace("drag", racer.timers.time_1_4.value, racer.vehSpeed * 2.2369362921, vehId)
+      end
     end
   elseif newPhaseName == "finished" then
-    freeroamUtils.restoreTrafficAmount()
+    restoreTrafficIfNeeded()
   end
 end
 
@@ -331,24 +431,42 @@ end
 local function onDragReset()
   if isFreeroamDrag() then
     endHud()
+    restoreTrafficIfNeeded()
   end
 end
 
+local suppressSystemResetOnce = false
+
 local function onDragClear()
+  local wasFreeroam = isFreeroamDrag()
   endHud()
+  if wasFreeroam then
+    restoreTrafficIfNeeded()
+    suppressSystemResetOnce = true
+    hideVanillaSystemResetFlash()
+  end
+end
+
+local function onDragClearComplete()
+  if not suppressSystemResetOnce then return end
+  suppressSystemResetOnce = false
+  hideVanillaSystemResetFlash()
 end
 
 local function onUpdate(dtReal, dtSim, dtRaw)
   if not legacyTypeWrapped then
     wrapLegacyDragTypeRemap()
   end
+  wrapGuihooksSystemReset()
+  if not stopFlashWrapped then
+    wrapStoppingVehicleFlash()
+  end
   if not isFreeroamDrag() then return end
   local freeroamSession = gameplay_events_freeroam_session
   if not freeroamSession then return end
 
-  -- Stock display.lua re-shows topCenter "drag" near the stage in freeroam.
   if freeroamSession.dragPracticeFlow or freeroamSession.dragPracticeActive then
-    suppressVanillaDragHudIfPractice()
+    suppressVanillaDragHud()
   end
 
   if not freeroamSession.dragPracticeActive then return end
@@ -371,12 +489,15 @@ end
 
 M.onExtensionLoaded = function()
   wrapLegacyDragTypeRemap()
+  wrapGuihooksSystemReset()
+  wrapStoppingVehicleFlash()
 end
 M.onDragDataSet = onDragDataSet
 M.onDragRacersSetup = onDragRacersSetup
 M.onRacerPhaseTransition = onRacerPhaseTransition
 M.onDragReset = onDragReset
 M.onDragClear = onDragClear
+M.onDragClearComplete = onDragClearComplete
 M.onUpdate = onUpdate
 
 return M

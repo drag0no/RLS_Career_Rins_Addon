@@ -58,6 +58,11 @@ local pendingCareerSave
 local saveRegistered = false
 local saveGenerationToken
 local nextSaveToken = 0
+-- Both onExtensionLoaded and onCareerModulesActivated can run during the same
+-- career load. Reloading the on-disk state between them loses the runtime id
+-- of a target already restored by the first callback, which then causes a
+-- second target to be spawned.
+local loadedStateSavePath
 local trackedRouteKey
 local trackedRouteActive = false
 local refreshTrackedRoute
@@ -528,7 +533,10 @@ local function getYardDropoffZones(yardId)
 end
 
 local function isInYardDropoff(job, vehiclePos)
-  if not job or not vehiclePos then return false end
+  -- A target cannot be delivered until it has actually been extracted. This
+  -- prevents returning the recovery truck alone from completing a contract
+  -- whose target is still at its original location.
+  if not job or job.phase ~= "delivery" or not vehiclePos then return false end
   local zones = getYardDropoffZones(job.yardId)
   if zones and #zones > 0 then
     for _, zone in ipairs(zones) do
@@ -836,6 +844,7 @@ end
 
 local function loadState()
   local savePath = currentSavePath()
+  if savePath and loadedStateSavePath == savePath then return false end
   local loaded = savePath and jsonReadFile(savePath .. SAVE_FILE)
   if type(loaded) == "table" and type(loaded.maps) == "table" then
     state = loaded
@@ -844,6 +853,8 @@ local function loadState()
   else
     state = {version = 1, maps = {}, nextId = 1}
   end
+  loadedStateSavePath = savePath
+  return true
 end
 
 local function capturePose(job)
@@ -1757,16 +1768,15 @@ local function updateJob(job)
     return
   end
   local vehiclePos = vehicle:getPosition()
-  -- Spawn settle on a slope can move a wreck more than 8 m in 3D and used
-  -- to flip the job to delivery, which sent nav back to the yard.
+  -- Do not mark a contract ready for delivery just because the player walked
+  -- up to its target. The target itself must be moved a meaningful distance
+  -- from its spawn point first.
   if job.phase ~= "delivery" and job.status == "active" then
-    local playerPos = getPlayerPosition()
     local original = arrayToVec3(job.originalTargetPos or job.targetPos)
     local dx = vehiclePos.x - original.x
     local dy = vehiclePos.y - original.y
     local extracted = (dx * dx + dy * dy) >= (25 * 25)
-    local playerNear = playerPos and playerPos:distance(vehiclePos) <= 20
-    if playerNear or extracted then
+    if extracted then
       job.phase = "delivery"
       refreshTrackedRoute()
     end
@@ -2180,18 +2190,26 @@ local function onExtensionLoaded()
   math.randomseed(os.time())
   loadFilters()
   if career_career and career_career.isActive() then
-    loadState()
+    if loadState() then
+      currentMap = getCurrentLevelIdentifier()
+      if currentMap then worldReady() end
+    end
+  end
+  initialized = true
+end
+
+local function onCareerModulesActivated()
+  if loadState() then
     currentMap = getCurrentLevelIdentifier()
     if currentMap then worldReady() end
   end
   initialized = true
 end
 
-local function onCareerModulesActivated()
-  loadState()
-  currentMap = getCurrentLevelIdentifier()
-  if currentMap then worldReady() end
-  initialized = true
+local function onCareerActive(active)
+  if active == false then
+    loadedStateSavePath = nil
+  end
 end
 
 local function onClientEndMission()
@@ -2249,6 +2267,7 @@ local function onExtensionUnloaded()
     for _, job in ipairs(getMapState(currentMap).jobs or {}) do capturePose(job) end
   end
   saveState()
+  loadedStateSavePath = nil
   if trackedRouteActive and core_groundMarkers then core_groundMarkers.setPath(nil) end
   trackedRouteKey = nil
   trackedRouteActive = false
@@ -2303,6 +2322,7 @@ end
 M.onWorldReadyState = onWorldReadyState
 M.onExtensionLoaded = onExtensionLoaded
 M.onCareerModulesActivated = onCareerModulesActivated
+M.onCareerActive = onCareerActive
 M.onClientEndMission = onClientEndMission
 M.onSaveCurrentProfileAsyncStart = onSaveCurrentProfileAsyncStart
 M.onSaveCurrentProfile = onSaveCurrentProfile

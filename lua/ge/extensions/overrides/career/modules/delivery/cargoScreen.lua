@@ -1339,7 +1339,11 @@ local function setMaterialContractPickupRoute(contractId, showMessage)
   if not active or active.status ~= "active" or not active.origin then return false end
   local toPos = dGenerator.getLocationCoordinates(active.origin)
   if not toPos then return false end
-  freeroam_bigMapMode.setNavFocus(toPos)
+  if dGeneral and dGeneral.setDeliveryNavFocus then
+    dGeneral.setDeliveryNavFocus(toPos)
+  else
+    freeroam_bigMapMode.setNavFocus(toPos)
+  end
   core_groundMarkers.setPath({toPos}, {clearPathOnReachingTarget = false})
   if showMessage ~= false then
     ui_message(string.format("Route set: go to %s loading point to load %s.", _tr(active.sourceName), _tr(active.materialName)), 6, "info")
@@ -1353,7 +1357,11 @@ local function setMaterialContractDestinationRoute(contractId, showMessage)
   if not active or active.status ~= "active" or not active.destination then return false end
   local toPos = dGenerator.getLocationCoordinates(active.destination)
   if not toPos then return false end
-  freeroam_bigMapMode.setNavFocus(toPos)
+  if dGeneral and dGeneral.setDeliveryNavFocus then
+    dGeneral.setDeliveryNavFocus(toPos)
+  else
+    freeroam_bigMapMode.setNavFocus(toPos)
+  end
   core_groundMarkers.setPath({toPos}, {clearPathOnReachingTarget = false})
   if showMessage ~= false then
     ui_message(string.format("Route set: deliver %s to %s.", _tr(active.materialName), _tr(active.destinationName)), 6, "info")
@@ -1764,17 +1772,6 @@ local function commitDeliveryConfiguration()
   end
   snapshotVehiclesToRefreshWeights()
 
-  local function getOffersToSpawn()
-    local offers = {}
-    local vehOffers = dVehOfferManager.getAllOfferUnexpired()
-    for _, offer in ipairs(vehOffers) do
-      if offer.spawnWhenCommitingCargo and offer.origin.facId == cargoScreenFacId then
-        table.insert(offers, offer)
-      end
-    end
-    return offers
-  end
-
   local function buildSpawnStepsForCommit()
     local stepsList = {}
     local vehOffers = dVehOfferManager.getAllOfferUnexpired()
@@ -1789,12 +1786,11 @@ local function commitDeliveryConfiguration()
     return stepsList
   end
 
-  local function deferVehicleTransientMovesIfNeeded()
+  local function deferVehicleTransientMovesIfNeeded(hasVehicleOfferSpawns)
     local allTransientCargo = dParcelManager.getTransientMoveCargo()
     local deferredCargo = {}
-    
-    local offersToSpawn = getOffersToSpawn()
-    local hasVehicleOfferSpawns = #offersToSpawn > 0
+    local heldParcelMoves = 0
+    hasVehicleOfferSpawns = hasVehicleOfferSpawns == true
     
     local deletionsToApply = {}
     
@@ -1816,7 +1812,14 @@ local function commitDeliveryConfiguration()
       if cargo and cargo._transientMove and cargo._transientMove.targetLocation then
         local targetLoc = cargo._transientMove.targetLocation
         if targetLoc.type ~= "deleted" then
-          if hasVehicleOfferSpawns then
+          -- Starting a trailer job must not also finalize parcel loading. Keep
+          -- parcels at their provider so the player can collect them after the
+          -- trailer has been spawned, instead of silently loading both jobs
+          -- as one commit.
+          if hasVehicleOfferSpawns and cargo.type == "parcel" then
+            heldParcelMoves = heldParcelMoves + 1
+            dParcelManager.clearTransientMoveForCargo(cargo.id)
+          elseif hasVehicleOfferSpawns then
             local involvesVehicle = targetLoc.type == "vehicle" or (cargo.location and cargo.location.type == "vehicle")
             if involvesVehicle then
               local copiedTargetLoc = {}
@@ -1850,7 +1853,7 @@ local function commitDeliveryConfiguration()
 
     local movedCargo, remainingCargo = dParcelManager.applyTransientMoves({type="facilityParkingspot",facId=cargoScreenFacId, psPath=cargoScreenPsPath})
 
-    log("I","",string.format("Commited Delivery Configuration. (Cargo Added: %d. Remaining to be loaded: %d. Deferred vehicle moves: %d. Deletions applied: %d)",#movedCargo, #remainingCargo, #deferredCargo, #deletionsToApply))
+    log("I","",string.format("Commited Delivery Configuration. (Cargo Added: %d. Remaining to be loaded: %d. Deferred vehicle moves: %d. Held parcel moves: %d. Deletions applied: %d)",#movedCargo, #remainingCargo, #deferredCargo, heldParcelMoves, #deletionsToApply))
     return movedCargo, remainingCargo, deferredCargo
   end
 
@@ -1870,7 +1873,9 @@ local function commitDeliveryConfiguration()
     return validDeferredCargo
   end
 
-  local movedCargo, remainingCargo, deferredCargo = deferVehicleTransientMovesIfNeeded()
+  local spawnSteps = buildSpawnStepsForCommit()
+  local hasVehicleOfferSpawnsFromSteps = spawnSteps and #spawnSteps > 0
+  local movedCargo, remainingCargo, deferredCargo = deferVehicleTransientMovesIfNeeded(hasVehicleOfferSpawnsFromSteps)
 
   local allTransientCargo = dParcelManager.getTransientMoveCargo()
   pendingTransientMoves = #allTransientCargo > 0 or #deferredCargo > 0
@@ -1878,9 +1883,9 @@ local function commitDeliveryConfiguration()
   if not career_modules_delivery_general.isDeliveryModeActive() and (#movedCargo > 0 or #remainingCargo > 0) then
     dGeneral.startDeliveryMode()
   end
-
-  local spawnSteps = buildSpawnStepsForCommit()
-  local hasVehicleOfferSpawnsFromSteps = spawnSteps and #spawnSteps > 0
+  if career_modules_delivery_tasklist and career_modules_delivery_tasklist.sendCargoToTasklist then
+    career_modules_delivery_tasklist.sendCargoToTasklist()
+  end
 
   local function hasLoanersMarkedForSpawning()
     if not career_modules_loanerVehicles or not career_modules_loanerVehicles.formatLoanerOfferForUi then

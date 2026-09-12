@@ -24,7 +24,7 @@ end
 
 local function deleteMarkerObj(obj)
   if obj then
-    obj:delete()
+    pcall(function() obj:delete() end)
   end
 end
 
@@ -318,7 +318,7 @@ local function removeCheckpoints()
             if checkpoint then
                 -- Remove the checkpoint object
                 if checkpoint.object then
-                    checkpoint.object:delete()
+                    pcall(function() checkpoint.object:delete() end)
                     checkpoint.object = nil
                 end
 

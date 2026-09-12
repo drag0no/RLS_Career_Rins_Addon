@@ -956,9 +956,9 @@ M.getFacilityIdForZone = getFacilityIdForZone
 M.isCareerMode = isCareerMode
 M.serializeContract = serializeContract
 M.deserializeContract = deserializeContract
-M.onExtensionLoaded = onExtensionLoaded
 local function onExtensionLoaded()
 end
+M.onExtensionLoaded = onExtensionLoaded
 M.loadingConfigLoaded = function()
   Config = gameplay_loading_config
 end

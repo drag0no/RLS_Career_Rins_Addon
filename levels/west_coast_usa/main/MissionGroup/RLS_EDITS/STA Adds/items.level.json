@@ -35,7 +35,7 @@
 {"class":"TSStatic","__parent":"STA Adds","position":[547.367126,-529.513611,158.386368],"isRenderEnabled":false,"rotationMatrix":[1,0,0,0,0.999762535,-0.0217923857,0,0.0217923857,0.999762535],"shapeName":"/art/shapes/garage_and_dealership/Clutter/road_cone.DAE","useInstanceRenderData":true}
 {"class":"TSStatic","__parent":"STA Adds","position":[548.22113,-530.167908,158.50853],"isRenderEnabled":false,"rotationMatrix":[0.999360502,0,0.0357581675,0.00259233708,0.997368693,-0.0724500045,-0.0356640741,0.072496362,0.996730804],"shapeName":"/art/shapes/garage_and_dealership/Clutter/road_cone.DAE","useInstanceRenderData":true}
 {"class":"TSStatic","__parent":"STA Adds","position":[547.932129,-529.756226,158.437637],"isRenderEnabled":false,"rotationMatrix":[0.997712016,0,0.0676073283,0.00395263871,0.998289466,-0.0583308749,-0.0674916804,0.0584646426,0.996005416],"shapeName":"/art/shapes/garage_and_dealership/Clutter/road_cone.DAE","useInstanceRenderData":true}
-{"class":"TSStatic","__parent":"STA Adds","collisionType":"None","decalType":"None","isRenderEnabled":false,"shapeName":"/levels/west_coast_usa/art/shapes/buildings/s_bld_fire_deptdaeSTA.dae","useInstanceRenderData":true}
+{"class":"TSStatic","__parent":"STA Adds","decalType":"None","isRenderEnabled":false,"shapeName":"/levels/west_coast_usa/art/shapes/buildings/s_bld_fire_deptdaeSTA.dae","useInstanceRenderData":true}
 {"name":"Dirt Oval Tuning Tent","class":"SimGroup","__parent":"STA Adds"}
 {"name":"Rubber Band Tuning Tent","class":"SimGroup","__parent":"STA Adds"}
 {"name":"driftLoopTuningTent","class":"SimGroup","__parent":"STA Adds","hidden":true}

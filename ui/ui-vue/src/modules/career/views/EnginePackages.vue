@@ -195,6 +195,10 @@ const createName = ref("")
 const renameId = ref(null)
 const renameName = ref("")
 const confirmDismantleId = ref(null)
+// Package status refreshes can briefly omit a thumbnail while its disk capture
+// is being checked. Keep the last confirmed source so an unrelated UI action
+// cannot make a valid picture flicker out and back in.
+const thumbnailCache = new Map()
 
 let messageTimer = null
 let inputFocused = false
@@ -230,13 +234,33 @@ function handleRenameKeydown(event, pkg) {
 }
 
 function updateData(payload) {
+  const incomingPackages = Array.isArray(payload?.packages) ? payload.packages : []
+  const packageIds = new Set()
+  const packages = incomingPackages.map((incoming) => {
+    const pkg = { ...(incoming || {}) }
+    const id = String(pkg.id || "")
+    if (id) packageIds.add(id)
+    if (pkg.thumbnail) {
+      thumbnailCache.set(id, { thumbnail: pkg.thumbnail, dirtyDate: pkg.dirtyDate || 0 })
+    } else {
+      const cached = thumbnailCache.get(id)
+      if (cached) {
+        pkg.thumbnail = cached.thumbnail
+        pkg.dirtyDate = cached.dirtyDate
+      }
+    }
+    return pkg
+  })
+  for (const id of thumbnailCache.keys()) {
+    if (!packageIds.has(id)) thumbnailCache.delete(id)
+  }
   data.value = {
     busy: false,
     currentInventoryId: null,
     currentPackageId: null,
     hasInstalledEngine: false,
     ...(payload || {}),
-    packages: Array.isArray(payload?.packages) ? payload.packages : [],
+    packages,
   }
 }
 
