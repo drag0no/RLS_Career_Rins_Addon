@@ -1,10 +1,10 @@
 {
-  "name": "Circuit Racing",
-  "description": "Compete on paved tracks and closed courses.",
-  "order": 40,
+  "name": "Dirt",
+  "description": "Master loose-surface rally stages, closed dirt circuits, and rallycross tracks.",
+  "order": 15,
   "isSkill": true,
-  "attributeKey": "careerSkills-circuitRacing",
-  "icon": "flag",
+  "attributeKey": "careerSkills-dirt",
+  "icon": "beamsNodesOutline",
   "levels": [
     {
       "requiredValue": 0,
@@ -12,14 +12,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 1",
-        "description": "Reach Circuit Racing level 1."
+        "description": "Reach Dirt level 1."
       },
       "unlocks": [
         {
           "type": "unlockCard",
-          "icon": "flag",
+          "icon": "beamsNodesOutline",
           "heading": "Base Activities Available",
-          "description": "All base Circuit Racing activities are available. Reward-lane bonuses begin at level 2."
+          "description": "All base Dirt activities are available. Reward-lane bonuses begin at level 2."
         }
       ]
     },
@@ -29,14 +29,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 2",
-        "description": "Reach Circuit Racing level 2."
+        "description": "Reach Dirt level 2."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -46,14 +46,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 3",
-        "description": "Reach Circuit Racing level 3."
+        "description": "Reach Dirt level 3."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -63,14 +63,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 4",
-        "description": "Reach Circuit Racing level 4."
+        "description": "Reach Dirt level 4."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -80,14 +80,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 5",
-        "description": "Reach Circuit Racing level 5."
+        "description": "Reach Dirt level 5."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         },
         {
           "type": "unlockCard",
@@ -103,14 +103,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 6",
-        "description": "Reach Circuit Racing level 6."
+        "description": "Reach Dirt level 6."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -120,14 +120,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 7",
-        "description": "Reach Circuit Racing level 7."
+        "description": "Reach Dirt level 7."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -137,14 +137,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 8",
-        "description": "Reach Circuit Racing level 8."
+        "description": "Reach Dirt level 8."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -154,14 +154,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 9",
-        "description": "Reach Circuit Racing level 9."
+        "description": "Reach Dirt level 9."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -171,14 +171,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 10",
-        "description": "Reach Circuit Racing level 10."
+        "description": "Reach Dirt level 10."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         },
         {
           "type": "unlockCard",
@@ -194,14 +194,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 11",
-        "description": "Reach Circuit Racing level 11."
+        "description": "Reach Dirt level 11."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -211,14 +211,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 12",
-        "description": "Reach Circuit Racing level 12."
+        "description": "Reach Dirt level 12."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -228,14 +228,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 13",
-        "description": "Reach Circuit Racing level 13."
+        "description": "Reach Dirt level 13."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -245,14 +245,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 14",
-        "description": "Reach Circuit Racing level 14."
+        "description": "Reach Dirt level 14."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -262,14 +262,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 15",
-        "description": "Reach Circuit Racing level 15."
+        "description": "Reach Dirt level 15."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         },
         {
           "type": "unlockCard",
@@ -285,14 +285,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 16",
-        "description": "Reach Circuit Racing level 16."
+        "description": "Reach Dirt level 16."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -302,14 +302,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 17",
-        "description": "Reach Circuit Racing level 17."
+        "description": "Reach Dirt level 17."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -319,14 +319,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 18",
-        "description": "Reach Circuit Racing level 18."
+        "description": "Reach Dirt level 18."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -336,14 +336,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 19",
-        "description": "Reach Circuit Racing level 19."
+        "description": "Reach Dirt level 19."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -353,14 +353,20 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 20",
-        "description": "Reach Circuit Racing level 20."
+        "description": "Reach Dirt level 20."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "cardMembership",
+          "heading": "1 License Point",
+          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         }
       ]
     },
@@ -370,14 +376,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 21",
-        "description": "Reach Circuit Racing level 21."
+        "description": "Reach Dirt level 21."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -387,14 +393,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 22",
-        "description": "Reach Circuit Racing level 22."
+        "description": "Reach Dirt level 22."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -404,14 +410,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 23",
-        "description": "Reach Circuit Racing level 23."
+        "description": "Reach Dirt level 23."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -421,14 +427,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 24",
-        "description": "Reach Circuit Racing level 24."
+        "description": "Reach Dirt level 24."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -438,14 +444,20 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 25",
-        "description": "Reach Circuit Racing level 25."
+        "description": "Reach Dirt level 25."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "cardMembership",
+          "heading": "2 License Points",
+          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         }
       ]
     },
@@ -455,14 +467,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 26",
-        "description": "Reach Circuit Racing level 26."
+        "description": "Reach Dirt level 26."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -472,14 +484,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 27",
-        "description": "Reach Circuit Racing level 27."
+        "description": "Reach Dirt level 27."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -489,14 +501,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 28",
-        "description": "Reach Circuit Racing level 28."
+        "description": "Reach Dirt level 28."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -506,14 +518,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 29",
-        "description": "Reach Circuit Racing level 29."
+        "description": "Reach Dirt level 29."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -523,14 +535,20 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 30",
-        "description": "Reach Circuit Racing level 30."
+        "description": "Reach Dirt level 30."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "cardMembership",
+          "heading": "2 License Points",
+          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         },
         {
           "type": "unlockCard",
@@ -546,14 +564,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 31",
-        "description": "Reach Circuit Racing level 31."
+        "description": "Reach Dirt level 31."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -563,14 +581,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 32",
-        "description": "Reach Circuit Racing level 32."
+        "description": "Reach Dirt level 32."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -580,14 +598,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 33",
-        "description": "Reach Circuit Racing level 33."
+        "description": "Reach Dirt level 33."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -597,14 +615,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 34",
-        "description": "Reach Circuit Racing level 34."
+        "description": "Reach Dirt level 34."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -614,14 +632,20 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 35",
-        "description": "Reach Circuit Racing level 35."
+        "description": "Reach Dirt level 35."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
+        },
+        {
+          "type": "unlockCard",
+          "icon": "cardMembership",
+          "heading": "1 License Point",
+          "description": "Invest license points in a new contract lane or upgrade an existing license. Choices are permanent."
         }
       ]
     },
@@ -631,14 +655,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 36",
-        "description": "Reach Circuit Racing level 36."
+        "description": "Reach Dirt level 36."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -648,14 +672,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 37",
-        "description": "Reach Circuit Racing level 37."
+        "description": "Reach Dirt level 37."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -665,14 +689,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 38",
-        "description": "Reach Circuit Racing level 38."
+        "description": "Reach Dirt level 38."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -682,14 +706,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 39",
-        "description": "Reach Circuit Racing level 39."
+        "description": "Reach Dirt level 39."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -699,14 +723,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 40",
-        "description": "Reach Circuit Racing level 40."
+        "description": "Reach Dirt level 40."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -716,14 +740,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 41",
-        "description": "Reach Circuit Racing level 41."
+        "description": "Reach Dirt level 41."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -733,14 +757,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 42",
-        "description": "Reach Circuit Racing level 42."
+        "description": "Reach Dirt level 42."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -750,14 +774,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 43",
-        "description": "Reach Circuit Racing level 43."
+        "description": "Reach Dirt level 43."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -767,14 +791,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 44",
-        "description": "Reach Circuit Racing level 44."
+        "description": "Reach Dirt level 44."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -784,14 +808,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 45",
-        "description": "Reach Circuit Racing level 45."
+        "description": "Reach Dirt level 45."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -801,14 +825,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 46",
-        "description": "Reach Circuit Racing level 46."
+        "description": "Reach Dirt level 46."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -818,14 +842,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 47",
-        "description": "Reach Circuit Racing level 47."
+        "description": "Reach Dirt level 47."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rally Bonus +12%",
+          "description": "Adds 12% money payout to the Rally reward lane."
         }
       ]
     },
@@ -835,14 +859,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 48",
-        "description": "Reach Circuit Racing level 48."
+        "description": "Reach Dirt level 48."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Dirt Bonus +12%",
+          "description": "Adds 12% money payout to the Dirt reward lane."
         }
       ]
     },
@@ -852,14 +876,14 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 49",
-        "description": "Reach Circuit Racing level 49."
+        "description": "Reach Dirt level 49."
       },
       "unlocks": [
         {
           "type": "unlockCard",
           "icon": "beamCurrency",
-          "heading": "Road Racing Bonus +4%",
-          "description": "Adds 4% money payout to the Road Racing reward lane."
+          "heading": "Rallycross Bonus +12%",
+          "description": "Adds 12% money payout to the Rallycross reward lane."
         }
       ]
     },
@@ -869,7 +893,7 @@
         "type": "unlockCard",
         "icon": "info",
         "heading": "Level 50",
-        "description": "Reach Circuit Racing level 50."
+        "description": "Reach Dirt level 50."
       },
       "unlocks": [
         {
@@ -888,3 +912,4 @@
     }
   ]
 }
+

@@ -30,7 +30,7 @@ local attributeKeyAliases = {
   -- Keep older FRE/map-expansion XP tags working while new content writes
   -- directly to the canonical parent skill attributes.
   ["fre-offroad"] = "careerSkills-offroad",
-  ["fre-rally"] = "careerSkills-offroad",
+  ["fre-rally"] = "careerSkills-dirt",
   ["fre-crawling"] = "careerSkills-offroad",
   ["fre-mudding"] = "careerSkills-offroad",
   ["fre-trail"] = "careerSkills-offroad",
@@ -40,12 +40,14 @@ local attributeKeyAliases = {
   ["fre-burnout"] = "careerSkills-mayhem",
   ["fre-demo"] = "careerSkills-mayhem",
   ["fre-roadracing"] = "careerSkills-circuitRacing",
-  ["fre-oval"] = "careerSkills-circuitRacing",
+  ["fre-oval"] = "careerSkills-dirt",
   crawl = "careerSkills-offroad",
   crawling = "careerSkills-offroad",
   offroad = "careerSkills-offroad",
   ["off-road"] = "careerSkills-offroad",
-  rally = "careerSkills-offroad",
+  rally = "careerSkills-dirt",
+  dirt = "careerSkills-dirt",
+  rallycross = "careerSkills-dirt",
   trail = "careerSkills-offroad",
   mud = "careerSkills-offroad",
   mudding = "careerSkills-offroad",
@@ -64,7 +66,7 @@ local attributeKeyAliases = {
   apexRacing = "careerSkills-circuitRacing",
   roadracing = "careerSkills-circuitRacing",
   road_racing = "careerSkills-circuitRacing",
-  oval = "careerSkills-circuitRacing"
+  oval = "careerSkills-dirt"
 }
 
 local function canonicalAttributeKey(attributeName)
@@ -623,6 +625,7 @@ local freSkillMigration = {
     offroad = "fre-offroad",
     ["off-road"] = "fre-offroad",
     rally = "fre-rally",
+    dirt = "fre-dirt",
     landspeed = "fre-landspeed",
     land_speed = "fre-landspeed",
     mud = "fre-mudding",
@@ -640,10 +643,11 @@ local skillHierarchyMigration = {
   version = 1,
   markerFile = "career/skillHierarchyMigration.json",
   groups = {
-    {target = "careerSkills-offroad", sources = {"fre-offroad", "fre-rally", "fre-crawling", "fre-mudding", "fre-trail"}},
+    {target = "careerSkills-dirt", sources = {"fre-rally", "fre-dirt", "fre-rallycross", "fre-oval"}},
+    {target = "careerSkills-offroad", sources = {"fre-offroad", "fre-crawling", "fre-mudding", "fre-trail"}},
     {target = "careerSkills-speed", sources = {"fre-drag", "fre-landspeed"}},
     {target = "careerSkills-mayhem", sources = {"fre-drift", "fre-burnout", "fre-demo"}},
-    {target = "careerSkills-circuitRacing", sources = {"fre-roadracing", "fre-oval"}},
+    {target = "careerSkills-circuitRacing", sources = {"fre-roadracing"}},
     {target = "careerSkills-emergency", sources = {"careerSkills-police", "careerSkills-paramedic"}},
     {target = "careerSkills-passenger", sources = {"careerSkills-bus", "careerSkills-taxi"}},
     {target = "careerSkills-operator", sources = {"labor"}},

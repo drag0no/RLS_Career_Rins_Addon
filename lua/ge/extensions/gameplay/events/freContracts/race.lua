@@ -257,46 +257,126 @@ local function processSponsorQualification(dState, raceName, finishTime, driftSc
   return changed
 end
 
+-- Verifies basic contract eligibility before evaluating race results
+local function isContractEligible(contract, vehicleModel, now)
+  local vPool = gameplay_events_freContracts_vehiclePool
+  local notExpired = now <= (tonumber(contract.expiresAt) or 0)
+  local modelOk = vPool.modelFamilyMatches(contract.requiredModel, vehicleModel)
+  return notExpired and modelOk
+end
+
+local function isRaceEligible(contract, raceName, isAltRoute)
+  local rCache = gameplay_events_freContracts_raceCache
+  local raceOk = contract.raceName == raceName
+  local routeOk = rCache.routeTypeMatches(contract.raceRouteType, isAltRoute)
+  return raceOk and routeOk
+end
+
+-- Finds the first incomplete rally stage matching race name and route type
+local function findPendingRallyStage(contract, raceName, isAltRoute)
+  local rCache = gameplay_events_freContracts_raceCache
+  local allStages = contract.rallyAllStages or {}
+  local doneStages = contract.rallyDoneStages or {}
+  for _, stage in ipairs(allStages) do
+    local isMatch = stage.raceName == raceName and rCache.routeTypeMatches(stage.routeType, isAltRoute)
+    if isMatch and not doneStages[stage.raceName] then
+      return stage
+    end
+  end
+  return nil
+end
+
+-- Evaluates and advances progress for a multi-stage Rally Event contract
+local function advanceRallyContract(contract, raceName, finishTime, isAltRoute, vehicleModel, now)
+  if not isContractEligible(contract, vehicleModel, now) then
+    return false, false
+  end
+
+  local matchedStage = findPendingRallyStage(contract, raceName, isAltRoute)
+  local stageTargetTime = matchedStage and tonumber(matchedStage.targetTime) or 0
+  local okTime = stageTargetTime > 0 and finishTime <= stageTargetTime
+  if not matchedStage or not okTime then
+    return false, false
+  end
+
+  contract.rallyDoneStages = type(contract.rallyDoneStages) == "table" and contract.rallyDoneStages or {}
+  contract.rallyDoneStages[matchedStage.raceName] = true
+
+  local performanceRatio = stageTargetTime / finishTime
+  if performanceRatio > (tonumber(contract.bestPerformanceRatio) or 0) then
+    contract.bestPerformanceRatio = performanceRatio
+  end
+
+  local allStages = contract.rallyAllStages or {}
+  local completedCount = 0
+  local nextStage = nil
+  for _, stage in ipairs(allStages) do
+    if contract.rallyDoneStages[stage.raceName] then
+      completedCount = completedCount + 1
+    elseif not nextStage then
+      nextStage = stage
+    end
+  end
+
+  contract.progress = completedCount
+  if nextStage then
+    contract.targetTime = nextStage.targetTime
+    contract.raceName = nextStage.raceName
+    contract.raceRouteType = nextStage.routeType
+  end
+
+  local requiredCount = math.max(1, math.floor(tonumber(contract.requiredCount) or #allStages))
+  return true, contract.progress >= requiredCount
+end
+
+-- Evaluates and advances progress for a standard single-race contract
+local function advanceStandardContract(contract, raceName, finishTime, driftScore, damagePercentage, isAltRoute, vehicleModel, now)
+  local skills = gameplay_events_freContracts_skills
+  local targetType = normalizeTargetType(contract.targetType)
+  
+  local okContract = isContractEligible(contract, vehicleModel, now)
+  local okRace = isRaceEligible(contract, raceName, isAltRoute)
+  local okTarget = isTargetSatisfied(targetType, contract.targetTime, contract.targetDriftScore, contract.targetDamagePctMax, finishTime, driftScore, damagePercentage)
+  if not okContract or not okRace or not okTarget then
+    return false, false
+  end
+
+  local performanceRatio = getPerformanceRatioForResult(skills, targetType, contract.targetTime, contract.targetDriftScore, contract.targetDamagePctMax, finishTime, driftScore, damagePercentage)
+  if performanceRatio > (tonumber(contract.bestPerformanceRatio) or 0) then
+    contract.bestPerformanceRatio = performanceRatio
+  end
+  local requiredCount = math.max(1, math.floor(tonumber(contract.requiredCount) or 1))
+  local before = tonumber(contract.progress) or 0
+  contract.progress = math.min(requiredCount, before + 1)
+  return true, contract.progress >= requiredCount
+end
+
+-- Evaluates race completion against all active contracts and awards completed contracts
 local function processContractProgress(dState, disciplineId, raceName, finishTime, driftScore, damagePercentage,
                                        isAltRoute, vehicleModel, now)
-  local rCache = gameplay_events_freContracts_raceCache
-  local vPool = gameplay_events_freContracts_vehiclePool
-  local skills = gameplay_events_freContracts_skills
   local changed = false
 
   for i = #dState.contracts.active, 1, -1 do
     local contract = dState.contracts.active[i]
-    local routeOk = rCache.routeTypeMatches(contract.raceRouteType, isAltRoute)
-    local raceOk = (contract.raceName == raceName) and routeOk
-    local modelOk = vPool.modelFamilyMatches(contract.requiredModel, vehicleModel)
-    local targetType = normalizeTargetType(contract.targetType)
-    local targetOk = isTargetSatisfied(targetType, contract.targetTime, contract.targetDriftScore, contract.targetDamagePctMax,
-      finishTime, driftScore, damagePercentage)
-    local notExpired = now <= (tonumber(contract.expiresAt) or 0)
+    local isRally = contract.rallyAllStages ~= nil
+    local progressed, completed
 
-    if raceOk and modelOk and targetOk and notExpired then
-      local performanceRatio = getPerformanceRatioForResult(skills, targetType, contract.targetTime, contract.targetDriftScore,
-        contract.targetDamagePctMax, finishTime, driftScore, damagePercentage)
-      if performanceRatio > (tonumber(contract.bestPerformanceRatio) or 0) then
-        contract.bestPerformanceRatio = performanceRatio
-        changed = true
-      end
-      local requiredCount = math.max(1, math.floor(tonumber(contract.requiredCount) or 1))
-      local before = tonumber(contract.progress) or 0
-      contract.progress = math.min(requiredCount, before + 1)
-      if contract.progress ~= before then
-        changed = true
-      end
-      local objectiveComplete = contract.progress >= requiredCount
+    if isRally then
+      progressed, completed = advanceRallyContract(contract, raceName, finishTime, isAltRoute, vehicleModel, now)
+    else
+      progressed, completed = advanceStandardContract(contract, raceName, finishTime, driftScore, damagePercentage, isAltRoute, vehicleModel, now)
+    end
 
-      if objectiveComplete then
+    if progressed then
+      changed = true
+      if completed then
         awardContract(contract, disciplineId)
         dState.contracts.completed = dState.contracts.completed + 1
         table.remove(dState.contracts.active, i)
-        changed = true
       end
     end
   end
+
   return changed
 end
 

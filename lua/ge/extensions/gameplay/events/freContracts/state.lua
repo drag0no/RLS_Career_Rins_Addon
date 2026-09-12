@@ -89,19 +89,33 @@ local function buildDefaultState()
   }
 end
 
-local function validateLoadedState()
-  local cfg = freConfig.getConfig()
-  state.nextId = tonumber(state.nextId) or 1
-  state.version = 3
-  state.simTime = tonumber(state.simTime) or 0
-  state.disciplines = type(state.disciplines) == "table" and state.disciplines or {}
-  state.parentSkills = type(state.parentSkills) == "table" and state.parentSkills or {}
+-- Reconciles discipline licenses so each license moves cleanly to its configured
+-- parent skill, supporting migrations between both new and existing parent skills.
+local function reconcileParentSkillLicenses()
+  local allLicenses = {}
+  -- Phase 1: Collect every valid unlocked license from all loaded parent skills into a global pool
+  for _, parentState in pairs(state.parentSkills or {}) do
+    if type(parentState) == "table" and type(parentState.licenses) == "table" then
+      -- Normalize and preserve the tier and unlock levels for each discipline's license
+      for laneId, license in pairs(parentState.licenses) do
+        if type(license) == "table" then
+          license.tier = license.tier or "easy"
+          license.unlockLevels = type(license.unlockLevels) == "table" and license.unlockLevels or {}
+          allLicenses[laneId] = license
+        end
+      end
+    end
+  end
+
+  local now = tonumber(state.simTime) or 0
+  -- Phase 2: Re-populate each parent skill, assigning licenses strictly to their canonical owner
   for _, parent in ipairs(freConfig.getParentSkills()) do
     local parentState = type(state.parentSkills[parent.id]) == "table" and state.parentSkills[parent.id] or {}
-    parentState.licenses = type(parentState.licenses) == "table" and parentState.licenses or {}
+    parentState.licenses = {}
     parentState.sponsorSlotCooldowns = type(parentState.sponsorSlotCooldowns) == "table" and parentState.sponsorSlotCooldowns or {}
-    local now = tonumber(state.simTime) or 0
+
     local activeCooldowns = {}
+    -- Prune expired sponsor slot cooldown timers against current sim time
     for _, expiry in ipairs(parentState.sponsorSlotCooldowns) do
       expiry = tonumber(expiry) or 0
       if expiry > now then
@@ -109,16 +123,25 @@ local function validateLoadedState()
       end
     end
     parentState.sponsorSlotCooldowns = activeCooldowns
-    for laneId, license in pairs(parentState.licenses) do
-      if type(license) ~= "table" then
-        parentState.licenses[laneId] = nil
-      else
-        license.tier = license.tier or "easy"
-        license.unlockLevels = type(license.unlockLevels) == "table" and license.unlockLevels or {}
+
+    -- Claim only the licenses that currently belong to this parent skill's configured lane IDs
+    for _, laneId in ipairs(parent.laneIds or {}) do
+      if allLicenses[laneId] then
+        parentState.licenses[laneId] = allLicenses[laneId]
       end
     end
     state.parentSkills[parent.id] = parentState
   end
+end
+
+local function validateLoadedState()
+  local cfg = freConfig.getConfig()
+  state.nextId = tonumber(state.nextId) or 1
+  state.version = 3
+  state.simTime = tonumber(state.simTime) or 0
+  state.disciplines = type(state.disciplines) == "table" and state.disciplines or {}
+  state.parentSkills = type(state.parentSkills) == "table" and state.parentSkills or {}
+  reconcileParentSkillLicenses()
   if not state.sanctionedRacing or type(state.sanctionedRacing) ~= "table" then
     state.sanctionedRacing = { offer = nil, nextGenAt = 0, lastSkillGateOk = false }
   else

@@ -109,16 +109,49 @@ local function buildDisciplineUiState(disciplineId, now)
   }
 end
 
+local function resolveRallyEventDisplay(contract)
+  local allStages = contract.rallyAllStages or contract.stages or {}
+  local doneStages = contract.rallyDoneStages or contract.completedStages or {}
+  local totalStages = tonumber(contract.requiredCount) or #allStages
+  local currentStage = nil
+  for _, stage in ipairs(allStages) do
+    if not doneStages[stage.raceName] then
+      currentStage = stage
+      break
+    end
+  end
+
+  if not currentStage then
+    return contract.raceName, string.format("Rally Event (%d Stages) - Complete!", totalStages), contract.raceRouteType, contract.targetTime
+  end
+
+  local progress = tonumber(contract.progress) or 0
+  local stageName = currentStage.raceLabel or currentStage.raceName
+  local label = (progress > 0)
+    and string.format("Rally Stage (%d/%d): %s", progress + 1, totalStages, stageName)
+    or string.format("Rally Event (%d Stages): %s", totalStages, stageName)
+  
+  return currentStage.raceName, label, currentStage.routeType, currentStage.targetTime
+end
+
+-- Formats a contract entry for phone and UI presentation
 local function formatContractForUi(contract, now, level)
+  local raceName = contract.raceName
+  local raceLabel = contract.raceLabel
+  local raceRouteType = contract.raceRouteType
+  local targetTime = contract.targetTime
+  if contract.rallyAllStages ~= nil then
+    raceName, raceLabel, raceRouteType, targetTime = resolveRallyEventDisplay(contract)
+  end
   return {
     id = contract.id,
     disciplineId = contract.disciplineId,
     tier = contract.tier,
-    raceName = contract.raceName,
-    raceLabel = contract.raceLabel,
-    raceRouteType = contract.raceRouteType,
+    raceName = raceName,
+    raceLabel = raceLabel,
+    raceRouteType = raceRouteType,
     targetType = contract.targetType,
-    targetTime = contract.targetTime,
+    targetTime = targetTime,
     targetDriftScore = contract.targetDriftScore,
     targetDamagePctMax = contract.targetDamagePctMax,
     requiredModel = contract.requiredModel,

@@ -244,33 +244,23 @@ local function hasValidTargetForEntry(entry)
   return type(entry.targetTime) == "number" and entry.targetTime > 0
 end
 
-local function normalizeContractEntry(disciplineId, entry)
-  if type(entry) ~= "table" then
-    return
+local function normalizeRallyEventContractTargetTime(entry)
+  entry.rallyAllStages = type(entry.rallyAllStages) == "table" and entry.rallyAllStages or {}
+  entry.rallyDoneStages = type(entry.rallyDoneStages) == "table" and entry.rallyDoneStages or {}
+  entry.targetType = "time"
+  if not entry.targetTime then
+    for _, st in ipairs(entry.rallyAllStages) do
+      if not entry.rallyDoneStages[st.raceName] then
+        entry.targetTime = tonumber(st.targetTime)
+        break
+      end
+    end
   end
+end
+
+local function normalizeDefaultContractTargetTime(disciplineId, entry)
   local rCache = gameplay_events_freContracts_raceCache
-  local vPool = gameplay_events_freContracts_vehiclePool
-
-  if not entry.requiredModel and entry.requiredModelFamily then
-    entry.requiredModel = entry.requiredModelFamily
-  end
-
-  local objectiveType = entry.objectiveType
-  if objectiveType ~= "laps" and objectiveType ~= "events" then
-    objectiveType = "events"
-  end
-  entry.objectiveType = objectiveType
-  entry.requiredCount = math.max(1, math.floor(tonumber(entry.requiredCount) or 1))
-  entry.progress = math.max(0, math.floor(tonumber(entry.progress) or 0))
-  entry.bestPerformanceRatio = math.max(0, tonumber(entry.bestPerformanceRatio) or 0)
-  local normalizedMoney = tonumber(entry.rewardMoney)
-  local normalizedXp = tonumber(entry.rewardXp)
-  entry.rewardMoney = math.max(0, math.floor(normalizedMoney or 0))
-  entry.rewardXp = math.max(0, math.floor(normalizedXp or 0))
-  entry.targetTime = tonumber(entry.targetTime)
-  entry.targetDriftScore = tonumber(entry.targetDriftScore)
-  entry.targetDamagePctMax = tonumber(entry.targetDamagePctMax)
-  entry.raceRouteType = rCache.normalizeRaceRouteType(entry.raceRouteType) or
+    entry.raceRouteType = rCache.normalizeRaceRouteType(entry.raceRouteType) or
                           rCache.inferRouteTypeFromRaceLabel(disciplineId, entry.raceName, entry.raceLabel)
   local targetType = isValidTargetType(entry.targetType) and entry.targetType or nil
   entry.targetType = targetType
@@ -306,7 +296,39 @@ local function normalizeContractEntry(disciplineId, entry)
     end
     applyTargetData(entry, fallbackTarget)
   end
+end
 
+local function normalizeContractEntry(disciplineId, entry)
+  if type(entry) ~= "table" then
+    return
+  end
+  local vPool = gameplay_events_freContracts_vehiclePool
+
+  if not entry.requiredModel and entry.requiredModelFamily then
+    entry.requiredModel = entry.requiredModelFamily
+  end
+
+  local objectiveType = entry.objectiveType
+  if objectiveType ~= "laps" and objectiveType ~= "events" then
+    objectiveType = "events"
+  end
+  entry.objectiveType = objectiveType
+  entry.requiredCount = math.max(1, math.floor(tonumber(entry.requiredCount) or 1))
+  entry.progress = math.max(0, math.floor(tonumber(entry.progress) or 0))
+  entry.bestPerformanceRatio = math.max(0, tonumber(entry.bestPerformanceRatio) or 0)
+  local normalizedMoney = tonumber(entry.rewardMoney)
+  local normalizedXp = tonumber(entry.rewardXp)
+  entry.rewardMoney = math.max(0, math.floor(normalizedMoney or 0))
+  entry.rewardXp = math.max(0, math.floor(normalizedXp or 0))
+  entry.targetTime = tonumber(entry.targetTime)
+  entry.targetDriftScore = tonumber(entry.targetDriftScore)
+  entry.targetDamagePctMax = tonumber(entry.targetDamagePctMax)
+
+  if entry.rallyAllStages ~= nil then
+    normalizeRallyEventContractTargetTime(entry)
+  else
+    normalizeDefaultContractTargetTime(disciplineId, entry)
+  end
   if (not entry.requiredModelLabel or entry.requiredModelLabel == "") and type(entry.requiredModel) == "string" and entry.requiredModel ~= "" then
     entry.requiredModelLabel = vPool.getModelDisplayName(entry.requiredModel)
   end
@@ -440,6 +462,152 @@ local function purgeExpiredEntries(now)
   return changed
 end
 
+-- Resolves contract target from player PB or fallback tier benchmark
+local function resolveEventTarget(disciplineId, tier, model, raceEntry, contractCfg)
+  local helpers = gameplay_events_freContracts_helpers
+  local vPool = gameplay_events_freContracts_vehiclePool
+  local pbSeconds = vPool.getBestEventPbTimeSeconds(model, raceEntry)
+  if pbSeconds and pbSeconds > 0 and contractRaceUsesTimeTarget(disciplineId, raceEntry) then
+    return buildContractTargetFromPlayerPb(tier, pbSeconds, contractCfg, helpers)
+  end
+  return gameplay_events_freContracts_raceCache.buildTargetForTier(disciplineId, tier, raceEntry, contractCfg, nil, {
+    min = 1.0,
+    max = 1.1
+  }, "contract")
+end
+
+-- Computes scaled reward money and XP applying tier, event count, variance, and discipline modifiers
+local function calculateContractRewards(disciplineId, baseMoney, contractCfg, tier, countMult, vehicleRewardMult)
+  local helpers = gameplay_events_freContracts_helpers
+  local payoutMult = contractBasePayoutMultiplier(contractCfg, tier)
+  local varCfg = contractCfg.payoutVariance or {}
+  local varMin = tonumber(varCfg.min) or 0.95
+  local varMax = tonumber(varCfg.max) or 1.05
+  local variance = helpers.randomFloat(varMin, varMax)
+  local xpPct = tonumber(contractCfg.xpPercentOfMoney) or 0.5
+
+  local rawMoney = baseMoney * payoutMult * (tonumber(countMult) or 1) * variance * (tonumber(vehicleRewardMult) or 1)
+  local rawXp = rawMoney * xpPct
+
+  local raceMods = gameplay_events_freContracts_race
+  if raceMods and raceMods.calculateRewardModifiers then
+    local computed = raceMods.calculateRewardModifiers({disciplineId})
+    local dm = computed and computed.disciplineMultipliers and computed.disciplineMultipliers[disciplineId] or {}
+    rawMoney = rawMoney * (tonumber(dm.moneyMultiplier) or 1)
+    rawXp = rawXp * (tonumber(dm.xpMultiplier) or 1)
+  end
+
+  return scaleContractRewardPreview(disciplineId, rawMoney, rawXp)
+end
+
+local function isRallyStageRace(raceEntry)
+  if not raceEntry or raceEntry.isLapEvent then return false end
+  local label = type(raceEntry.raceLabel) == "string" and raceEntry.raceLabel:lower() or ""
+  local name = type(raceEntry.raceName) == "string" and raceEntry.raceName:lower() or ""
+  return label:find("stage", 1, true) ~= nil or name:find("stage", 1, true) ~= nil
+end
+
+local function getUniqueRallyStages(raceData)
+  local uniqueStages = {}
+  local seen = {}
+
+  for _, entry in ipairs(raceData) do
+    if isRallyStageRace(entry) then
+      if entry.raceName and not seen[entry.raceName] then
+        seen[entry.raceName] = true
+        table.insert(uniqueStages, entry)
+      end
+    end
+  end
+
+  table.sort(uniqueStages, function(a, b)
+    local nameA = a.raceLabel or a.raceName or ""
+    local nameB = b.raceLabel or b.raceName or ""
+    return nameA < nameB
+  end)
+
+  return uniqueStages
+end
+
+-- Builds a multi-stage Rally Event contract spanning all unique stages on the map
+local function buildRallyEventContract(disciplineId, tier, model, vehicleRewardMult, raceData, contractCfg)
+  local uniqueStages = getUniqueRallyStages(raceData)
+  if #uniqueStages < 2 then
+    return nil
+  end
+
+  local levelId = gameplay_events_freContracts_state.getCurrentLevelId() or ""
+  local stages = {}
+  local totalBaseMoney = 0
+
+  for _, stageEntry in ipairs(uniqueStages) do
+    local target = resolveEventTarget(disciplineId, tier, model, stageEntry, contractCfg)
+    local raceRow = readRaceRow(levelId, stageEntry.raceName, stageEntry.routeType)
+    local baseMoney = (raceRow and computeBaseMoneyAtTarget(target, raceRow)) or 350
+    totalBaseMoney = totalBaseMoney + baseMoney
+
+    table.insert(stages, {
+      raceName = stageEntry.raceName,
+      raceLabel = stageEntry.raceLabel or stageEntry.raceName,
+      routeType = stageEntry.routeType or "main",
+      targetTime = target and target.targetTime or nil,
+      targetLabel = target and target.targetLabel or nil
+    })
+  end
+
+  local firstStage = stages[1]
+  -- Payout: 1.25x completion bonus for clearing an entire multi-stage tour
+  local rewardMoney, rewardXp = calculateContractRewards(disciplineId, totalBaseMoney, contractCfg, tier, 1.25, vehicleRewardMult)  
+
+  return {
+    raceName = firstStage.raceName,
+    raceLabel = string.format("Rally Event (%d Stages)", #stages),
+    raceRouteType = firstStage.routeType,
+    targetType = "time",
+    targetTime = firstStage.targetTime,
+    objectiveType = "events",
+    requiredCount = #stages,
+    rewardMoney = rewardMoney,
+    rewardXp = rewardXp,
+    rallyAllStages = stages
+  }
+end
+
+local function buildDefaultContract(disciplineId, tier, model, vehicleRewardMult, raceEntry, contractCfg)
+  local targetData = resolveEventTarget(disciplineId, tier, model, raceEntry, contractCfg)
+  local objectiveType, requiredCount, impliedTotalSec = pickContractObjective(disciplineId, tier, raceEntry, targetData, contractCfg)
+  if not objectiveType or not requiredCount then
+    return nil
+  end
+
+  local levelId = gameplay_events_freContracts_state.getCurrentLevelId() or ""
+  local raceRow = readRaceRow(levelId, raceEntry.raceName, raceEntry.routeType)
+  local baseMoney = raceRow and computeBaseMoneyAtTarget(targetData, raceRow) or nil
+  if not baseMoney or baseMoney <= 0 then
+    return nil
+  end
+
+  local bonusPerUnit = tonumber(contractCfg.extraLapEventBonusPerUnit) or 0.33
+  local lapEventMult = 1.0 + (math.max(1, requiredCount) - 1) * bonusPerUnit
+  local rewardMoney, rewardXp = calculateContractRewards(disciplineId, baseMoney, contractCfg, tier, lapEventMult, vehicleRewardMult)
+
+  return {
+    raceName = raceEntry.raceName,
+    raceLabel = raceEntry.raceLabel,
+    raceRouteType = raceEntry.routeType,
+    targetType = targetData and targetData.targetType or "time",
+    targetTime = targetData and targetData.targetTime or nil,
+    targetDriftScore = targetData and targetData.targetDriftScore or nil,
+    targetDamagePctMax = targetData and targetData.targetDamagePctMax or nil,
+    objectiveType = objectiveType,
+    requiredCount = requiredCount,
+    impliedTotalSec = impliedTotalSec,
+    rewardMoney = rewardMoney,
+    rewardXp = rewardXp,
+  }
+end
+
+-- Generates a contract offer for a discipline, branching natively for multi-stage rally events
 local function generateContractOffer(disciplineId, level, now)
   local helpers = gameplay_events_freContracts_helpers
   local skills = gameplay_events_freContracts_skills
@@ -457,84 +625,55 @@ local function generateContractOffer(disciplineId, level, now)
   end
 
   local tier = unlockedTiers[helpers.randomInt(1, #unlockedTiers)]
-  local raceEntry = helpers.pickRandomFromList(raceData)
-  if not raceEntry then
-    return nil
-  end
-
   local model, modelSource, vehicleRewardMult = vPool.pickContractModel(disciplineId, contractCfg)
   if not model or model == "" then
     return nil
   end
 
-  local targetData
-  local pbSeconds = vPool.getBestEventPbTimeSeconds(model, raceEntry)
-  if pbSeconds and pbSeconds > 0 and contractRaceUsesTimeTarget(disciplineId, raceEntry) then
-    targetData = buildContractTargetFromPlayerPb(tier, pbSeconds, contractCfg, helpers)
-  else
-    targetData = rCache.buildTargetForTier(disciplineId, tier, raceEntry, contractCfg, nil, {
-      min = 1.0,
-      max = 1.1
-    }, "contract")
-  end
-
-  local objectiveType, requiredCount, impliedTotalSec = pickContractObjective(disciplineId, tier, raceEntry, targetData, contractCfg)
-  if not objectiveType or not requiredCount then
+  local raceEntry = helpers.pickRandomFromList(raceData)
+  if not raceEntry then
     return nil
   end
 
-  local levelId = gameplay_events_freContracts_state.getCurrentLevelId() or ""
-  local raceRow = readRaceRow(levelId, raceEntry.raceName, raceEntry.routeType)
-  local baseMoney = raceRow and computeBaseMoneyAtTarget(targetData, raceRow) or nil
-  if not baseMoney or baseMoney <= 0 then
+  local contractParams = nil
+  -- If a rally stage is selected, combine all map stages into a multi-stage tour where possible; otherwise fall back to standard contract
+  if disciplineId == "rally" and isRallyStageRace(raceEntry) then
+    contractParams = buildRallyEventContract(disciplineId, tier, model, vehicleRewardMult, raceData, contractCfg)
+  end
+  if contractParams == nil then
+    contractParams = buildDefaultContract(disciplineId, tier, model, vehicleRewardMult, raceEntry, contractCfg)
+  end
+  if not contractParams then
     return nil
   end
 
-  local payoutMult = contractBasePayoutMultiplier(contractCfg, tier)
-  local bonusPerUnit = tonumber(contractCfg.extraLapEventBonusPerUnit) or 0.33
-  local lapEventMult = math.max(1, requiredCount) * bonusPerUnit
-  local varCfg = contractCfg.payoutVariance or {}
-  local varMin = tonumber(varCfg.min) or 0.95
-  local varMax = tonumber(varCfg.max) or 1.05
-  local variance = helpers.randomFloat(varMin, varMax)
-  local xpPct = tonumber(contractCfg.xpPercentOfMoney) or 0.5
-
-  local rawMoney = baseMoney * payoutMult * lapEventMult * variance * (tonumber(vehicleRewardMult) or 1)
-  local rawXp = rawMoney * xpPct
-  local raceMods = gameplay_events_freContracts_race
-  if raceMods and raceMods.calculateRewardModifiers then
-    local computed = raceMods.calculateRewardModifiers({disciplineId})
-    local dm = computed and computed.disciplineMultipliers and computed.disciplineMultipliers[disciplineId] or {}
-    local moneyMult = tonumber(dm.moneyMultiplier) or 1
-    local xpMult = tonumber(dm.xpMultiplier) or 1
-    rawMoney = rawMoney * moneyMult
-    rawXp = rawXp * xpMult
-  end
-  local rewardMoney, rewardXp = scaleContractRewardPreview(disciplineId, rawMoney, rawXp)
-
+  local vPool = gameplay_events_freContracts_vehiclePool
   local expiryMinutes = tonumber(contractCfg.offerExpiryMinutes) or 5
-
+  local requiredCount = math.max(1, math.floor(tonumber(contractParams.requiredCount) or 1))
+  local isRallyTour = contractParams.rallyAllStages and #contractParams.rallyAllStages > 0
   return {
     id = gameplay_events_freContracts_state.nextId("fre-contract"),
     disciplineId = disciplineId,
     tier = tier,
-    raceName = raceEntry.raceName,
-    raceLabel = raceEntry.raceLabel,
-    raceRouteType = raceEntry.routeType,
-    targetType = targetData and targetData.targetType or "time",
-    targetTime = targetData and targetData.targetTime or nil,
-    targetDriftScore = targetData and targetData.targetDriftScore or nil,
-    targetDamagePctMax = targetData and targetData.targetDamagePctMax or nil,
+    raceName = contractParams.raceName,
+    raceLabel = contractParams.raceLabel,
+    raceRouteType = contractParams.raceRouteType,
+    targetType = contractParams.targetType or "time",
+    targetTime = contractParams.targetTime or nil,
+    targetDriftScore = contractParams.targetDriftScore or nil,
+    targetDamagePctMax = contractParams.targetDamagePctMax or nil,
+    rallyAllStages = isRallyTour and contractParams.rallyAllStages or nil,
+    rallyDoneStages = isRallyTour and {} or nil,
     requiredModel = model,
     requiredModelLabel = vPool.getModelDisplayName(model),
     modelSource = modelSource,
-    objectiveType = objectiveType,
+    objectiveType = contractParams.objectiveType,
     requiredCount = requiredCount,
-    impliedTotalSec = impliedTotalSec,
+    impliedTotalSec = contractParams.impliedTotalSec,
     progress = 0,
     bestPerformanceRatio = 0,
-    rewardMoney = rewardMoney,
-    rewardXp = rewardXp,
+    rewardMoney = contractParams.rewardMoney or 0,
+    rewardXp = contractParams.rewardXp or 0,
     expiresAt = now + expiryMinutes,
     createdAt = now
   }
