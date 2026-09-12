@@ -28,6 +28,9 @@ local NOTIFICATION_CHANNEL_APP_IDS = {
   ["carMeet.invite"] = "car-meet",
   ["racingTeam.raceReady"] = "racing-team",
   ["fre.contractReady"] = "fre-contracts",
+  ["fre.cars"] = "fre-contracts",
+  ["fre.difficulty"] = "fre-contracts",
+  ["fre.discipline"] = "fre-contracts",
   ["tuningShop.jobCompleted"] = "tuning-shop",
   ["tuningShop.jobFailed"] = "tuning-shop",
   ["tuningShop.jobAvailable"] = "tuning-shop",
@@ -134,6 +137,61 @@ end
 
 local imagePatterns = { "*.png", "*.jpg", "*.jpeg", "*.webp" }
 
+local function getDefaultFreNotificationFilters()
+  return {
+    cars = {
+      all = true,
+      owned = {},
+      other = true,
+    },
+    difficulty = {
+      all = true,
+      easy = true,
+      medium = true,
+      hard = true,
+    },
+    discipline = {
+      all = true,
+    },
+  }
+end
+
+local function normalizeFreNotificationFilters(raw)
+  local out = getDefaultFreNotificationFilters()
+  if type(raw) ~= "table" then
+    return out
+  end
+
+  if type(raw.cars) == "table" then
+    if raw.cars.all ~= nil then out.cars.all = raw.cars.all ~= false end
+    if raw.cars.other ~= nil then out.cars.other = raw.cars.other ~= false end
+    if type(raw.cars.owned) == "table" then
+      for k, v in pairs(raw.cars.owned) do
+        local carModel = string.lower(tostring(k))
+        out.cars.owned[carModel] = v ~= false
+      end
+    end
+  end
+
+  if type(raw.difficulty) == "table" then
+    if raw.difficulty.all ~= nil then out.difficulty.all = raw.difficulty.all ~= false end
+    if raw.difficulty.easy ~= nil then out.difficulty.easy = raw.difficulty.easy ~= false end
+    if raw.difficulty.medium ~= nil then out.difficulty.medium = raw.difficulty.medium ~= false end
+    if raw.difficulty.hard ~= nil then out.difficulty.hard = raw.difficulty.hard ~= false end
+  end
+
+  if type(raw.discipline) == "table" then
+    if raw.discipline.all ~= nil then out.discipline.all = raw.discipline.all ~= false end
+    for k, v in pairs(raw.discipline) do
+      if type(k) == "string" and k ~= "all" then
+        out.discipline[k] = v ~= false
+      end
+    end
+  end
+
+  return out
+end
+
 local function getDefaultSettings()
   return {
     phoneSize = 1,
@@ -141,6 +199,7 @@ local function getDefaultSettings()
     backgroundColor = "#1509fb",
     backgroundImage = "",
     notifications = {},
+    freNotificationFilters = getDefaultFreNotificationFilters(),
     doNotDisturb = false,
     doNotDisturbDurationMinutes = 0,
     doNotDisturbUntil = nil,
@@ -342,6 +401,7 @@ local function normalizeSettings(rawSettings)
     backgroundColor = backgroundColor,
     backgroundImage = backgroundImage,
     notifications = normalizeNotifications(settings.notifications),
+    freNotificationFilters = normalizeFreNotificationFilters(settings.freNotificationFilters),
     doNotDisturb = doNotDisturb,
     doNotDisturbDurationMinutes = normalizeDndDurationMinutes(settings.doNotDisturbDurationMinutes),
     doNotDisturbUntil = doNotDisturbUntil,
@@ -827,6 +887,81 @@ local function isNotificationEnabled(category)
   return true
 end
 
+local function isFreContractNotificationAllowed(offer)
+  if type(offer) ~= "table" then return true end
+  if not isNotificationEnabled("fre.contractReady") then
+    return false
+  end
+
+  local settings = getSettings()
+  if type(settings) ~= "table" then return true end
+
+  local filters = settings.freNotificationFilters
+  if type(filters) ~= "table" then return true end
+
+  local vPool = gameplay_events_freContracts_vehiclePool
+  if not vPool and extensions and extensions.load then
+    pcall(extensions.load, "gameplay_events_freContracts_vehiclePool")
+    vPool = gameplay_events_freContracts_vehiclePool
+  end
+
+  local diff = filters.difficulty
+  if type(diff) == "table" then
+    if diff.all == false or not isNotificationEnabled("fre.difficulty") then
+      return false
+    end
+    local tier = string.lower(tostring(offer.tier or "easy"))
+    if diff[tier] == false then
+      return false
+    end
+  end
+
+  local disc = filters.discipline
+  if type(disc) == "table" then
+    if disc.all == false or not isNotificationEnabled("fre.discipline") then
+      return false
+    end
+    local discId = tostring(offer.disciplineId or "")
+    if disc[discId] == false then
+      return false
+    end
+  end
+
+  -- 3. Cars check
+  local cars = filters.cars
+  if type(cars) == "table" then
+    if cars.all == false or not isNotificationEnabled("fre.cars") then
+      return false
+    end
+
+    local requiredModel = offer.requiredModel or offer.requiredModelFamily or offer.model
+    -- Contract does not require a specific vehicle ("any car")
+    if not requiredModel or requiredModel == "" then
+      return true
+    end
+
+    local ownedFilters = type(cars.owned) == "table" and cars.owned or {}
+    local vehicles = career_modules_inventory and career_modules_inventory.getVehicles and career_modules_inventory.getVehicles() or {}
+
+    local reqLower = string.lower(tostring(requiredModel))
+    for _, veh in pairs(vehicles) do
+      if veh.owned ~= false then
+        local vm = type(veh.model) == "string" and string.lower(veh.model) or nil
+        if vm then
+          local isMatch = (vPool and vPool.modelFamilyMatches) and vPool.modelFamilyMatches(requiredModel, vm) or (vm == reqLower)
+          if isMatch then
+            return ownedFilters[vm] ~= false
+          end
+        end
+      end
+    end
+
+    return cars.other ~= false
+  end
+
+  return true
+end
+
 -- Record a channel the first time it is ever fired, deriving a display label/group
 -- from the payload. Write-once: an app manifest can later override the label/grouping,
 -- but we never auto-update an already-known entry (avoids label thrash + disk churn).
@@ -1195,6 +1330,7 @@ M.updateLayout = updateLayout
 M.getSettings = getSettings
 M.updateSettings = updateSettings
 M.isNotificationEnabled = isNotificationEnabled
+M.isFreContractNotificationAllowed = isFreContractNotificationAllowed
 M.isDoNotDisturbActive = isDoNotDisturbActive
 M.isNotificationsMasterEnabled = isNotificationsMasterEnabled
 M.isAppInstalled = isAppInstalled

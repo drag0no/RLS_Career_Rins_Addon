@@ -21,6 +21,11 @@ export const DEFAULT_PHONE_SETTINGS = Object.freeze({
   backgroundColor: '#1509fb',
   backgroundImage: '',
   notifications: {},
+  freNotificationFilters: Object.freeze({
+    cars: Object.freeze({ all: true, owned: Object.freeze({}), other: true }),
+    difficulty: Object.freeze({ all: true, easy: true, medium: true, hard: true }),
+    discipline: Object.freeze({ all: true }),
+  }),
   doNotDisturb: false,
   doNotDisturbDurationMinutes: 0,
   doNotDisturbUntil: null,
@@ -95,6 +100,47 @@ function normalizeNotifications(value) {
       if (typeof key === 'string' && key) out[key] = enabled !== false
     }
   }
+  return out
+}
+
+function getDefaultFreNotificationFilters() {
+  return {
+    cars: { all: true, owned: {}, other: true },
+    difficulty: { all: true, easy: true, medium: true, hard: true },
+    discipline: { all: true },
+  }
+}
+
+function normalizeFreNotificationFilters(raw) {
+  const out = getDefaultFreNotificationFilters()
+  if (!raw || typeof raw !== 'object') return out
+
+  if (raw.cars && typeof raw.cars === 'object') {
+    if (raw.cars.all !== undefined) out.cars.all = raw.cars.all !== false
+    if (raw.cars.other !== undefined) out.cars.other = raw.cars.other !== false
+    if (raw.cars.owned && typeof raw.cars.owned === 'object') {
+      for (const [k, v] of Object.entries(raw.cars.owned)) {
+        out.cars.owned[String(k).toLowerCase()] = v !== false
+      }
+    }
+  }
+
+  if (raw.difficulty && typeof raw.difficulty === 'object') {
+    if (raw.difficulty.all !== undefined) out.difficulty.all = raw.difficulty.all !== false
+    if (raw.difficulty.easy !== undefined) out.difficulty.easy = raw.difficulty.easy !== false
+    if (raw.difficulty.medium !== undefined) out.difficulty.medium = raw.difficulty.medium !== false
+    if (raw.difficulty.hard !== undefined) out.difficulty.hard = raw.difficulty.hard !== false
+  }
+
+  if (raw.discipline && typeof raw.discipline === 'object') {
+    if (raw.discipline.all !== undefined) out.discipline.all = raw.discipline.all !== false
+    for (const [k, v] of Object.entries(raw.discipline)) {
+      if (k !== 'all') {
+        out.discipline[String(k)] = v !== false
+      }
+    }
+  }
+
   return out
 }
 
@@ -204,6 +250,7 @@ export function normalizePhoneSettings(value) {
   const backgroundColor = normalizeHexColor(src.backgroundColor)
   const backgroundImage = typeof src.backgroundImage === 'string' ? src.backgroundImage.trim() : ''
   const notifications = normalizeNotifications(src.notifications)
+  const freNotificationFilters = normalizeFreNotificationFilters(src.freNotificationFilters)
   const doNotDisturb = src.doNotDisturb === true
   const doNotDisturbDurationMinutes = normalizeDndDurationMinutes(src.doNotDisturbDurationMinutes)
   const doNotDisturbUntil = normalizeDndUntil(src.doNotDisturbUntil)
@@ -226,6 +273,7 @@ export function normalizePhoneSettings(value) {
     backgroundColor,
     backgroundImage,
     notifications,
+    freNotificationFilters,
     doNotDisturb: resolvedDnd,
     doNotDisturbDurationMinutes,
     doNotDisturbUntil: resolvedUntil,

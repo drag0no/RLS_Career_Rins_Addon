@@ -632,12 +632,17 @@ local function fireContractReadyNotification(offer)
   if type(offer) ~= "table" then
     return false
   end
+  if not ui_phone_layout and extensions and extensions.load then
+    pcall(extensions.load, "ui_phone_layout")
+  end
+  if ui_phone_layout and ui_phone_layout.isFreContractNotificationAllowed then
+    if not ui_phone_layout.isFreContractNotificationAllowed(offer) then
+      return false
+    end
+  end
   local payload = buildContractNotificationPayload(offer)
   if not payload then
     return false
-  end
-  if not ui_phone_layout and extensions and extensions.load then
-    pcall(extensions.load, "ui_phone_layout")
   end
   if not (ui_phone_layout and ui_phone_layout.fireNotification) then
     return false

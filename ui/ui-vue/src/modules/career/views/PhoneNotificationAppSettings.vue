@@ -77,22 +77,29 @@
               <span class="dropdown-meta">{{ groupEnabledCount(group) }}/{{ group.channels.length }}</span>
             </summary>
             <div class="dropdown-content notif-app-dropdown-content">
-              <button
-                v-for="channel in group.channels"
-                :key="channel.key"
-                type="button"
-                class="notif-row notif-row--child"
-                :class="{ on: isChannelEnabled(channel) }"
-                @click="toggleChannel(channel)"
-              >
-                <span class="notif-copy">
-                  <span class="notif-label">{{ channel.label }}</span>
-                  <span v-if="channel.description" class="notif-desc">{{ channel.description }}</span>
-                </span>
-                <span class="notif-switch" :class="{ on: isChannelEnabled(channel) }">
-                  <span class="notif-knob"></span>
-                </span>
-              </button>
+              <template v-for="channel in group.channels" :key="channel.key">
+                <PhoneSelectableChannel
+                  v-if="channel.selectable"
+                  v-show="isChannelVisible(channel, group)"
+                  :channel="channel"
+                />
+                <button
+                  v-else
+                  v-show="isChannelVisible(channel, group)"
+                  type="button"
+                  class="notif-row notif-row--child"
+                  :class="{ on: isChannelEnabled(channel) }"
+                  @click="toggleChannel(channel)"
+                >
+                  <span class="notif-copy">
+                    <span class="notif-label">{{ channel.label }}</span>
+                    <span v-if="channel.description" class="notif-desc">{{ channel.description }}</span>
+                  </span>
+                  <span class="notif-switch" :class="{ on: isChannelEnabled(channel) }">
+                    <span class="notif-knob"></span>
+                  </span>
+                </button>
+              </template>
             </div>
           </details>
         </template>
@@ -104,6 +111,7 @@
 <script setup>
 import { computed } from 'vue'
 import PhoneWrapper from './PhoneWrapper.vue'
+import PhoneSelectableChannel from '../components/phone/PhoneSelectableChannel.vue'
 import {
   useNotificationAccentStyle,
   usePhoneNotificationSettings,
@@ -139,6 +147,13 @@ const singleChannelGroups = computed(() =>
 const multiChannelGroups = computed(() =>
   notificationGroups.value.filter(g => g.channels.length > 1)
 )
+
+function isChannelVisible(channel, group) {
+  if (!channel.requiresChannel) return true
+
+  const parent = group.channels.find(c => c.key === channel.requiresChannel)
+  return parent ? isChannelEnabled(parent) : true
+}
 
 function groupEnabledCount(group) {
   return group.channels.filter(ch => isChannelEnabled(ch)).length
