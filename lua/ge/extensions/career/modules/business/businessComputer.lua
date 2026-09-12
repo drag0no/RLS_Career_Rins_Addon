@@ -1467,7 +1467,7 @@ local function renameTech(businessId, techId, newName)
   return false
 end
 
-local function pullOutVehicle(businessId, vehicleId)
+local function pullOutVehicle(businessId, vehicleId, jobId)
   if not businessId or not vehicleId then
     log('D', 'businessComputer.pullOut', 'abort: missing businessId or vehicleId')
     return false
@@ -1573,6 +1573,12 @@ local function pullOutVehicle(businessId, vehicleId)
       tostring(businessId), tostring(vehicleId)))
   if result and career_modules_business_businessInventory.setActiveVehicle then
     career_modules_business_businessInventory.setActiveVehicle(businessId, normalizedVehicleId)
+  end
+  if result then
+    local module = getBusinessModule(businessType)
+    if module and module.onVehiclePulledOut then
+      module.onVehiclePulledOut(businessId, normalizedVehicleId, jobId)
+    end
   end
   if result and guihooks then
     local vehiclesData = M.getVehiclesOnly(businessId)

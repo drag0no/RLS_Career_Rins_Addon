@@ -1095,7 +1095,7 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     } catch (_) {}
   }
 
-  const pullOutVehicle = async (vehicleId) => {
+  const pullOutVehicle = async (vehicleId, jobId) => {
     if (!businessId.value) {
       pullOutDiag("pullOutVehicle abort: no businessId", { vehicleId })
       return false
@@ -1106,8 +1106,8 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
       return false
     }
     try {
-      pullOutDiag("pullOutVehicle calling Lua", { businessId: businessId.value, vehicleId })
-      const raw = await lua.career_modules_business_businessComputer.pullOutVehicle(businessId.value, vehicleId)
+      pullOutDiag("pullOutVehicle calling Lua", { businessId: businessId.value, vehicleId, jobId })
+      const raw = await lua.career_modules_business_businessComputer.pullOutVehicle(businessId.value, vehicleId, jobId)
       pullOutDiag("pullOutVehicle Lua raw", { businessId: businessId.value, vehicleId, raw })
       if (raw && typeof raw === "object" && raw.success === false) {
         pullOutDiag("pullOutVehicle Lua failure", { errorCode: raw.errorCode, message: raw.message })

@@ -95,8 +95,8 @@
         {
           "id": "no-hard-feelings",
           "title": "No Hard Feelings",
-          "description": "Abandoning Jobs cost 5% less",
-          "detailedDescription": "Walking away hurts less.\n\n**Per Level**\n- Abandonment fee reduced by 5%\n- Safer to drop unprofitable or impossible jobs",
+          "description": "Abandon penalty reduced by 5% of payout",
+          "detailedDescription": "Walking away hurts less.\n\n**Per Level**\n- Abandon penalty reduced by 5% of job payout (base 50%, down to 25% at max level)\n- Safer to drop unprofitable or impossible jobs",
           "cost": {
             "base": 25000,
             "increment": 25000
@@ -272,7 +272,7 @@
           "id": "manager-speed",
           "title": "Manager Speed",
           "description": "Tech assignment time -3 min",
-          "detailedDescription": "Make the manager react quicker.\n\n**Per Level**\n- Assignment interval -2 minutes (down to 10)\n- Techs sit idle for less time between jobs",
+          "detailedDescription": "Make the manager react quicker.\n\n**Per Level**\n- Assignment interval -3 minutes (down to 15)\n- Techs sit idle for less time between jobs",
           "cost": {
             "base": 25000,
             "increment": 25000

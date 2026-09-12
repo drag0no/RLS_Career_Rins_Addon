@@ -1670,7 +1670,7 @@ local function getManagerAssignmentInterval(businessId)
 
   local speedLevel =
     career_modules_business_businessSkillTree.getNodeProgress(businessId, "automation", "manager-speed") or 0
-  local interval = baseInterval - (speedLevel * 120)
+  local interval = baseInterval - (speedLevel * 180)
   return math.max(600, interval)
 end
 
@@ -2146,12 +2146,7 @@ function jobCompletion.getLeaderboardBestTime(businessId, job)
 end
 
 function jobCompletion.normalizeTargetTime(job)
-  local targetTime = job.targetTime
-  local raceIdentifier = convertRaceTypeToIdentifier(job.raceType)
-  if raceIdentifier and (raceIdentifier == "track" or raceIdentifier:match("_alt$")) and targetTime > 1000 then
-    targetTime = targetTime * 60
-  end
-  return targetTime
+  return (job and tonumber(job.targetTime)) or 999999
 end
 
 function jobCompletion.evaluateGoalTime(businessId, job)
@@ -2269,7 +2264,7 @@ local function ensureActiveJobVehicles(businessId, jobs)
 
   local changed = false
   for _, job in ipairs(jobs.active or {}) do
-    if job.vehicleConfig then
+    if not job.techAssigned and job.vehicleConfig then
       local existing = nil
       if job.jobId ~= nil then
         existing = getVehicleByJobId(businessId, job.jobId)
@@ -2552,6 +2547,9 @@ local function saveBusinessJobs(businessId, currentSavePath)
       end
       if job.buildInvalidated then
         minimal.buildInvalidated = true
+      end
+      if job.playerWorkedOn then
+        minimal.playerWorkedOn = true
       end
     end
     return minimal
@@ -3187,96 +3185,98 @@ acceptJob = function(businessId, jobId)
   return true
 end
 
-local function processManagerAssignments(businessId)
-  if not businessId then
-    return false
+local function onVehiclePulledOut(businessId, vehicleId, jobId)
+  jobId = jobId or (career_modules_business_businessInventory
+    and career_modules_business_businessInventory.getJobIdFromVehicle
+    and career_modules_business_businessInventory.getJobIdFromVehicle(businessId, vehicleId))
+  local job = getJobById(businessId, jobId)
+  if job and not job.playerWorkedOn then
+    job.playerWorkedOn = true
+    local _, currentSavePath = career_saveSystem and career_saveSystem.getCurrentProfile and career_saveSystem.getCurrentProfile()
+    if currentSavePath then
+      saveBusinessJobs(businessId, currentSavePath)
+    end
+    if notifyJobsUpdated then
+      notifyJobsUpdated(businessId)
+    end
   end
+end
 
-  if not hasManager(businessId) then
+local function isJobPlayerControlled(job)
+  return (job and job.playerWorkedOn == true) or false
+end
+
+local function isJobEligibleForManager(job, techMaxTier, managerBlacklist)
+  if not job then return false end
+  
+  local jobTier = tonumber(job.tier) or 1
+  if jobTier > techMaxTier then return false end
+  
+  local modelKey = job.vehicleConfig and job.vehicleConfig.model_key
+  if modelKey and managerBlacklist and managerBlacklist[modelKey] then return false end
+  
+  return true
+end
+
+local function assignJobByManager(businessId, techId, jobId, timerState, isGeneralManager)
+  if tuningShopTechs.assignJobToTech(businessId, techId, jobId) then
+    if not isGeneralManager and timerState then
+      timerState.flagActive = false
+      managerTimers[businessId] = timerState
+    end
+    return true
+  end
+  return false
+end
+
+local function processManagerAssignments(businessId)
+  if not businessId or not hasManager(businessId) then
     return false
   end
 
   local timerState = getManagerTimerState(businessId)
-  
   if timerState.paused == true then
     return false
   end
 
   local isGeneralManager = hasGeneralManager(businessId)
-  local flagActive = isGeneralManager or timerState.flagActive
-
-  if not flagActive then
+  if not (isGeneralManager or timerState.flagActive) then
     return false
   end
 
   local idleTechs = tuningShopTechs.getIdleTechs(businessId)
-  if #idleTechs == 0 then
-    return false
-  end
-
-  if not tuningShopTechs.canAssignTechToJob(businessId) then
+  if #idleTechs == 0 or not tuningShopTechs.canAssignTechToJob(businessId) then
     return false
   end
 
   local jobs = loadBusinessJobs(businessId)
-  if not jobs.new or #jobs.new == 0 then
-    return false
-  end
-
-  local maxActiveJobs = getMaxActiveJobs(businessId)
-  local currentActiveCount = #(jobs.active or {})
-
-  if currentActiveCount >= maxActiveJobs then
-    return false
-  end
-
   local techMaxTier = tuningShopTechs.getTechMaxTier(businessId)
   local managerBlacklist = getManagerBlacklist(businessId)
-  local suitableJob = nil
-
-  for i, newJob in ipairs(jobs.new) do
-    local jobTier = tonumber(newJob.tier) or 1
-    if jobTier <= techMaxTier then
-      local jobModelKey = newJob.vehicleConfig and newJob.vehicleConfig.model_key
-      if jobModelKey and managerBlacklist[jobModelKey] then
-        goto continue
-      end
-      suitableJob = newJob
-      break
-    end
-    ::continue::
-  end
-
-  if not suitableJob then
-    return false
-  end
-
-  local jobId = tonumber(suitableJob.jobId) or suitableJob.jobId
-  if not jobId then
-    return false
-  end
-
-  local acceptSuccess = acceptJob(businessId, jobId)
-  if not acceptSuccess then
-    return false
-  end
-
   local idleTech = idleTechs[1]
-  if not idleTech then
-    return false
+
+  -- 1. Try to assign from active jobs pool first (highest reward first)
+  table.sort(jobs.active or {}, function(a, b) return (tonumber(a.reward) or 0) > (tonumber(b.reward) or 0) end)
+  for _, job in ipairs(jobs.active or {}) do
+    if not job.techAssigned and not isJobPlayerControlled(job) and isJobEligibleForManager(job, techMaxTier, managerBlacklist) then
+      local jobId = tonumber(job.jobId) or job.jobId
+      return assignJobByManager(businessId, idleTech.id, jobId, timerState, isGeneralManager)
+    end
   end
 
-  local assignSuccess, assignError = tuningShopTechs.assignJobToTech(businessId, idleTech.id, jobId)
-  if not assignSuccess then
-    return false
+  -- 2. If no active jobs available, pick from new offers pool if capacity allows
+  if #(jobs.active or {}) < getMaxActiveJobs(businessId) then
+    table.sort(jobs.new or {}, function(a, b) return (tonumber(a.reward) or 0) > (tonumber(b.reward) or 0) end)
+    for _, job in ipairs(jobs.new or {}) do
+      if isJobEligibleForManager(job, techMaxTier, managerBlacklist) then
+        local jobId = tonumber(job.jobId) or job.jobId
+        if acceptJob(businessId, jobId) then
+          return assignJobByManager(businessId, idleTech.id, jobId, timerState, isGeneralManager)
+        end
+      end
+    end
   end
 
-  if not isGeneralManager then
-    timerState.flagActive = false
-    managerTimers[businessId] = timerState
-  end
-
-  return true
+  return false
 end
 
 local function declineJob(businessId, jobId)
@@ -3622,7 +3622,8 @@ local function formatJobForUI(job, businessId)
     canComplete = completionStatus.canComplete or false,
     goalTimeMet = completionStatus.goalTimeMet or false,
     buildChanged = completionStatus.buildChanged or false,
-    completionBlockedMessage = completionStatus.blockedMessage
+    completionBlockedMessage = completionStatus.blockedMessage,
+    playerWorkedOn = isJobPlayerControlled(job)
   }
 end
 
@@ -5209,5 +5210,6 @@ M.getActivePersonalVehicle = getActivePersonalVehicle
 M.clearActivePersonalVehicle = clearActivePersonalVehicle
 M.getDamageThreshold = getDamageThreshold
 M.getBusinessObject = function() return businessObject end
+M.onVehiclePulledOut = onVehiclePulledOut
 
 return M

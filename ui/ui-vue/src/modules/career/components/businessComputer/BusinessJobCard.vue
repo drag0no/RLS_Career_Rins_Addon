@@ -58,6 +58,19 @@
             <div class="progress-bar-sleek">
               <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
             </div>
+            <div v-if="isPlayerControlled" class="player-managed-hint player-managed-hint--manual" title="You are working on this vehicle. Manager will not auto-assign it.">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>Player Assigned (No Auto-Assign)</span>
+            </div>
+            <div v-else class="player-managed-hint player-managed-hint--auto" title="Available for Manager auto-assignment to an idle technician.">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Auto-Assign Allowed</span>
+            </div>
             <div v-if="completionBlockedMessage" class="lock-message build-changed-message">
               {{ completionBlockedMessage }}
             </div>
@@ -206,6 +219,19 @@
             </div>
             <div class="progress-bar-sleek">
               <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+            </div>
+            <div v-if="isPlayerControlled" class="player-managed-hint player-managed-hint--manual" title="You are working on this vehicle. Manager will not auto-assign it.">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>Player Assigned (No Auto-Assign)</span>
+            </div>
+            <div v-else class="player-managed-hint player-managed-hint--auto" title="Available for Manager auto-assignment to an idle technician.">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <span>Auto-Assign Allowed</span>
             </div>
             <div v-if="completionBlockedMessage" class="lock-message build-changed-message">
               {{ completionBlockedMessage }}
@@ -541,6 +567,10 @@ const progressPercent = computed(() => {
 
 const isPulledOut = computed(() => {
   return !!pulledOutVehicleForJob.value
+})
+
+const isPlayerControlled = computed(() => {
+  return props.job?.playerWorkedOn === true || isPulledOut.value
 })
 
 const liftsFull = computed(() => {
@@ -1156,6 +1186,29 @@ watch(() => [vehicleForJob.value?.kitInstallTimeRemaining, pulledOutVehicleForJo
   .progress-fill {
     height: 100%;
     background: #f97316;
+  }
+}
+
+.player-managed-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.75em;
+  margin-top: 0.35em;
+  letter-spacing: 0.02em;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  &--manual {
+    color: #38bdf8;
+    opacity: 0.9;
+  }
+
+  &--auto {
+    color: #4ade80;
+    opacity: 0.85;
   }
 }
 

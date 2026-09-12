@@ -198,7 +198,7 @@ const handlePullOut = async (job) => {
   }
 
   pullOutDiag("Home handlePullOut calling store.pullOutVehicle", { jobId, vehicleId: vehicle.vehicleId })
-  await store.pullOutVehicle(vehicle.vehicleId)
+  await store.pullOutVehicle(vehicle.vehicleId, jobId)
 }
 
 const handlePutAway = async () => {
