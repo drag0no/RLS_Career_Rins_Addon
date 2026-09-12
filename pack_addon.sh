@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# pack_tweakmod.sh
-# Runs pack_tweakmod.py and moves the generated zip to BeamNG custom mods folder.
-# Usage: ./pack_tweakmod.sh [base_branch] [output_zip]
+# pack_addon.sh
+# Runs pack_addon.py and moves the generated zip to BeamNG custom mods folder.
+# Usage: ./pack_addon.sh [base_branch] [output_zip]
 # ==============================================================================
 set -euo pipefail
 
@@ -22,9 +22,9 @@ if [ -z "$PYTHON_BIN" ]; then
   exit 1
 fi
 
-OUTPUT_ZIP="${2:-$("$PYTHON_BIN" pack_tweakmod.py --name)}"
+OUTPUT_ZIP="${2:-$("$PYTHON_BIN" pack_addon.py --name)}"
 
-"$PYTHON_BIN" pack_tweakmod.py "$@"
+"$PYTHON_BIN" pack_addon.py "$@"
 
 if [ -f "$OUTPUT_ZIP" ]; then
   # Normalize LocalAppData path for MinGW / Linux compatibility
@@ -50,5 +50,5 @@ if [ -f "$OUTPUT_ZIP" ]; then
 
   echo "==> Moving '$OUTPUT_ZIP' to '$TARGET_DIR/'..."
   mv -f "$OUTPUT_ZIP" "$TARGET_DIR/"
-  echo "==> Successfully installed tweakmod to: $TARGET_DIR/$OUTPUT_ZIP"
+  echo "==> Successfully installed addon to: $TARGET_DIR/$OUTPUT_ZIP"
 fi

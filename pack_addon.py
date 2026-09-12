@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-pack_tweakmod.py
-Packages added and modified game files compared to the master branch
-into a tweakmod zip file with mod_info.json for BeamNG.drive.
+pack_addon.py
+Packages added and modified game files compared to the rls-release branch
+into an addon zip file with mod_info.json for BeamNG.drive.
 """
 
 import json
@@ -11,12 +11,12 @@ import subprocess
 import sys
 import zipfile
 
-DEFAULT_BASE = "master"
-CONFIG_FILE = "pack_tweakmod.json"
+DEFAULT_BASE = "rls-release"
+CONFIG_FILE = "pack_addon.json"
 
 EXCLUDE_EXTS = (".md", ".txt", ".sh", ".py", ".pyc", ".zip")
 EXCLUDE_PREFIXES = ("guides/", "docs/", "licenses/", ".git", ".vscode/", ".idea/", "__pycache__/")
-EXCLUDE_FILES = (CONFIG_FILE)
+EXCLUDE_FILES = (CONFIG_FILE,)
 
 
 def get_git_root():
