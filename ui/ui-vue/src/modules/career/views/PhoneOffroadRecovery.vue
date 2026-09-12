@@ -207,10 +207,13 @@ function confirmAbandon() {
 
 onMounted(() => {
   events.on('updateOffroadRecoveryState', applyState)
-  callModLua('gameplay_offroadRecovery.requestState')
+  callModLua('gameplay_offroadRecovery.setUiAppOpen', true)
 })
 
-onUnmounted(() => events.off('updateOffroadRecoveryState', applyState))
+onUnmounted(() => {
+  events.off('updateOffroadRecoveryState', applyState)
+  callModLua('gameplay_offroadRecovery.setUiAppOpen', false)
+})
 </script>
 
 <style scoped lang="scss">

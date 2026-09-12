@@ -50,6 +50,7 @@ local runtimeByVehicleId = {}
 local lastCompletion
 local updateTimer = 0
 local uiTimer = 0
+local uiAppOpen = false
 local clearTasklistTimer = nil
 local TASKLIST_CLEAR_SECONDS = 10
 local initialized = false
@@ -1907,6 +1908,13 @@ function M.requestState()
   guihooks.trigger("updateOffroadRecoveryState", M.getState())
 end
 
+function M.setUiAppOpen(open)
+  uiAppOpen = open == true
+  if uiAppOpen then
+    M.requestState()
+  end
+end
+
 local function commitOffer(offer, yard)
   local cashReward, distance, payBreakdown = fixedCashQuote(offer, yard)
   local job = {
@@ -2232,6 +2240,7 @@ local function onClientEndMission()
   if trackedRouteActive and core_groundMarkers then core_groundMarkers.setPath(nil) end
   trackedRouteKey = nil
   trackedRouteActive = false
+  uiAppOpen = false
   saveStateToPath(savePath)
 end
 
@@ -2315,7 +2324,9 @@ local function onUpdate(dtReal, dtSim)
   end
   if uiTimer >= 1 then
     uiTimer = 0
-    M.requestState()
+    if uiAppOpen then
+      M.requestState()
+    end
   end
 end
 

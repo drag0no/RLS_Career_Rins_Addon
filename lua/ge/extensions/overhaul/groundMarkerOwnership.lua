@@ -14,6 +14,7 @@ local origOnPreRender
 local generation = 0
 local lastReseedAt = 0
 local RESEED_INTERVAL = 0.5
+local hooksInstalled = false
 
 local function currentGeneration()
   return generation
@@ -131,7 +132,15 @@ end
 local function install()
   local gm = rawget(_G, 'core_groundMarkers')
   if type(gm) ~= 'table' or type(gm.setPath) ~= 'function' then
+    hooksInstalled = false
     return false
+  end
+
+  if hooksInstalled and gm.setPath == wrappedSetPath
+    and (not origOnPreRender or gm.onPreRender == wrappedOnPreRender)
+    and (not origSendToApp or gm.sendToApp == wrappedSendToApp)
+    and (not origGenerateRouteDecals or gm.generateRouteDecals == wrappedGenerateRouteDecals) then
+    return true
   end
 
   if gm.setPath ~= wrappedSetPath then
@@ -162,6 +171,7 @@ local function install()
       extensions.hookUpdate('onPreRender')
     end
   end
+  hooksInstalled = true
   return true
 end
 

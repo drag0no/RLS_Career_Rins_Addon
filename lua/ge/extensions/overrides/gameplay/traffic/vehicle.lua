@@ -322,19 +322,24 @@ function C:checkCollisions() -- checks for contact with other tracked vehicles
   for id, veh in pairs(map.objects) do
     if self.id ~= id then
       if not veh or not veh.pos then goto continue end
+
+      local objectCollisions = veh.objectCollisions
+      local isCurrentCollision = objectCollisions and objectCollisions[self.id] == 1
+      local collision = self.collisions[id]
+
+      if not collision and not isCurrentCollision then
+        goto continue
+      end
+
       local otherObj = getObjectByID(id)
       if not otherObj then
-        if self.collisions[id] then
+        if collision then
           self.collisions[id] = nil
         end
         goto continue
       end
 
-      local mapObj = map.objects[id]
-      local objectCollisions = mapObj and mapObj.objectCollisions
-      local isCurrentCollision = objectCollisions and objectCollisions[self.id] == 1
-
-      if not self.collisions[id] and isCurrentCollision then
+      if not collision and isCurrentCollision then
         local bb1 = selfObj:getSpawnWorldOOBB()
         local bb2 = otherObj:getSpawnWorldOOBB()
 
@@ -590,6 +595,28 @@ function C:checkTimeOfDay() -- checks time of day
   return isDaytime
 end
 
+function C:checkTunnel(isDaytime) -- checks if vehicle is inside a tunnel
+  if not isDaytime then return false end -- headlights are on at night anyway
+
+  local terrain = core_terrain.getTerrain()
+  local terrainHeight = terrain and core_terrain.getTerrainHeight(self.pos) or 0
+  local isTunnel = self.pos.z < terrainHeight
+
+  -- If terrain is at default height (e.g. custom mesh tunnel, bridge, or parking structure),
+  -- only shoot the 3 ceiling raycasts if within 200m to prevent distant raycast waste:
+  local terrainHeightDefault = terrain and terrain:getPosition().z or 0
+  if terrainHeight == terrainHeightDefault and self.focusDist <= 200 then
+    local mapObj = map.objects[self.id]
+    if mapObj then
+      local raisedPos = self.pos + vecUp * 10
+      local sideVec = mapObj.dirVec:cross(mapObj.dirVecUp) * 5
+      isTunnel = not self:checkRayCast(nil, raisedPos) and not self:checkRayCast(nil, raisedPos - sideVec) and not self:checkRayCast(nil, raisedPos + sideVec)
+    end
+  end
+
+  return isTunnel
+end
+
 function C:onVehicleResetted() -- triggers whenever vehicle resets (automatically or manually)
   if self.role.flags.freeze then
     local obj = getObjectByID(self.id)
@@ -660,7 +687,7 @@ function C:onTrafficTick(tickTime)
   end
 
   if self.isAi then
-    self.camVisible = self:checkRayCast(self.focus.pos)
+    self.camVisible = (self.focusDist <= 400) and self:checkRayCast(self.focus.pos) or false
     self:updateActiveRadius(tickTime)
 
     if self.respawnSpeed then
@@ -674,17 +701,7 @@ function C:onTrafficTick(tickTime)
 
     if self.state == 'active' then
       local isDaytime = self:checkTimeOfDay()
-      local terrainHeight = core_terrain.getTerrain() and core_terrain.getTerrainHeight(self.pos) or 0
-      local terrainHeightDefault = core_terrain.getTerrain() and core_terrain.getTerrain():getPosition().z or 0
-      local isTunnel = self.pos.z < terrainHeight
-      if terrainHeight == terrainHeightDefault then
-        local mapObj = map.objects[self.id]
-        if mapObj then
-          local raisedPos = self.pos + vecUp * 10
-          local sideVec = mapObj.dirVec:cross(mapObj.dirVecUp) * 5
-          isTunnel = not self:checkRayCast(nil, raisedPos) and not self:checkRayCast(nil, raisedPos - sideVec) and not self:checkRayCast(nil, raisedPos + sideVec)
-        end
-      end
+      local isTunnel = self:checkTunnel(isDaytime)
       if (isTunnel or not isDaytime) and not self.headlights then
         local coef = min(4, 200 / self.focusDist)
         self.queuedFuncs.headlights = {timer = random() * coef, vLua = 'electrics.setLightsState(1)'}
