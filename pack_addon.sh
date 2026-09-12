@@ -2,7 +2,7 @@
 # ==============================================================================
 # pack_addon.sh
 # Runs pack_addon.py and moves the generated zip to BeamNG custom mods folder.
-# Usage: ./pack_addon.sh [base_branch] [output_zip]
+# Usage: ./pack_addon.sh [--major|--minor|--fix] [base_branch] [output_zip]
 # ==============================================================================
 set -euo pipefail
 
@@ -22,9 +22,37 @@ if [ -z "$PYTHON_BIN" ]; then
   exit 1
 fi
 
-OUTPUT_ZIP="${2:-$("$PYTHON_BIN" pack_addon.py --name)}"
+BUMP_TYPE=""
+PASSTHROUGH_ARGS=()
 
-"$PYTHON_BIN" pack_addon.py "$@"
+for arg in "$@"; do
+  case "$arg" in
+    --major) BUMP_TYPE="major" ;;
+    --minor) BUMP_TYPE="minor" ;;
+    --fix|--patch) BUMP_TYPE="fix" ;;
+    *) PASSTHROUGH_ARGS+=("$arg") ;;
+  esac
+done
+
+if [ -n "$BUMP_TYPE" ]; then
+  # Ensure working directory is clean before releasing
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "Error: Working directory has uncommitted changes. Commit or stash them before releasing." >&2
+    exit 1
+  fi
+
+  NEW_VERSION="$("$PYTHON_BIN" pack_addon.py --bump "$BUMP_TYPE")"
+  echo "==> Bumped version to v$NEW_VERSION"
+
+  git add pack_addon.json
+  git commit -m "chore(release): v$NEW_VERSION"
+  git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+  echo "==> Created Git commit and tag 'v$NEW_VERSION'"
+fi
+
+OUTPUT_ZIP="${PASSTHROUGH_ARGS[1]:-$("$PYTHON_BIN" pack_addon.py --name)}"
+
+"$PYTHON_BIN" pack_addon.py ${PASSTHROUGH_ARGS[@]+"${PASSTHROUGH_ARGS[@]}"}
 
 if [ -f "$OUTPUT_ZIP" ]; then
   # Normalize LocalAppData path for MinGW / Linux compatibility
@@ -51,4 +79,8 @@ if [ -f "$OUTPUT_ZIP" ]; then
   echo "==> Moving '$OUTPUT_ZIP' to '$TARGET_DIR/'..."
   mv -f "$OUTPUT_ZIP" "$TARGET_DIR/"
   echo "==> Successfully installed addon to: $TARGET_DIR/$OUTPUT_ZIP"
+fi
+
+if [ -n "$BUMP_TYPE" ]; then
+  echo "==> Release complete! Tip: Push commit & tag with: git push --follow-tags"
 fi

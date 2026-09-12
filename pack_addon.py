@@ -36,6 +36,37 @@ def load_config():
         return json.load(f)
 
 
+def bump_version(part):
+    config = load_config()
+    parts = config.get("version", "1.0.0").split(".")
+    major = int(parts[0]) if len(parts) > 0 else 0
+    minor = int(parts[1]) if len(parts) > 1 else 0
+    fix = int(parts[2]) if len(parts) > 2 else 0
+
+    if part == "major":
+        major += 1
+        minor = 0
+        fix = 0
+    elif part == "minor":
+        minor += 1
+        fix = 0
+    elif part in ("fix", "patch"):
+        fix += 1
+    else:
+        print(f"Error: Unknown bump type '{part}'. Use major, minor, or fix.", file=sys.stderr)
+        sys.exit(1)
+
+    new_version = f"{major}.{minor}.{fix}"
+    config["version"] = new_version
+
+    config_path = os.path.join(get_git_root(), CONFIG_FILE)
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+        f.write("\n")
+
+    return new_version
+
+
 def get_default_output(config=None):
     if config is None:
         config = load_config()
@@ -75,6 +106,14 @@ def is_game_file(path):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--bump":
+        if len(sys.argv) < 3:
+            print("Error: --bump requires major, minor, or fix", file=sys.stderr)
+            sys.exit(1)
+        os.chdir(get_git_root())
+        print(bump_version(sys.argv[2]))
+        return
+
     if len(sys.argv) > 1 and sys.argv[1] in ("--name", "-n"):
         print(get_default_output())
         return
