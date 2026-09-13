@@ -1600,14 +1600,12 @@ local function onUpdate(dtReal, dtSim, dtRaw)
         return
     end
 
-    if not currentRouteActive or not routeInitialized then
-        return
-    end
-
-    uiUpdateTimer = uiUpdateTimer + (dtSim or 0.033)
-    if uiUpdateTimer > 0.5 then
-        uiUpdateTimer = 0
-        updateTasklist()
+    if currentRouteActive and routeInitialized then
+        uiUpdateTimer = uiUpdateTimer + (dtSim or 0.033)
+        if uiUpdateTimer > 0.5 then
+            uiUpdateTimer = 0
+            updateTasklist()
+        end
     end
 
     if routeCooldown > 0 then
@@ -1616,7 +1614,7 @@ local function onUpdate(dtReal, dtSim, dtRaw)
     end
 
     local vehicle = be:getPlayerVehicle(0)
-    if not vehicle or not isBus(vehicle) then
+    if not vehicle or not isBus(vehicle) or not routeInitialized then
         return
     end
 

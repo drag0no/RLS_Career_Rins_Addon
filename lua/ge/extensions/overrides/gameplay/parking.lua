@@ -39,8 +39,6 @@ local parkingSpotsAmount = 0
 local respawnDelay = 0
 local parkingSpawnPending = false
 local setupVehicles
-local FAR_INACTIVE_INTERVAL = 1.0
-local farInactiveTimer = 0
 local applyFarInactive
 
 M.debugLevel = 0
@@ -509,7 +507,7 @@ local function enforceParkedCarCap()
   if cap == nil then return end
 
   if vehPool then
-    vehPool:setMaxActiveAmount(math.min(vars and vars.activeAmount or math.huge, math.max(0, cap)))
+    vehPool:setMaxActiveAmount(math.max(0, cap))
   end
 
   local extras = {}
@@ -752,11 +750,10 @@ local function insertVehicle(vehId) -- inserts a new vehicle into the parked car
       return
     end
 
-    local activeCap = math.min(vars and vars.activeAmount or math.huge, cap or math.huge)
     if not vehPool then
-      vehPool = core_vehicleActivePooling.createPool({name = "autoParking", maxActiveAmount = activeCap})
+      vehPool = core_vehicleActivePooling.createPool({name = "autoParking", maxActiveAmount = cap or math.huge})
     elseif cap then
-      vehPool:setMaxActiveAmount(activeCap)
+      vehPool:setMaxActiveAmount(cap)
     end
 
     obj.uiState = 0
@@ -823,21 +820,12 @@ applyFarInactive = function()
   end
   local origin = select(1, getPlayerPos()) or (focus and focus.pos)
   if not origin then return end
-  local keepDist = max(keepActiveRadius, keepActiveRadius + (focus and focus.speed or 0) * FAR_INACTIVE_INTERVAL)
-  local keepSq = square(keepDist)
+  local keepSq = square(keepActiveRadius)
   for _, vehId in ipairs(parkedVehIds) do
     local obj = getObjectByID(vehId)
     if obj then
       vehPool:setVeh(vehId, obj:getPosition():squaredDistance(origin) <= keepSq)
     end
-  end
-end
-
-local function updateActivePooling(dtSim)
-  farInactiveTimer = farInactiveTimer + dtSim
-  if farInactiveTimer >= FAR_INACTIVE_INTERVAL then
-    farInactiveTimer = 0
-    applyFarInactive()
   end
 end
 
@@ -1041,7 +1029,6 @@ local function resetAll() -- resets everything
   sites = nil
   parkingSpotsAmount = 0
   parkingSpawnPending = false
-  farInactiveTimer = 0
   table.clear(parkedVehIds)
   table.clear(parkedVehData)
   table.clear(trackedVehData)
@@ -1163,8 +1150,6 @@ local function onUpdate(dt, dtSim)
       end
     end
   end
-
-  updateActivePooling(dtSim)
 
   local parkedVehCount = #parkedVehIds
   if not parkedVehIds[1] or parkedVehCount >= parkingSpotsAmount then return end -- unable to teleport vehicles to new parking spots

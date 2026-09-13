@@ -5,11 +5,10 @@ local M = {}
 
 M.dependencies = {'career_career', 'gameplay_walk'}
 
-local playerData = {maxTrafficAmount = 0, maxParkingAmount = 0, defaultTrafficAmount = 1, trafficActive = 0, parkingActive = 0}
+local playerData = {maxTrafficAmount = 0, maxParkingAmount = 0, defaultTrafficAmount = 1, trafficActive = 0}
 local tutorialTrafficRestoreActive = nil
 local tutorialParkingRestoreActive = nil
 local trafficSetupInProgress = false
-local dynamicActiveLimits
 local testTrafficAmounts = {
   traffic = 1,
   police = 0,
@@ -226,27 +225,6 @@ local function getFallbackTrafficAmounts()
   return trafficAmount, parkingAmount
 end
 
-local function getDynamicActiveLimits()
-  if dynamicActiveLimits then return dynamicActiveLimits.traffic, dynamicActiveLimits.parked end
-  local cpu = Engine and Engine.Platform and Engine.Platform.getCPUInfo and Engine.Platform.getCPUInfo()
-  local phys = cpu and cpu.coresPhysical or 6
-  local logi = cpu and cpu.coresLogical or phys
-
-  -- Effective capacity: physical cores + 30% benefit from SMT threads
-  local smtThreads = math.max(0, logi - phys)
-  local capacity = phys + (smtThreads * 0.3)
-
-  -- Reserve ~1.0 core capacity for main GE thread, rendering, and audio
-  local physicsBudget = math.max(4, math.floor(capacity - 1.0))
-
-  -- 1 vehicle reserved for player; remainder split ~58% traffic, 42% parked
-  local aiBudget = physicsBudget - 1
-  local maxTraffic = clamp(math.floor(aiBudget * 0.58 + 0.5), 2, 8)
-  local maxParked = clamp(math.floor(aiBudget * 0.42 + 0.5), 1, 6)
-  dynamicActiveLimits = {traffic = maxTraffic, parked = maxParked}
-  return maxTraffic, maxParked
-end
-
 local function setupTraffic(forceSetup)
   -- Several 0.39 career lifecycle hooks can arrive during the same level load.
   -- setupTrafficHelper is asynchronous, so maxTrafficAmount is still zero while
@@ -269,12 +247,10 @@ local function setupTraffic(forceSetup)
     trafficAmount, parkingAmount = testTrafficAmounts.traffic, testTrafficAmounts.parkedCars
   end
 
-  local maxTraffic, maxParked = getDynamicActiveLimits()
-  playerData.trafficActive = restrict and testTrafficAmounts.active or clamp(trafficAmount, 1, maxTraffic)
+  playerData.trafficActive = restrict and testTrafficAmounts.active or trafficAmount
   if playerData.trafficActive == 0 then
     playerData.trafficActive = math.huge
   end
-  playerData.parkingActive = clamp(parkingAmount, 0, maxParked)
   playerData.desiredParkingAmount = parkingAmount
 
   local trafficOptions = {
@@ -285,8 +261,8 @@ local function setupTraffic(forceSetup)
   trafficSetupInProgress = true
   local ok, err = xpcall(function()
     gameplay_traffic.setupTrafficHelper(trafficAmount, trafficOptions, parkingAmount, nil)
-    gameplay_traffic.setActiveAmount(playerData.trafficActive)
-    gameplay_parking.setActiveAmount(playerData.parkingActive)
+    gameplay_traffic.setActiveAmount(trafficAmount)
+    gameplay_parking.setActiveAmount(parkingAmount)
     setTrafficVars()
   end, debug.traceback)
   if not ok then
@@ -307,12 +283,10 @@ local function onSettingsChanged()
     trafficAmount, parkingAmount = testTrafficAmounts.traffic, testTrafficAmounts.parkedCars
   end
 
-  local maxTraffic, maxParked = getDynamicActiveLimits()
-  playerData.trafficActive = restrict and testTrafficAmounts.active or clamp(trafficAmount, 1, maxTraffic)
+  playerData.trafficActive = restrict and testTrafficAmounts.active or trafficAmount
   if playerData.trafficActive == 0 then
     playerData.trafficActive = math.huge
   end
-  playerData.parkingActive = clamp(parkingAmount, 0, maxParked)
   playerData.desiredParkingAmount = parkingAmount
 
   if gameplay_traffic.getState() == "on" then
@@ -320,7 +294,7 @@ local function onSettingsChanged()
   end
 
   if gameplay_parking.getState() then
-    gameplay_parking.setActiveAmount(playerData.parkingActive)
+    gameplay_parking.setActiveAmount(parkingAmount)
     if gameplay_parking.syncParkedCount then
       gameplay_parking.syncParkedCount()
     end
@@ -387,10 +361,8 @@ local function restoreTrafficAfterTutorialPhase()
     gameplay_traffic.toggle(true)
   end
 
-  local _, maxParked = getDynamicActiveLimits()
-  playerData.parkingActive = clamp(parkedAmount, 0, maxParked)
   gameplay_traffic.setActiveAmount(trafficAmount)
-  gameplay_parking.setActiveAmount(playerData.parkingActive)
+  gameplay_parking.setActiveAmount(parkedAmount)
 
   setTrafficAfterTutorial()
 end
@@ -535,9 +507,6 @@ local function onTrafficStarted()
     if playerData.trafficActive and playerData.trafficActive > 0 then
       gameplay_traffic.setActiveAmount(playerData.trafficActive)
     end
-    if playerData.parkingActive and playerData.parkingActive > 0 then
-      gameplay_parking.setActiveAmount(playerData.parkingActive)
-    end
   end
   if updateAmount then
     playerData.maxTrafficAmount = gameplay_traffic.getTrafficAmount(true)
@@ -622,15 +591,11 @@ local function onTrafficOrParkingReady()
   -- ready. onTrafficStarted can arrive earlier while parking is still spawning.
   trafficSetupInProgress = false
   if not career_modules_tutorial.isActive() then
-    if not playerData.parkingActive then
-      local parkingAmount = playerData.desiredParkingAmount
-      if not parkingAmount then
-        _, parkingAmount = getFallbackTrafficAmounts()
-      end
-      local _, maxParked = getDynamicActiveLimits()
-      playerData.parkingActive = clamp(parkingAmount, 0, maxParked)
+    local parkingAmount = playerData.desiredParkingAmount
+    if not parkingAmount then
+      _, parkingAmount = getFallbackTrafficAmounts()
     end
-    gameplay_parking.setActiveAmount(playerData.parkingActive)
+    gameplay_parking.setActiveAmount(parkingAmount)
   end
   if core_gamestate.getLoadingStatus('careerVehicles') then
     log("I", "career", "Traffic is now ready for career mode")

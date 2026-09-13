@@ -19,7 +19,6 @@ local MIN_JUMP_MULTIPLIER = 1
 local MAX_JUMP_MULTIPLIER = 2
 
 local state = {
-  wasWalking = false,
   pendingMeters = 0,
   lastPos = nil,
   lastAppliedVehId = nil,
@@ -135,15 +134,11 @@ local function onUpdate(dtReal, dtSim, dtRaw)
 
   local walking = gameplay_walk and gameplay_walk.isWalking and gameplay_walk.isWalking()
   if not walking then
-    if state.wasWalking then
-      grantPendingXP(true)
-      resetWalkTracking()
-      state.lastAppliedVehId = nil
-      state.wasWalking = false
-    end
+    grantPendingXP(true)
+    resetWalkTracking()
+    state.lastAppliedVehId = nil
     return
   end
-  state.wasWalking = true
 
   local level = getStaminaLevel()
   local speedMultiplier = getSpeedMultiplierForLevel(level)
@@ -161,16 +156,13 @@ local function onUpdate(dtReal, dtSim, dtRaw)
     if stepMeters > 0 and stepMeters <= MAX_DISTANCE_STEP then
       state.pendingMeters = state.pendingMeters + stepMeters
     end
-    state.lastPos:set(currentPos)
-  else
-    state.lastPos = vec3(currentPos)
   end
 
+  state.lastPos = vec3(currentPos)
   grantPendingXP(false)
 end
 
 local function onClientStartMission()
-  state.wasWalking = false
   state.pendingMeters = 0
   state.lastPos = nil
   state.lastAppliedVehId = nil

@@ -710,10 +710,6 @@ end
 -- @param dtSim Simulation time delta (seconds); used for mission timers and delays.
 -- @param dtRaw Raw frame delta (engine-specific, may be nil).
 function M.onUpdate(dtReal, dtSim, dtRaw)
-    if not inAmbulance and not missionTriggeredForVehicle and not currentFare and not M.initDelay then
-        return
-    end
-
     local playerVehicle = be:getPlayerVehicle(0)
 
     -- Trigger mission and assign EMT role

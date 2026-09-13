@@ -94,25 +94,12 @@ end
 function M.wheelTouchesWater(rotator, vehicleObject)
   if type(rotator) ~= "table" or vehicleObject == nil then return false end
 
-  -- Fast path 1: The current road-contact node sits at the bottom of the tire where water
-  -- is encountered first. If it is in water, the tire is touching water.
+  -- The axle nodes used by the vanilla brake check sit near the wheel center,
+  -- so they miss shallow puddles. Prefer the current road-contact node and
+  -- every tread node, which sit on the tire's outer surface.
   if rotator.lastTreadContactNode ~= nil and vehicleObject:inWater(rotator.lastTreadContactNode) then
     return true
   end
-
-  -- Fast path 2: Check axle/center nodes. If the axle is in water, the wheel is submerged.
-  if (rotator.node1 ~= nil and vehicleObject:inWater(rotator.node1)) or
-     (rotator.node2 ~= nil and vehicleObject:inWater(rotator.node2)) then
-    return true
-  end
-
-  -- Fast path 3: If the wheel has an active road contact node and neither the contact
-  -- nor the axle is in water, the tire is on dry ground; skip scanning dozens of tread nodes.
-  if rotator.lastTreadContactNode ~= nil then
-    return false
-  end
-
-  -- Fallback for airborne or floating wheels without active ground contact: scan tread nodes.
   for _, nodeId in ipairs(rotator.treadNodes or {}) do
     if vehicleObject:inWater(nodeId) then return true end
   end
@@ -120,7 +107,9 @@ function M.wheelTouchesWater(rotator, vehicleObject)
     if vehicleObject:inWater(nodeId) then return true end
   end
 
-  return false
+  -- Simplified/custom wheels may not expose their tire node lists.
+  return (rotator.node1 ~= nil and vehicleObject:inWater(rotator.node1)) or
+         (rotator.node2 ~= nil and vehicleObject:inWater(rotator.node2)) or false
 end
 
 function M.temperatureWithAmbientFloor(temperatureC, ambientTemperatureC)

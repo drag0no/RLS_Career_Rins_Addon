@@ -8,7 +8,6 @@ local tireModel = require("rls_tire_model")
 local PROVIDER_VERSION = "1.3.0"
 local REPORT_INTERVAL = 2
 local TELEMETRY_INTERVAL = 0.2
-local WATER_CHECK_INTERVAL = 0.05
 local BASE_DISTANCE_WEAR_PER_METER = 1.864e-9
 local BASE_SLIP_WEAR_PER_JOULE = 4.0e-9
 
@@ -27,7 +26,6 @@ local vehicleMass = 1000
 local reportTimer = 0
 local telemetryTimer = TELEMETRY_INTERVAL
 local providerCheckTimer = 0
-local waterCheckTimer = 0
 local selectedProvider = "bundled"
 local lastProviderKey
 local configuredInventoryId
@@ -137,10 +135,6 @@ local function resetTemperatures()
       context.ambientTemperature,
     }
   end
-  for _, cached in pairs(wheelCache) do
-    cached.inWater = nil
-  end
-  waterCheckTimer = 0
 end
 
 local function restoreSoftDeflation(index, rotator)
@@ -403,7 +397,7 @@ local function updateTemperatures(state, cached, rotator, slipWork, speed, inWat
     context.ambientTemperature)
 end
 
-local function updateBundled(dt, emitTelemetry, checkWater)
+local function updateBundled(dt, emitTelemetry)
   if not wheels or not wheels.wheelRotators then return end
   local speed = obj:getVelocity():length()
   local wheelCount = math.max(#wheels.wheelRotators + 1, 1)
@@ -450,11 +444,11 @@ local function updateBundled(dt, emitTelemetry, checkWater)
     local effectiveGrip = groundFriction * wheelFriction * tunedGrip * weatherGrip
     local thermalSlipWork = load * effectiveGrip * thermalSlipSpeed * surfaceTuning.thermalMultiplier
     local abrasionSlipWork = load * effectiveGrip * abrasionSlipSpeed * surfaceTuning.abrasionMultiplier
-    if checkWater or cached.inWater == nil then cached.inWater = tireModel.wheelTouchesWater(rotator, obj) end
+    local inWater = tireModel.wheelTouchesWater(rotator, obj)
 
     local conditionGrip = 1
     if context.enabled then
-      updateTemperatures(state, cached, rotator, thermalSlipWork, speed, cached.inWater, dt)
+      updateTemperatures(state, cached, rotator, thermalSlipWork, speed, inWater, dt)
       local loadMultiplier = tireModel.clamp(load / math.max(referenceLoad, 1), 0.25, 3)
       local tireTemperature = averageTemperature(state)
       local temperatureMultiplier = tireModel.temperatureWearMultiplier(tireTemperature, state.workingTemperature)
@@ -718,16 +712,13 @@ function M.updateGFX(dt)
   providerCheckTimer = providerCheckTimer + dt
   reportTimer = reportTimer + dt
   telemetryTimer = telemetryTimer + dt
-  waterCheckTimer = waterCheckTimer + dt
   if providerCheckTimer >= 1 then
     providerCheckTimer = 0
     detectProvider(false)
   end
   local emitTelemetry = telemetryTimer >= TELEMETRY_INTERVAL
   if emitTelemetry then telemetryTimer = 0 end
-  local checkWater = waterCheckTimer >= WATER_CHECK_INTERVAL
-  if checkWater then waterCheckTimer = 0 end
-  if selectedProvider == "bundled" then updateBundled(dt, emitTelemetry, checkWater) end
+  if selectedProvider == "bundled" then updateBundled(dt, emitTelemetry) end
   if reportTimer >= REPORT_INTERVAL then
     reportTimer = 0
     reportState(false)
