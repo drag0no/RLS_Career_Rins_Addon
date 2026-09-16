@@ -2433,7 +2433,11 @@ end
 local function onUpdate(dtReal, dtSim)
   local playerVeh = getPlayerVehicle(0)
   if playerVeh then
-    lastPlayerPos = vec3(playerVeh:getPosition())
+    if lastPlayerPos then
+      lastPlayerPos:set(playerVeh:getPosition())
+    else
+      lastPlayerPos = vec3(playerVeh:getPosition())
+    end
   end
   local dt = dtSim or dtReal
   if not dt or dt <= 0 then return end
