@@ -34,6 +34,8 @@ local TELEPORT_JUMP_M = 80
 local speedingImmuneUntil = 0
 local lastPlayerPos = vec3()
 local hasLastPlayerPos = false
+local AMBIENT_SCAN_INTERVAL = 0.25
+local ambientPoliceTimer = 0
 
 local vecY = vec3(0, 1, 0)
 local tempPos, tempFwd, tempFwd2, tempUp, tempRight = vec3(), vec3(), vec3(), vec3(), vec3()
@@ -766,6 +768,7 @@ end
 
 local function onTrafficStopped()
   table.clear(policeVehs)
+  ambientPoliceTimer = 0
 end
 
 local function onVehicleSwitched(oldId, newId)
@@ -832,6 +835,42 @@ local function onClientEndMission()
   resetPursuitVars()
   speedingImmuneUntil = 0
   hasLastPlayerPos = false
+  ambientPoliceTimer = 0
+end
+
+-- Helper to advance the ambient police scan timer (4 Hz rate when cruising).
+local function updateAmbientScanTimer(dtSim)
+  ambientPoliceTimer = ambientPoliceTimer + dtSim
+  if ambientPoliceTimer >= AMBIENT_SCAN_INTERVAL then
+    ambientPoliceTimer = 0
+    return true
+  end
+  return false
+end
+
+-- Throttles police distance searches and speeding checks to 4 Hz when cruising (pursuit.mode == 0).
+-- In active pursuits (pursuit.mode ~= 0), runs full per-frame checks for instant responsiveness.
+local function updatePoliceProximity(id, veh, ambientScanDue)
+  local pursuit = veh.pursuit
+  if pursuit.mode ~= 0 or ambientScanDue then
+    local bestPoliceId, bestDist, bestInterDist = getNearestPoliceVehicle(id, true, true)
+    veh._bestPoliceId = bestPoliceId
+    veh._bestDist = bestDist
+    veh._bestInterDist = bestInterDist
+    if ambientScanDue then
+      checkSpeedingOffense(veh, bestPoliceId)
+    end
+    return bestPoliceId, bestDist, bestInterDist
+  else
+    local bestPoliceId = veh._bestPoliceId
+    if bestPoliceId and not policeVehs[bestPoliceId] then
+      bestPoliceId = nil
+      veh._bestPoliceId = nil
+    end
+    local bestDist = veh._bestDist or math.huge
+    local bestInterDist = veh._bestInterDist or math.huge
+    return bestPoliceId, bestDist, bestInterDist
+  end
 end
 
 local function onUpdate(dt, dtSim)
@@ -846,14 +885,14 @@ local function onUpdate(dt, dtSim)
     end
   end
 
+  local ambientScanDue = updateAmbientScanTimer(dtSim)
   for id, veh in pairs(gameplay_traffic.getTrafficData()) do
     if veh.speedingGraceTimer and veh.speedingGraceTimer > 0 then
       veh.speedingGraceTimer = max(0, veh.speedingGraceTimer - dtSim)
     end
     detectPlayerTeleportJump(veh)
     local pursuit = veh.pursuit
-    local bestPoliceId, bestDist, bestInterDist = getNearestPoliceVehicle(id, true, true)
-    checkSpeedingOffense(veh, bestPoliceId)
+    local bestPoliceId, bestDist, bestInterDist = updatePoliceProximity(id, veh, ambientScanDue)
 
     local addSightValue
     local sightCoef = pursuit.mode + 2
