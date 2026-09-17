@@ -76,6 +76,16 @@ if [ -f "$OUTPUT_ZIP" ]; then
     mkdir -p "$TARGET_DIR"
   fi
 
+  MOD_NAME="$("$PYTHON_BIN" pack_addon.py --mod-name 2>/dev/null || echo "rls_career_z_rins_addon")"
+
+  # Remove previous versions of the addon from mods directories
+  for old_file in "$TARGET_DIR/${MOD_NAME}"*.zip "$TARGET_DIR/../${MOD_NAME}"*.zip; do
+    if [ -f "$old_file" ] && ! [ "$old_file" -ef "$OUTPUT_ZIP" ]; then
+      echo "==> Removing previous version: $(basename "$old_file")"
+      rm -f "$old_file"
+    fi
+  done
+
   echo "==> Moving '$OUTPUT_ZIP' to '$TARGET_DIR/'..."
   mv -f "$OUTPUT_ZIP" "$TARGET_DIR/"
   echo "==> Successfully installed addon to: $TARGET_DIR/$OUTPUT_ZIP"

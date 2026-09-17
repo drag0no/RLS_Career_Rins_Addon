@@ -118,6 +118,10 @@ def main():
         print(get_default_output())
         return
 
+    if len(sys.argv) > 1 and sys.argv[1] in ("--mod-name", "-m"):
+        print(load_config().get("name", "rls_career_z_rins_addon"))
+        return
+
     os.chdir(get_git_root())
     config = load_config()
     base_branch = resolve_base_branch(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_BASE)

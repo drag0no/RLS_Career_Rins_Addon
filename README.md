@@ -8,12 +8,13 @@ A community companion mod for BeamNG.drive designed to enhance immersion, perfor
 ## 📦 Installation
 
 1. Ensure the official **RLS Career Overhaul** mod is installed and active in BeamNG.
-2. Download the latest `rls_career_z_rins_addon_X.X.X.zip` from the [Releases](https://github.com/) page.
-3. Drop the ZIP file directly into the **same mods folder** where you placed the original RLS Career mod:
+2. Download the latest `rls_career_z_rins_addon_X.X.X.zip` from the [Releases](https://github.com/drag0no/RLS_Career_Rins_Addon/releases) page.
+3. **Delete previous versions**: If updating, delete any older `rls_career_z_rins_addon_*.zip` from your mods folder first to avoid conflicts.
+4. Drop the new ZIP file directly into the **same mods folder** where you placed the original RLS Career mod:
    ```text
    %LOCALAPPDATA%\BeamNG.drive\<current_version>\mods\
    ```
-4. Launch BeamNG.drive and load into Career Mode!
+5. Launch BeamNG.drive and load into Career Mode!
 
 **100% Save Compatible**: This addon is designed to be completely safe to add to existing career saves. Progression, licenses, and skill points are automatically reconciled and preserved on load.
 
@@ -48,17 +49,6 @@ A community companion mod for BeamNG.drive designed to enhance immersion, perfor
 * **Ghost Fleet Fix**: Eliminates duplicate ghost vehicles appearing in garage storage while customer cars are offsite.
 
 
-## 🐛 Bug Reports & Troubleshooting
-
-I am a solo developer who implements and tests all features myself in my free time to the extent physically possible for a hobby. While I strive to keep everything as polished as possible, edge cases and bugs can still slip through in a conversion as complex as RLS Career.
-
-If you encounter a bug, please follow these steps before submitting a report:
-1. **Isolate**: Turn off all mods except the original **RLS Career Overhaul** mod.
-2. **Verify**: Check if the bug still occurs in vanilla RLS Career. If it does, it is an upstream base mod issue.
-3. **Confirm**: Re-enable **only Rin's Addon** alongside the base RLS mod. If the bug only appears with this addon active, you have found an addon bug!
-4. **Report**: Please report it via [GitHub Issues](https://github.com/drag0no/) with reproduction steps and your `beamng.log`.
-
-
 ## 🚧 Work in Progress (Sneak Peek)
 
 ### 🚓 Faster & More Aggressive Police Pursuits
@@ -67,6 +57,17 @@ If you encounter a bug, please follow these steps before submitting a report:
 ### 🏎️ Race Team Business Improvements
 * **Background Race Simulation**: Run race team events in the background while you continue driving, exploring, or managing other career businesses.
 * Additional enterprise management features and race team logistics currently in active development.
+
+
+## 🐛 Bug Reports & Troubleshooting
+
+I am a solo developer who implements and tests all features myself in my free time to the extent physically possible for a hobby. While I strive to keep everything as polished as possible, edge cases and bugs can still slip through in a conversion as complex as RLS Career.
+
+If you encounter a bug, please follow these steps before submitting a report:
+1. **Isolate**: Turn off all mods except the original **RLS Career Overhaul** mod.
+2. **Verify**: Check if the bug still occurs in vanilla RLS Career. If it does, it is an upstream base mod issue.
+3. **Confirm**: Re-enable **only Rin's Addon** alongside the base RLS mod. If the bug only appears with this addon active, you have found an addon bug!
+4. **Report**: Please report it via [GitHub Issues](https://github.com/drag0no/RLS_Career_Rins_Addon/issues) with reproduction steps and your `beamng.log`.
 
 
 ## 📖 In-Depth Feature Documentation
