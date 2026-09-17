@@ -260,7 +260,9 @@ local function setupTraffic(forceSetup)
   }
   trafficSetupInProgress = true
   local ok, err = xpcall(function()
-    gameplay_traffic.setupTrafficHelper(trafficAmount, trafficOptions, parkingAmount, nil)
+    local spawnTrafficAmount = trafficAmount > 0 and (gameplay_vehicleRotationPool and gameplay_vehicleRotationPool.getPoolSpawnAmount(trafficAmount) or trafficAmount) or 0
+    local spawnParkingAmount = parkingAmount > 0 and (gameplay_vehicleRotationPool and gameplay_vehicleRotationPool.getPoolSpawnAmount(parkingAmount) or parkingAmount) or 0
+    gameplay_traffic.setupTrafficHelper(spawnTrafficAmount, trafficOptions, spawnParkingAmount, nil)
     gameplay_traffic.setActiveAmount(trafficAmount)
     gameplay_parking.setActiveAmount(parkingAmount)
     setTrafficVars()
@@ -519,6 +521,11 @@ local function onTrafficStopped()
     table.clear(playerData.traffic)
   end
 
+  -- Prevent re-spawning via multiSpawn if vehicle rotation pool is managing the fleet
+  if gameplay_vehicleRotationPool and gameplay_vehicleRotationPool.getTotalCount() > 0 then
+    return
+  end
+  
   -- A helper may stop the old batch as part of its own asynchronous setup.
   -- Do not interpret that intermediate event as a request for another batch.
   if M.ensureTraffic and not trafficSetupInProgress then

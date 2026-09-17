@@ -224,13 +224,11 @@ local function wrapMultiSpawn()
   core_multiSpawn.createGroup = function(amount, params)
     amount = amount or 10
     local want = math.max(1, amount)
-    local out, seen = {}, {}
+    local candidates, seenKeys = {}, {}
     local lastBatch = nil
+
     for _ = 1, 4 do
-      if #out >= want then
-        break
-      end
-      local batch = originalCreateGroup(math.max(want * 3, want), params) or {}
+      local batch = originalCreateGroup(want * 3, params) or {}
       if #batch > 0 then
         lastBatch = batch
       end
@@ -238,21 +236,67 @@ local function wrapMultiSpawn()
         local model = entry and entry.model
         local config = entry and entry.config
         local key = tostring(model) .. '/' .. tostring(config)
-        if not seen[key] and isConfigEligible(model, config) then
-          seen[key] = true
-          out[#out + 1] = entry
-          if #out >= want then
-            break
+        if not seenKeys[key] and isConfigEligible(model, config) then
+          seenKeys[key] = true
+          candidates[#candidates + 1] = entry
+        end
+      end
+      if #candidates >= want * 2 then
+        break
+      end
+    end
+
+    if #candidates == 0 then
+      if lastBatch and #lastBatch > 0 then
+        log('W', logTag, 'Traffic filter removed all candidates; falling back to unfiltered batch')
+        return lastBatch
+      end
+      return {}
+    end
+
+    -- Prioritize vehicle model uniqueness across both the current group and existing world vehicles
+    local chosenCounts = {}
+    local getVehs = getAllVehicles or getAllVehiclesByType
+    if getVehs then
+      for _, veh in ipairs(getVehs()) do
+        local m = (veh.getJBeamFilename and veh:getJBeamFilename()) or (veh.getField and veh:getField('JBeam', '0')) or veh.jbeam or veh.JBeam
+        if m then
+          chosenCounts[m] = (chosenCounts[m] or 0) + 1
+        end
+      end
+    end
+
+    local out = {}
+    local usedIndices = {}
+
+    -- Multi-pass selection: maximize distinct models before allowing repeats of the same model
+    for pass = 0, 3 do
+      if #out >= want then break end
+      for i, entry in ipairs(candidates) do
+        if not usedIndices[i] then
+          local model = entry.model or ''
+          local count = chosenCounts[model] or 0
+          if count <= pass then
+            usedIndices[i] = true
+            chosenCounts[model] = count + 1
+            out[#out + 1] = entry
+            if #out >= want then break end
           end
         end
       end
     end
-    -- Never hand callers an empty group when the unfiltered pool had candidates
-    -- (spawnGroup / group[1] assume at least one entry).
-    if #out == 0 and lastBatch and #lastBatch > 0 then
-      log('W', logTag, 'Traffic filter removed all candidates; falling back to unfiltered batch')
-      return lastBatch
+
+    -- If still short of want, append any remaining candidates
+    if #out < want then
+      for i, entry in ipairs(candidates) do
+        if not usedIndices[i] then
+          usedIndices[i] = true
+          out[#out + 1] = entry
+          if #out >= want then break end
+        end
+      end
     end
+
     if #out < want then
       log('W', logTag, string.format('Traffic group short after filter: want %d, got %d', want, #out))
     end
