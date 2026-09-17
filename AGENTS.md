@@ -63,7 +63,7 @@ It is **NOT** a standalone mod and does **NOT** replace RLS Career. It packages 
 ## 4. Stack & Engine Conventions
 
 - **Paths**: BeamNG PhysFS virtual filesystem requires strict forward slashes `/`. Never use Windows backslashes in paths.
-- **Encoding**: UTF-8 strictly **without BOM** (especially for `.json` files; BOM crashes the BeamNG JSON parser).
+- **Encoding**: UTF-8 strictly **without BOM** for `.json` files; BOM crashes the BeamNG JSON parser.
 - **BeamNG GE Lua Logging**:
   - Never use raw `print()` in production Lua (it bypasses `beamng.log` and lacks console tags).
   - Always use `log(level, origin, message)` where `level` is `'D'`, `'I'`, `'W'`, or `'E'`.
@@ -110,11 +110,11 @@ It is **NOT** a standalone mod and does **NOT** replace RLS Career. It packages 
 - **Do not commit feature code directly to `rls-release`**.
 - **Do not execute automated `git add`, `git commit` or branch checkout commands** unless explicitly requested by the user.
 - **Do not create or execute ad-hoc Python runner scripts** (`python -c ...`), `luac` or `npm` commands (no Node toolchain present).
-- **Do not save `.json` or `.lua` files with UTF-8 BOM**.
+- **Do not save `.json` files with UTF-8 BOM**.
 - **Do not use raw `print()`** in production Lua code.
 - **Do not read or stream `beamng.log` line-by-line or in full**; filter for specific search terms using PowerShell `Select-String`.
 - **Do not allocate tables or vectors inside `onUpdate`** or per-frame hot loops.
 - **Do not call synchronous global career saves** (`career_saveSystem.saveCurrent()`) for minor or localized state updates.
 - **Do not block underlying game simulation or content generation** when silencing or filtering UI views.
-- **Do not leave manual-unload extensions without explicit unload handlers**.
+- **Do not leave manual-load/unload extensions without explicit load/unload handlers**.
 - **Do not use absolute OS paths (`file:///...`) in markdown documentation**.
