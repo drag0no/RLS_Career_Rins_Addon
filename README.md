@@ -1,6 +1,6 @@
 # RLS Career Overhaul — Rin's Addon
 
-A community companion mod for BeamNG.drive that brings major performance optimizations, FRE contract notification filters, multi-stage rally tours, and tuning shop business fixes to the **RLS Career Overhaul** experience.
+A community companion mod for BeamNG.drive designed to enhance immersion, performance, and gameplay depth across the **RLS Career Overhaul** experience.
 
 > ⚠️ **Base Mod Required**: This is an **addon companion mod** and strictly requires the official [RLS Career Overhaul](https://www.patreon.com/cw/RacelessRLS) mod to be installed. It contains only refined overrides that mount seamlessly on top of the original mod.
 
@@ -18,6 +18,36 @@ A community companion mod for BeamNG.drive that brings major performance optimiz
 **100% Save Compatible**: This addon is designed to be completely safe to add to existing career saves. Progression, licenses, and skill points are automatically reconciled and preserved on load.
 
 
+## ✨ Key Highlights
+
+### 🚗 Vehicle Rotation Pool (High-Immersion Traffic)
+*Spent nearly a week polishing this system to elevate ambient traffic immersion across the city:*
+* **Dynamic Fleet Variety**: Eliminates repetitive loops of the same few cars and barren parking lots by continuously rotating fresh models in and out of dormant reserve.
+* **Hardware-Adaptive Reserves**: Automatically inspects available RAM and VRAM to scale reserve depth (up to 20 reserve cars per circuit on 24GB+ rigs, scaling down gracefully on budget setups).
+* **Persistent Pursuits**: Chasing police never despawn mid-pursuit, even if they crash or temporarily fall behind.
+* **Event Auto-Suppression**: Automatically clears ambient traffic during races, time trials, and demolition derbies to restore maximum competitive FPS.
+
+### ⚡ Performance & Stutter Reduction
+* **Tire Water Scan Fast-Path**: Slashes tire water detection interop calls by over 99%, keeping frame pacing smooth during spirited driving.
+* **Zero FFB Cutoffs on Autosave**: Autosaves now wait for your vehicle to stay stopped for 10 seconds, eliminating sudden force feedback drops and 200ms freezes while cornering.
+* **Sub-Timer Throttling**: Throttles ambient career scans (heat, stamina, bus/taxi loops) to 1–4 Hz instead of per-frame ticks.
+
+### 🏁 FRE Contract Improvements
+* **Customizable Notification Filters**: Adds a dedicated filter in Phone Notification Settings allowing you to filter Contract Ready alerts based on **cars** (models you own vs. loaners), **difficulty tiers** (Easy, Medium, Hard), and active **disciplines** (Rally, Road Racing, Drift, etc.), while keeping all contracts accessible inside the app.
+* **Multi-Stage Rally Tours**: Point-to-point stages across the map are now combined into a single unified rally contract with live progress tracking (`Stage 2/4`) and a **1.25x completion payout bonus**, replacing disjointed single-stage contracts.
+* **New 50-Level "Dirt" Career Tree**: Features its own progression tree and unlockable licenses for **Rally**, **Dirt**, and **Rallycross**.
+* **Fair Payouts for Single-Stage Runs**: Fixed an RLS bug that slashed 1-lap and 1-stage race rewards to 33%, restoring full 100% base payouts.
+* **Rebalanced Target Times**: Rebalanced contract target times so players aren't forced to beat their all-time Personal Best just to clear Easy or Medium contracts.
+
+### 🔧 Business Management Improvements
+
+#### Tuning Shop
+* **Deadlock Resolution**: Completely fixes the *"No active jobs available"* bug when the manager doesn't assign jobs to technicians.
+* **Profit-First Automation**: Managers now sort incoming contracts by payout descending, ensuring technicians are always assigned the most profitable work first.
+* **Player Project Protection**: Pulling a car out of the shop marks it with a cyan **`Player Assigned`** badge, preventing the automated manager from shipping your personal project offsite with a technician.
+* **Ghost Fleet Fix**: Eliminates duplicate ghost vehicles appearing in garage storage while customer cars are offsite.
+
+
 ## 🐛 Bug Reports & Troubleshooting
 
 I am a solo developer who implements and tests all features myself in my free time to the extent physically possible for a hobby. While I strive to keep everything as polished as possible, edge cases and bugs can still slip through in a conversion as complex as RLS Career.
@@ -29,29 +59,10 @@ If you encounter a bug, please follow these steps before submitting a report:
 4. **Report**: Please report it via [GitHub Issues](https://github.com/drag0no/) with reproduction steps and your `beamng.log`.
 
 
-## ✨ Key Highlights
-
-### ⚡ Performance & Stutter Reduction
-* **Parked Vehicle Physics Pooling**: Freezes full physics simulation for distant parked cars across the map, eliminating the single biggest source of CPU contention in Career mode.
-* **Smart Traffic Pooling**: Dynamically caps active physics calculation for traffic vehicles based on your CPU, maintaining high map variety without frame drops.
-* **Tire Water Scan Fast-Path**: Slashes tire water detection interop calls by over 99%, keeping frame pacing smooth during spirited driving.
-* **Zero FFB Cutoffs on Autosave**: Autosaves now wait for your vehicle to stay stopped for 10 seconds, eliminating sudden force feedback drops and 200ms freezes while cornering.
-
-### 🏁 FRE Contract Improvements
-* **Customizable Notification Filters**: Adds a dedicated filter in Phone Notification Settings allowing you to filter Contract Ready alerts based on **cars** (models you own vs. loaners), **difficulty tiers** (Easy, Medium, Hard), and active **disciplines** (Rally, Road Racing, Drift, etc.), while keeping all contracts accessible inside the app.
-* **Multi-Stage Rally Tours**: Point-to-point stages across the map are now combined into a single unified rally contract with live progress tracking (`Stage 2/4`) and a **1.25x completion payout bonus**, replacing disjointed single-stage contracts.
-* **New 50-Level "Dirt" Career Tree**: Features its own progression tree and unlockable licenses for **Rally**, **Dirt**, and **Rallycross**.
-* **Fair Payouts for Single-Stage Runs**: Fixed an RLS bug that slashed 1-lap and 1-stage race rewards to 33%, restoring full 100% base payouts.
-* **Rebalanced Target Times**: Rebalanced contract target times so players aren't forced to beat their all-time Personal Best just to clear Easy or Medium contracts.
-
-### 🔧 Business Management Improvements
-* **Deadlock Resolution**: Completely fixes the *"No active jobs available"* bug when the manager doesn't assign jobs to technicians.
-* **Profit-First Automation**: Managers now sort incoming contracts by payout descending, ensuring technicians are always assigned the most profitable work first.
-* **Player Project Protection**: Pulling a car out of the shop marks it with a cyan **`Player Assigned`** badge, preventing the automated manager from shipping your personal project offsite with a technician.
-* **Ghost Fleet Fix**: Eliminates duplicate ghost vehicles appearing in garage storage while customer cars are offsite.
-
-
 ## 🚧 Work in Progress (Sneak Peek)
+
+### 🚓 Faster & More Aggressive Police Pursuits
+* Tweaking police pursuit AI to make cruisers noticeably faster, more tactically aggressive, and harder to shake off for high-stakes getaways.
 
 ### 🏎️ Race Team Business Improvements
 * **Background Race Simulation**: Run race team events in the background while you continue driving, exploring, or managing other career businesses.
@@ -60,7 +71,12 @@ If you encounter a bug, please follow these steps before submitting a report:
 
 ## 📖 In-Depth Feature Documentation
 
-For detailed architectural breakdowns, math formulas, and technical change logs for each system, refer to the in-depth documentation in the [`docs/`](docs/) directory.
+For detailed architectural breakdowns, math formulas, and technical change logs, check out the dedicated guides:
+* [🚗 Vehicle Rotation Pool](docs/TWEAKS_VEHICLE_ROTATION_POOL.md)
+* [⚡ Performance Optimizations](docs/TWEAKS_PERFORMANCE_OPTIMIZATIONS_P1.md)
+* [🏁 FRE Contract Notification Filters](docs/TWEAKS_FRE_CONTRACT_NOTIFICATION_FILTERS.md)
+* [🌲 Dirt & Rally Career Events](docs/TWEAKS_DIRT_AND_RALLY_EVENTS.md)
+* [🔧 Tuning Shop Business Fixes](docs/TWEAKS_TUNING_SHOP.md)
 
 
 ## 🤝 Project Philosophy & Credits
