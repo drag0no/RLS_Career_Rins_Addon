@@ -458,15 +458,17 @@ function C:updateActiveRadius(tickTime) -- updates values that track if the vehi
 end
 
 function C:tryRespawn() -- tests if the vehicle is out of sight and ready to respawn
-  if self.id == be:getPlayerVehicleID(0) then return end -- never respawn the vehicle the player is currently in
+  if self.id == be:getPlayerVehicleID(0) or self.isPlayerControlled then return end -- never respawn player vehicles
   if not be:getObjectActive(self.id) then
     self.state = 'queued'
     return
   end
 
   if not self.enableRespawn or self.respawn.spawnValue <= 0 then return end
+  if self.role.name == 'police' and gameplay_police.isVehicleInPursuit(self.id) then return end
 
-  if self.respawn.finalRadius < self.focusDist then
+  local checkRadius = gameplay_vehicleRotationPool and max(gameplay_vehicleRotationPool.getDespawnDist(), self.respawn.finalRadius) or self.respawn.finalRadius
+  if checkRadius < self.focusDist then
     -- check all non-traffic vehicles to ensure that they are not much too close to this vehicle
     local valid = true
     for _, veh in ipairs(getAllVehiclesByType()) do
