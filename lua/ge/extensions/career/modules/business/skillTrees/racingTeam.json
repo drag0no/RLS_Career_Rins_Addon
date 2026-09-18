@@ -94,9 +94,9 @@
         },
         {
           "id": "quick-travel",
-          "title": "Taxi",
-          "description": "Taxi to racing team",
-          "detailedDescription": "Unlock taxi travel to your racing team HQ.\n\n**Requires** Dyno (same tier as Towing).\n\n**Effect**\n- **Taxi** option in the recovery menu (same section as garage taxis).\n- Big map quick travel to the racing team facility (after career quick travel is unlocked).",
+          "title": "Quick Travel",
+          "description": "Quick travel to racing team HQ",
+          "detailedDescription": "Unlock quick travel to your racing team HQ.\n\n**Requires** Dyno (same tier as Towing).\n\n**Effect**\n- **Quick Travel** option in the recovery menu (alongside garages).\n- Big map quick travel to the racing team facility (after career quick travel is unlocked).",
           "cost": 18000,
           "xpCost": 900,
           "maxLevel": 1,
