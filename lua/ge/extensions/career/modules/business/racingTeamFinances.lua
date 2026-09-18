@@ -118,9 +118,15 @@ local function getShopOperatingCosts(businessId)
     return {
       baseLift = base,
       additionalLifts = 0,
+      additionalLiftsCost = 0,
       techs = 0,
+      techsCost = 0,
       manager = 0,
+      managerCost = 0,
+      dyno = 0,
+      dynoCost = 0,
       generalManager = 0,
+      generalManagerCost = 0,
       total = base,
     }
   end
@@ -129,12 +135,10 @@ local function getShopOperatingCosts(businessId)
   local additionalLifts = 0
   local techsCost = 0
   local managerCost = 0
-  local generalManagerCost = 0
+  local dynoCost = 0
 
   if career_modules_business_businessSkillTree then
     local treeId = "team-operations"
-    local kitLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, treeId, "kit-storage") or 0
-    additionalLifts = math.min(3, math.max(0, math.floor(kitLevel)))
 
     local managerLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, treeId, "manager") or 0
     if managerLevel > 0 then
@@ -142,15 +146,15 @@ local function getShopOperatingCosts(businessId)
     end
     local dynoLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, "qol", "dyno") or 0
     if dynoLevel > 0 then
-      generalManagerCost = scaleShopOverhead(25000)
+      dynoCost = 500
     end
   end
 
   local techCount = countActiveRacingDrivers(businessId)
   techsCost = techCount * scaleShopOverhead(2500)
 
-  local additionalLiftsCost = additionalLifts * scaleShopOverhead(5000)
-  local total = baseLift + additionalLiftsCost + techsCost + managerCost + generalManagerCost
+  local additionalLiftsCost = 0
+  local total = baseLift + additionalLiftsCost + techsCost + managerCost + dynoCost
 
   return {
     baseLift = baseLift,
@@ -160,8 +164,10 @@ local function getShopOperatingCosts(businessId)
     techsCost = techsCost,
     manager = managerCost > 0 and 1 or 0,
     managerCost = managerCost,
-    generalManager = generalManagerCost > 0 and 1 or 0,
-    generalManagerCost = generalManagerCost,
+    dyno = dynoCost > 0 and 1 or 0,
+    dynoCost = dynoCost,
+    generalManager = 0,
+    generalManagerCost = 0,
     total = total,
     maxCost = scaleShopOverhead(55000),
   }
@@ -203,12 +209,11 @@ local function processOperatingCosts(businessId, dtSim)
     local currentTime = os.time()
     local success = debitBusinessAccount(businessId, operatingCosts.total, "Operating Costs",
       string.format(
-        "Shop overhead: Base $%d, Bays $%d, Team $%d, Manager $%d, Ops $%d",
+        "Shop overhead: Base $%d, Drivers $%d, Manager $%d, Dyno $%d",
         operatingCosts.baseLift,
-        operatingCosts.additionalLiftsCost,
         operatingCosts.techsCost,
         operatingCosts.managerCost,
-        operatingCosts.generalManagerCost
+        operatingCosts.dynoCost
       ))
 
     if success then
@@ -392,8 +397,13 @@ local function getRacingTeamFinancesData(businessId)
   end
 
   local shop = getShopOperatingCosts(businessId)
+  local costItems = { { label = "Base Paddock", cost = shop.baseLift } }
+  if shop.additionalLiftsCost > 0 then table.insert(costItems, { label = string.format("Garage Slots (%d)", shop.additionalLifts), cost = shop.additionalLiftsCost }) end
+  if shop.techsCost > 0 then table.insert(costItems, { label = string.format("Drivers (%d)", shop.techs), cost = shop.techsCost }) end
+  if shop.managerCost > 0 then table.insert(costItems, { label = "Manager", cost = shop.managerCost }) end
+  if shop.dynoCost > 0 then table.insert(costItems, { label = "Dyno Maintenance", cost = shop.dynoCost }) end
+
   local operatingCosts = {
-    total = shop.total,
     baseLift = shop.baseLift,
     additionalLifts = shop.additionalLifts,
     additionalLiftsCost = shop.additionalLiftsCost,
@@ -401,9 +411,13 @@ local function getRacingTeamFinancesData(businessId)
     techsCost = shop.techsCost,
     manager = shop.manager,
     managerCost = shop.managerCost,
+    dyno = shop.dyno,
+    dynoCost = shop.dynoCost,
     generalManager = shop.generalManager,
     generalManagerCost = shop.generalManagerCost,
+    total = shop.total,
     maxCost = shop.maxCost,
+    costItems = costItems,
     driverCutPercentMin = 15,
     driverCutPercentMax = 35,
     driverCutNote = "15%–35% of gross payout by driver skill (debited on deposit; see ledger).",

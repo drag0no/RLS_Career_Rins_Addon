@@ -340,7 +340,7 @@ local function restoreFuelLevels(vehObj, storedFuelLevels)
   end, 'energyStorage')
 end
 
--- ignoreDynoGate: allow power read when dyno skill locked (racing team); tuning shop still gates unless true.
+-- ignoreDynoGate: allow power read when dyno skill locked (e.g. initial vehicle purchase catalog); workshop tuning gates on dyno skill.
 local function requestVehiclePowerWeight(vehObj, businessId, vehicleId, ignoreDynoGate)
   if not vehObj or not businessId or not vehicleId then
     return
@@ -367,7 +367,7 @@ local function requestVehiclePowerWeight(vehObj, businessId, vehicleId, ignoreDy
     elseif businessType == "racingTeam" then
       dynoLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, "qol", "dyno") or 0
     end
-    if dynoLevel == 0 and businessType ~= "racingTeam" then
+    if dynoLevel == 0 then
       return
     end
   end
@@ -1515,7 +1515,7 @@ local function getVehiclePowerWeight(businessId, vehicleId)
     elseif businessType == "racingTeam" then
       dynoLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, "qol", "dyno") or 0
     end
-    if dynoLevel == 0 and businessType ~= "racingTeam" then
+    if dynoLevel == 0 then
       return nil
     end
   end
