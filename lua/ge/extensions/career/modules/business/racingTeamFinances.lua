@@ -506,5 +506,6 @@ end
 
 M.getRacingTeamFinancesData = getRacingTeamFinancesData
 M.getShopOperatingCostsForDebug = getShopOperatingCosts
+M.driverCutPercentFromRacingXp = driverCutPercentFromRacingXp
 
 return M

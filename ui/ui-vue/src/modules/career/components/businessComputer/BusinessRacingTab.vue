@@ -193,7 +193,7 @@
           :disabled="league2FleetLoading"
           @click.stop="openLeague2FleetPicker"
           @mousedown.stop
-          title="Drive this race yourself. Team payout is reduced (see racing team docs) and you'll have a cooldown after."
+          title="Drive yourself: 85% payout (15% crew share) · 15m cooldown."
         >
           Race myself
         </button>
@@ -237,7 +237,7 @@
 
       <div v-if="!isLeague1 && league2FleetPickerOpen" class="offer-detail__driver-picker">
         <p class="driver-picker-title">Race this offer yourself</p>
-        <p class="driver-picker-hint">Lower team payout; cooldown after you race.</p>
+        <p class="driver-picker-hint">85% payout (15% crew share) · 15m cooldown</p>
         <p v-if="league2FleetLoading" class="driver-picker-empty">Loading fleet…</p>
         <p v-else-if="!league2FleetOptions.length" class="driver-picker-empty">No fleet vehicle matches this sanctioned class.</p>
         <ul v-else class="driver-picker-list">

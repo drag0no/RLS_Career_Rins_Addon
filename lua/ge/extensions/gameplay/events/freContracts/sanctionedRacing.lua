@@ -1328,25 +1328,37 @@ local function payPodium(place)
       -- Proxy/AI races still apply their own driver-cut on full gross via
       -- racingTeam.settleProxySanctionedRaceFromAiResults. The multiplier
       -- lives in racingTeamRuntimeState K so QA can dial it during beta.
+      local isOwnerDriver = offer.playerProxyAlongsideRace == true
       local playerCut = 1.0
-      if offer.playerProxyAlongsideRace == true then
+      if isOwnerDriver then
         local rtState = rawget(_G, "career_modules_business_racingTeamRuntimeState")
-        if rtState and rtState.K and tonumber(rtState.K.RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER) then
-          playerCut = math.max(0, math.min(1, tonumber(rtState.K.RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER)))
-        end
+        playerCut = (rtState and rtState.K and tonumber(rtState.K.RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER)) or 0.85
       end
-      local floored = math.floor(amount * playerCut)
+
+      local playerAmount = math.floor(amount * playerCut)
+      local crewShare = math.floor(amount - playerAmount)
+      local netPct = math.floor(playerCut * 100 + 0.5)
+      local crewPct = 100 - netPct
+      local txLabel = string.format("Sanctioned team race - P%d", place)
+      local txDesc = isOwnerDriver 
+        and string.format("Circuit payout: +$%d (%d%% net), -$%d (%d%% crew share)", playerAmount, netPct, crewShare, crewPct)
+        or string.format("Circuit payout: +$%d (100%% net)", playerAmount)
+
       local ok = career_modules_bank.rewardToAccount({
-        money = { amount = floored, canBeNegative = false },
-      }, accountId, string.format("Sanctioned team race - P%d", place), "Racing team circuit payout")
+        money = { amount = playerAmount, canBeNegative = false },
+      }, accountId, txLabel, txDesc)
       if ok then
+        local uiMessage = isOwnerDriver
+          and string.format("P%d Finish: +$%d (%d%% net, %d%% crew share).", place, playerAmount, netPct, crewPct)
+          or string.format("P%d Finish: +$%d (100%% net).", place, playerAmount)
+        if ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
         local rt = rawget(_G, "career_modules_business_racingTeam")
         if grantedXp > 0 then
           if rt and rt.addBusinessXP then
             rt.addBusinessXP(businessId, grantedXp)
           end
         end
-        mCelebrationRewards = { money = floored, disciplineXp = grantedXp }
+        mCelebrationRewards = { money = playerAmount, disciplineXp = grantedXp }
         if skillKey and grantedXp > 0 and career_modules_payment and career_modules_payment.reward then
           career_modules_payment.reward({
             [skillKey] = { amount = grantedXp },

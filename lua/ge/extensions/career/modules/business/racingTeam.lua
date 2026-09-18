@@ -2400,20 +2400,30 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
       applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
       return { money = 0, businessSkillXp = 0, noRewardDetail = "No business account — reward not applied." }
     end
+    
+    local techCut = driverId and getRacingTeamDriverById(businessId, driverId)
+    local dname = techCut and techCut.name or "Driver"
+    local pct = math.floor(racingTeamFinances.driverCutPercentFromRacingXp(techCut and techCut.racingSkillXp or 0) + 0.5)
+    local cut = math.floor(amount * pct / 100 + 0.5)
+    local netPayout = amount - cut
+    local txLabel = string.format("Sanctioned team race (%s) - P%d", dname, place)
+    local txDesc = string.format("Circuit payout: +$%d (%d%% net), -$%d (%d%% driver share — %s)", netPayout, 100 - pct, cut, pct, dname)
+    
     local ok = career_modules_bank.rewardToAccount({
       money = { amount = amount, canBeNegative = false },
-    }, accountId, string.format("Sanctioned team race — P%d", place), "Racing team circuit payout")
+    }, accountId, txLabel, txDesc)
     if not ok then
       applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
       return { money = 0, businessSkillXp = 0, noRewardDetail = "Could not deposit race payout." }
     end
     do
-      local techCut = driverId and getRacingTeamDriverById(businessId, driverId)
       racingTeamFinances.applyDriverCutAfterPayout(businessId, amount, {
         racingSkillXp = techCut and techCut.racingSkillXp,
         driverName = techCut and techCut.name,
       })
     end
+    local uiMessage = string.format("P%d Finish (%s): +$%d (%d%% net, %d%% driver share).", place, dname, netPayout, 100 - pct, pct)
+    if ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
     if xpAmount > 0 then
       addRacingTeamBusinessSkillXpValue(businessId, xpAmount)
     end
