@@ -742,6 +742,10 @@ function M.isRacingTeamProxyRaceSessionActive()
     return M.trackFlowState.racingTeamProxyRaceSession == true
 end
 
+function M.getRacingTeamProxyAiDifficultyT()
+    return M.trackFlowState.racingTeamProxyAiDifficultyT
+end
+
 --- Sanctioned phone flow OR racing-team proxy staging (shared grid / countdown gates).
 function M.isTrackGridCareerStagingGateActive()
     return M.trackFlowState.sanctionedCareerGoToRaceActive == true or M.trackFlowState.racingTeamProxyRaceActive == true
@@ -798,7 +802,6 @@ function M.onTrackRaceBeganFromRacingTeamProxy()
     M.trackFlowState.racingTeamProxyAiPoolRefHp = nil
     M.trackFlowState.racingTeamProxyAiPoolMinHp = nil
     M.trackFlowState.racingTeamProxyAiPoolBracketOnly = false
-    M.trackFlowState.racingTeamProxyAiDifficultyT = nil
 end
 
 --- Returns { businessId, fleetVehicleId } once, then clears session markers (for post-race cleanup).
@@ -813,6 +816,7 @@ function M.takeRacingTeamProxyRaceSessionCleanup()
     M.trackFlowState.racingTeamProxyRaceSession = false
     M.trackFlowState.racingTeamProxySessionBusinessId = nil
     M.trackFlowState.racingTeamProxySessionFleetVehicleId = nil
+    M.trackFlowState.racingTeamProxyAiDifficultyT = nil
     M.relayRacingTeamProxyOverlay({ visible = false })
     return out
 end
@@ -1159,7 +1163,6 @@ function M.prepareFreeroamAiForTrack(poolReferenceHpOverride, deferCountdown)
         mCompetitiveAwaitingAiSpawn = false
         mTrackGridAiSpawnWaitDeadline = nil
         M.trackFlowState.racingTeamProxyAiPoolBracketOnly = false
-        M.trackFlowState.racingTeamProxyAiDifficultyT = nil
         if deferCountdown then return end
         if sess().staged ~= M.TRACK_RACE_ID or sess().mActiveRace then return end
         if M.trackFlowState.inTrackFlowContext and M.isTrackGridCareerStagingGateActive() then

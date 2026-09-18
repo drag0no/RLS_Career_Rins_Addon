@@ -335,7 +335,7 @@ local function driverCutBlendTFromXp(xp)
 end
 
 local function driverCutPercentFromRacingXp(xp)
-  return 35 + 25 * driverCutBlendTFromXp(xp)
+  return 15 + 20 * driverCutBlendTFromXp(xp)
 end
 
 function M.applyDriverCutAfterPayout(businessId, grossAmount, opts)
@@ -404,9 +404,9 @@ local function getRacingTeamFinancesData(businessId)
     generalManager = shop.generalManager,
     generalManagerCost = shop.generalManagerCost,
     maxCost = shop.maxCost,
-    driverCutPercentMin = 35,
-    driverCutPercentMax = 60,
-    driverCutNote = "35%–60% of gross payout by driver skill (debited on deposit; see ledger).",
+    driverCutPercentMin = 15,
+    driverCutPercentMax = 35,
+    driverCutNote = "15%–35% of gross payout by driver skill (debited on deposit; see ledger).",
     raceEntryNote = "Due when you schedule a race (class & league; see ledger).",
   }
 

@@ -1805,11 +1805,13 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
             local span = bmax - bmin
             local effectiveBmax = bmax
             if span > 0 then
+                -- Invert power handicap: higher driver skill reduces opponent max power (giving the driver an advantage)
+                local oppScale = 1 - skillT
                 if hp > 0 then
                     local softCap = math.max(bmin, math.min(bmax, hp - PROXY_BRACKET_SOFT_PW_BELOW_PLAYER))
-                    effectiveBmax = softCap + (bmax - softCap) * skillT
+                    effectiveBmax = softCap + (bmax - softCap) * oppScale
                 else
-                    local frac = 0.2 + 0.8 * skillT
+                    local frac = 0.75 + 0.25 * oppScale
                     effectiveBmax = bmin + span * frac
                 end
                 effectiveBmax = math.max(bmin, math.min(bmax, effectiveBmax))
@@ -2051,6 +2053,24 @@ local function randomAggression(cfg, race)
     if maxAgg < minAgg then maxAgg = minAgg end
     local raw = minAgg + math.random() * (maxAgg - minAgg)
     return clamp(raw, 0.2, 1.5)
+end
+
+local function setPlayersAiParams(cfg)
+    local ctf = gameplay_events_freeroam_competitiveTrackFlow
+    if not ctf or not ctf.getRacingTeamProxyAiDifficultyT then return end
+    
+    local skillT = ctf.getRacingTeamProxyAiDifficultyT()
+    if not skillT then return end
+
+    skillT = math.max(0, math.min(1, tonumber(skillT) or 0))
+    cfg.aggression = 0.88 + 0.32 * skillT
+    cfg.raceTrafficPassBlend = 0.20 + 0.65 * skillT
+    cfg.raceClearanceScaleMin = 0.58 - 0.28 * skillT
+    cfg.raceCornerLineLiftScale = 0.70 + 0.65 * skillT
+    cfg.targetSpeedSmootherRate = math.floor(16 + 12 * skillT + 0.5)
+    cfg.raceThrottleRateMult = 3.0 + 3.0 * skillT
+    cfg.raceUndersteerSlipMin = 1.02 + 0.14 * skillT
+    cfg.raceCommitCorners = true
 end
 
 local function getRacingParameters(cfg, race)
@@ -2427,8 +2447,7 @@ local function queueNavDriveForVehicle(vehObj, path, noOfLaps, cfg, race)
         wpTargetList[#wpTargetList + 1] = wpTargetList[1]
     end
     local wpTargetListStr = serialize(wpTargetList)
-    -- Full aggression: state-based speed (no route speed limit). Rubberband later by player XP.
-    local aggression = 1.0
+    local aggression = tonumber(cfg.aggression) or 1.0
     local driveInLane = tostring(cfg.driveInLane or DEFAULT_CONFIG.driveInLane)
     local avoidCars = tostring(cfg.avoidCars or DEFAULT_CONFIG.avoidCars)
     local targetSpeedSmootherRate = tonumber(cfg.targetSpeedSmootherRate) or DEFAULT_CONFIG.targetSpeedSmootherRate or 18
@@ -2490,8 +2509,7 @@ local function queueDriveForVehicle(vehObj, race, noOfLaps, cfg, laneIndex)
     if not scriptPath or #scriptPath < 2 then return end
 
     local pathStr = serialize(scriptPath)
-    -- Full aggression: state-based speed (no route speed limit). Rubberband later by player XP.
-    local aggression = 1.0
+    local aggression = tonumber(cfg.aggression) or 1.0
     local driveInLane = tostring(cfg.driveInLane or DEFAULT_CONFIG.driveInLane)
     local avoidCars = tostring(cfg.avoidCars or DEFAULT_CONFIG.avoidCars)
     local targetSpeedSmootherRate = tonumber(cfg.targetSpeedSmootherRate) or DEFAULT_CONFIG.targetSpeedSmootherRate or 18
@@ -2587,6 +2605,8 @@ function M.driveVehicleOnRacePath(vehId, race, lapCount, laneIndex)
         queueEngineStart(vehObj)
     end
     mVehicleLaneIndexByVehId[vehId] = laneIndex
+
+    setPlayersAiParams(cfg)
     queueDriveForVehicle(vehObj, race, noOfLaps, cfg, laneIndex)
 end
 
