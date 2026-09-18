@@ -948,22 +948,14 @@ local function getMaxPulledOutVehicles(businessId)
   local function clampPulls(n)
     return math.min(cap, math.max(1, math.floor(tonumber(n) or 1)))
   end
-  if rtState.rtInternal.getCurrentLeague(businessId) == "league1" then
-    local base = rtState.rtInternal.allTierOneGoalsComplete(businessId) and 2 or 1
-    return clampPulls(base + slotLv)
-  end
-  local n = math.max(
-    2,
-    rtState.K.MAX_LEAGUE2_PULLED_OUT + getSkillTreeNodeLevel(businessId, "team-operations", "paddock-capacity")
-  ) + slotLv
-  return clampPulls(n)
+  local isLeague1 = rtState.rtInternal.getCurrentLeague(businessId) == "league1"
+  local base = (not isLeague1 or rtState.rtInternal.allTierOneGoalsComplete(businessId)) and 2 or 1
+  return clampPulls(base + slotLv)
 end
 
 local function getMaxActiveJobs(businessId)
   local cap = rtState.K.RACING_TEAM_GARAGE_PARKING_CAP or 4
-  local n = 2
-    + getSkillTreeNodeLevel(businessId, "team-operations", "parallel-programs")
-    + getRacingTeamGarageSlotsSkillLevel(businessId)
+  local n = 2 + getRacingTeamGarageSlotsSkillLevel(businessId)
   return math.min(cap, math.max(1, n))
 end
 
