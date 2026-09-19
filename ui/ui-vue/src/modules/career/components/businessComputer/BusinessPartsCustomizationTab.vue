@@ -943,7 +943,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  gap: 0.85em;
+  gap: 0.5em;
 }
 
 .search-section {
@@ -966,7 +966,7 @@ onBeforeUnmount(() => {
 
   .search-input {
     width: 100%;
-    padding: 0.75em 1em 0.75em 2.5em;
+    padding: 0.6em 1em 0.6em 2.5em;
     background: rgba(23, 23, 23, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0.35em;
@@ -1041,8 +1041,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.6em;
-  padding: 0.4em 0.2em;
+  margin-bottom: 0.35em;
+  padding: 0.25em 0.1em;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 
   .tree-summary-text {

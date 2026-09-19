@@ -8,7 +8,6 @@
         'has-parts': hasAvailableParts,
         'is-selected': isSelected
       }"
-      :style="{ paddingLeft: (0.6 + level * 1.1) + 'em' }"
       @click="handleRowClick"
       data-focusable
     >
@@ -25,8 +24,8 @@
           <svg
             class="chevron-icon"
             :class="{ rotated: isExpanded }"
-            width="14"
-            height="14"
+            width="13"
+            height="13"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -57,7 +56,7 @@
           data-focusable
         >
           <span class="part-badge-text">{{ node.partNiceName || '-' }}</span>
-          <svg class="badge-chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg class="badge-chevron-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
@@ -167,23 +166,23 @@ const handleRowClick = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 0.6em;
-  padding-bottom: 0.6em;
-  padding-right: 0.8em;
+  padding: 0.32em 0.55em;
   background: rgba(18, 18, 18, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5em;
-  margin-bottom: 0.3em;
+  border-radius: 0.35em;
+  margin-bottom: 0.2em;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   user-select: none;
+  min-height: 2.1em;
+  box-sizing: border-box;
 
   &:hover {
     background: rgba(28, 28, 28, 0.95);
     border-color: rgba(245, 73, 0, 0.5);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 
     .slot-name {
       color: white;
@@ -212,7 +211,7 @@ const handleRowClick = () => {
 .slot-row-left {
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.35em;
   min-width: 0;
   flex: 1;
 
@@ -220,14 +219,16 @@ const handleRowClick = () => {
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 0.2em;
+    padding: 0.1em;
+    width: 1.3em;
+    height: 1.3em;
     display: flex;
     align-items: center;
     justify-content: center;
     color: rgba(255, 255, 255, 0.5);
     transition: color 0.15s;
     flex-shrink: 0;
-    border-radius: 0.25em;
+    border-radius: 0.2em;
 
     &:hover {
       color: rgba(245, 73, 0, 1);
@@ -244,14 +245,14 @@ const handleRowClick = () => {
   }
 
   .tree-chevron-placeholder {
-    width: 1.25em;
-    height: 1.25em;
+    width: 1.3em;
+    height: 1.3em;
     flex-shrink: 0;
   }
 
   .slot-name {
     color: rgba(255, 255, 255, 0.9);
-    font-size: 0.875em;
+    font-size: 0.85em;
     font-weight: 500;
     text-align: left;
     white-space: nowrap;
@@ -260,11 +261,11 @@ const handleRowClick = () => {
   }
 
   .children-count-badge {
-    padding: 0.1em 0.45em;
+    padding: 0.05em 0.4em;
     background: rgba(255, 255, 255, 0.08);
     border-radius: 0.75em;
     color: rgba(255, 255, 255, 0.5);
-    font-size: 0.75em;
+    font-size: 0.72em;
     font-weight: 600;
     flex-shrink: 0;
   }
@@ -273,29 +274,29 @@ const handleRowClick = () => {
 .slot-row-right {
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.35em;
   flex-shrink: 0;
-  margin-left: 0.5em;
+  margin-left: 0.4em;
 
   .part-badge-btn {
     display: flex;
     align-items: center;
-    gap: 0.4em;
-    padding: 0.25em 0.65em;
+    gap: 0.35em;
+    padding: 0.2em 0.55em;
     background: rgba(26, 26, 26, 1);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 0.3em;
+    border-radius: 0.25em;
     color: rgba(255, 255, 255, 0.85);
-    font-size: 0.85em;
+    font-size: 0.8em;
     cursor: pointer;
     transition: all 0.15s ease;
-    max-width: 15em;
+    max-width: 14em;
 
     .part-badge-text {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: 13em;
+      max-width: 12.5em;
     }
 
     .badge-chevron-icon {
@@ -319,19 +320,19 @@ const handleRowClick = () => {
   .part-badge-static {
     display: flex;
     align-items: center;
-    padding: 0.25em 0.65em;
+    padding: 0.2em 0.55em;
     background: rgba(26, 26, 26, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 0.3em;
+    border-radius: 0.25em;
     color: rgba(255, 255, 255, 0.4);
-    font-size: 0.85em;
-    max-width: 15em;
+    font-size: 0.8em;
+    max-width: 14em;
 
     .part-badge-text {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: 13em;
+      max-width: 12.5em;
     }
   }
 }
@@ -341,8 +342,10 @@ const handleRowClick = () => {
   flex-direction: column;
   position: relative;
   margin-left: 0.5em;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1.5px solid rgba(245, 73, 0, 0.25);
   padding-left: 0.25em;
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
 }
 
 .tree-collapse-enter-active,
@@ -356,4 +359,3 @@ const handleRowClick = () => {
   transform: translateY(-4px);
 }
 </style>
-
