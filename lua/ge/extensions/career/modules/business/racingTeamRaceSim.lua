@@ -37,6 +37,13 @@ local function getInventory()
   return rawget(_G, "career_modules_business_businessInventory")
 end
 
+local function getPhoneLayout()
+  if not rawget(_G, "ui_phone_layout") and extensions and extensions.load then
+    pcall(extensions.load, "ui_phone_layout")
+  end
+  return rawget(_G, "ui_phone_layout")
+end
+
 local function isShortTrackRoute(offer)
   if type(offer) ~= "table" then
     return false
@@ -448,7 +455,7 @@ local function settleBackgroundRace(businessId)
   -- 1. Settle with standard banking, XP, goals, and driver cut
   local settlementResult = nil
   if rt.settleProxySanctionedRaceFromAiResults and results then
-    settlementResult = rt.settleProxySanctionedRaceFromAiResults(businessId, results)
+    settlementResult = rt.settleProxySanctionedRaceFromAiResults(businessId, results, true)
   end
 
   -- 2. Accumulate odometer mileage
@@ -508,12 +515,28 @@ local function settleBackgroundRace(businessId)
     rt.notifyRacingTeamDriversUpdated(businessId)
   end
 
-  -- 5. Dispatch toast and notification
+  -- 5. Dispatch phone notification
   local playerPlace = sim.simResults and sim.simResults.playerPlace or 1
   local driverName = tech and tech.name or "Driver"
   local xpEarned = settlementResult and settlementResult.businessSkillXp or 0
-  local toastMsg = string.format("Background race finished: %s took P%d (+%d XP gained).", driverName, playerPlace, xpEarned)
-  if ui_message then ui_message(toastMsg, 8, "Racing Team", "info") end
+  local moneyEarned = settlementResult and settlementResult.money or 0
+  local layout = getPhoneLayout()
+  if layout and layout.fireNotification then
+    local title = (playerPlace <= 3) and string.format("P%d Podium!", playerPlace) or string.format("P%d Finish", playerPlace)
+    local moneyStr = moneyEarned >= 0 and string.format("+$%d", moneyEarned) or "+$0"
+    local xpStr = xpEarned >= 0 and string.format("+%d XP", xpEarned) or "+0 XP"
+    local rewardStr = string.format(" (%s, %s)", moneyStr, xpStr)
+    local raceLabel = offer and (offer.name or offer.trackName or offer.raceLabel) or "Sanctioned Race"
+    layout.fireNotification("racingTeam.raceFinished", {
+      title = title,
+      message = string.format("%s finished P%d%s", driverName, playerPlace, rewardStr),
+      meta = raceLabel,
+      kind = playerPlace <= 3 and "info" or "warning",
+      ttl = 10,
+      source = "Racing Team",
+      sound = { soundClass = "AudioGui", type = "event:>UI>Missions>Info_Open" },
+    }, { appId = "racing-team" })
+  end
 
   log("I", "racingTeamRaceSim", string.format("Background race settled for business %s: P%d", tostring(businessId), playerPlace))
 end

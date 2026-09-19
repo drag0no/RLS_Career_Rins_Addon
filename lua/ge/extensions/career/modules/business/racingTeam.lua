@@ -2353,7 +2353,7 @@ local function applyProxySanctionedRaceDriverStats(businessId, driverId, place, 
   end
 end
 
-local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
+local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isSilent)
   businessId = normalizeBusinessId(businessId)
   if not businessId then
     return { money = 0, businessSkillXp = 0, noRewardDetail = "Invalid business." }
@@ -2460,6 +2460,7 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
     xpAmount = math.floor(xpAmount * (1 + 0.1 * paLevel) + 0.5)
   end
 
+  local silentToast = isSilent == true
   local techCut = driverId and getRacingTeamDriverById(businessId, driverId)
   local dname = techCut and techCut.name or "Driver"
   local pct = math.floor(racingTeamFinances.driverCutPercentFromRacingXp(techCut and techCut.racingSkillXp or 0) + 0.5)
@@ -2473,7 +2474,7 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
     end
     applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = xpAmount })
     local uiMessage = string.format("P%d Finish (%s): +%d XP gained from race experience.", place, dname, xpAmount)
-    if ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
+    if not silentToast and ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
     if career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
     local noRewardDetail = string.format("P%d Finish — +%d XP gained from race experience (podium required for prize money).", place, xpAmount)
     return { money = 0, businessSkillXp = xpAmount, noRewardDetail = noRewardDetail }
@@ -2519,7 +2520,7 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
   end
   applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = xpAmount })
   local uiMessage = string.format("P%d Finish (%s): +$%d (%d%% net, %d%% driver share).", place, dname, netPayout, 100 - pct, pct)
-  if ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
+  if not silentToast and ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
   if career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
 
   return { money = amount, businessSkillXp = xpAmount, noRewardDetail = nil }

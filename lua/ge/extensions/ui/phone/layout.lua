@@ -27,6 +27,7 @@ local PREINSTALLED_APP_IDS = {
 local NOTIFICATION_CHANNEL_APP_IDS = {
   ["carMeet.invite"] = "car-meet",
   ["racingTeam.raceReady"] = "racing-team",
+  ["racingTeam.raceFinished"] = "racing-team",
   ["fre.contractReady"] = "fre-contracts",
   ["tuningShop.jobCompleted"] = "tuning-shop",
   ["tuningShop.jobFailed"] = "tuning-shop",
