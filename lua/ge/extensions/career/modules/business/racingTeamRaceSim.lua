@@ -329,6 +329,12 @@ function M.startBackgroundRace(businessId, driverId)
   end
 
   local offer = tech.pendingRaceOffer
+  if rt.isOfferBlockedByDyno and rt.isOfferBlockedByDyno(businessId, fleetVehicleId, offer) then
+    return { ok = false, err = "dyno_required" }
+  end
+  if rt.fleetVehicleOverpoweredForOffer and rt.fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, offer) then
+    return { ok = false, err = "fleet_hp_over_class_max" }
+  end
   local isShort = isShortTrackRoute(offer)
   local lapCount = math.max(1, math.floor(tonumber(offer.lapCount) or 3))
   local raceDuration = lapCount * (isShort and LAP_TIME_SHORT or LAP_TIME_LONG)
@@ -425,6 +431,10 @@ function M.cancelBackgroundRace(businessId, driverId, reason)
       if rt.notifyRacingTeamDriversUpdated then
         rt.notifyRacingTeamDriversUpdated(businessId)
       end
+      local _, savePath = career_saveSystem and career_saveSystem.getCurrentProfile and career_saveSystem.getCurrentProfile()
+      if savePath and rt.saveRacingTeamPersistedState then
+        rt.saveRacingTeamPersistedState(businessId, savePath)
+      end
     elseif reason == "drop_out" or reason == "dropped" then
       if rt.cancelUnarmedScheduledRacingTeamProxyRace then
         return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, sim.driverId)
@@ -491,11 +501,11 @@ local function settleBackgroundRace(businessId)
   end
 
   -- 4. Arm driver & vehicle cooldown and clear pending offer
-  local tech = rt.getRacingTeamDriverById and rt.getRacingTeamDriverById(businessId, sim.driverId)
+  local tech = rt.getRacingTeamDriverById(businessId, sim.driverId)
   if tech then
     local rtf = getRacingTeamFleet()
     local cdSec = rtf and rtf.getRacingTeamPostRaceCooldownSeconds and rtf.getRacingTeamPostRaceCooldownSeconds(businessId) or 900
-    local nowSim = rt.getCareerSimTime and rt.getCareerSimTime() or 0
+    local nowSim = rt.getCareerSimTime() or os.time()
     tech.racingCooldownUntilSimTime = nowSim + cdSec
     tech.postRaceCooldownReadyWallEpoch = os.time() + cdSec
     tech.pendingRaceOffer = nil
@@ -523,11 +533,16 @@ local function settleBackgroundRace(businessId)
   local playerPlace = sim.simResults and sim.simResults.playerPlace or 1
   local driverName = tech and tech.name or "Driver"
   local xpEarned = settlementResult and settlementResult.businessSkillXp or 0
-  local moneyEarned = settlementResult and settlementResult.money or 0
+  local grossMoney = settlementResult and settlementResult.money or 0
+  local netMoney = grossMoney
+  if grossMoney > 0 and rt.driverCutPercentFromRacingXp and tech then
+    local pct = math.floor(rt.driverCutPercentFromRacingXp(tech.racingSkillXp or 0) + 0.5)
+    netMoney = math.max(0, grossMoney - math.floor(grossMoney * pct / 100 + 0.5))
+  end
   local layout = getPhoneLayout()
   if layout and layout.fireNotification then
     local title = (playerPlace <= 3) and string.format("P%d Podium!", playerPlace) or string.format("P%d Finish", playerPlace)
-    local moneyStr = moneyEarned >= 0 and string.format("+$%d", moneyEarned) or "+$0"
+    local moneyStr = netMoney > 0 and string.format("+$%d net", netMoney) or (playerPlace <= 3 and string.format("+$%d", netMoney) or "+$0")
     local xpStr = xpEarned >= 0 and string.format("+%d XP", xpEarned) or "+0 XP"
     local rewardStr = string.format(" (%s, %s)", moneyStr, xpStr)
     local raceLabel = offer and (offer.name or offer.trackName or offer.raceLabel) or "Sanctioned Race"
@@ -569,8 +584,13 @@ function M.checkAutoStart(businessId)
   for _, tech in ipairs(drivers) do
     if tech and not tech.fired and tech.pendingRaceOffer then
       if rt.isScheduledRaceReadyForDriver and rt.isScheduledRaceReadyForDriver(businessId, tech.id) then
-        M.startBackgroundRace(businessId, tech.id)
-        return
+        local fleetVehicleId = tech.fleetVehicleId
+        local offer = tech.pendingRaceOffer
+        local blocked = rt.isOfferBlockedByDyno(businessId, fleetVehicleId, offer) or rt.fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, offer)
+        if not blocked then
+          M.startBackgroundRace(businessId, tech.id)
+          return
+        end
       end
     end
   end
@@ -615,23 +635,21 @@ function M.tickAccumulated(dtSim)
             sim.phase = PHASE_IN_RACE
             sim.stateElapsed = 0
             sim.stateDuration = sim.raceDuration
-            if rt and rt.notifyRacingTeamDriversUpdated then
-              rt.notifyRacingTeamDriversUpdated(nBid)
-            end
           end
         elseif sim.phase == PHASE_IN_RACE then
           if sim.stateElapsed >= sim.stateDuration then
             sim.phase = PHASE_DRIVING_FROM_RACE
             sim.stateElapsed = 0
             sim.stateDuration = DURATION_DRIVING_FROM_RACE
-            if rt and rt.notifyRacingTeamDriversUpdated then
-              rt.notifyRacingTeamDriversUpdated(nBid)
-            end
           end
         elseif sim.phase == PHASE_DRIVING_FROM_RACE then
           if sim.stateElapsed >= sim.stateDuration then
             settleBackgroundRace(nBid)
           end
+        end
+        -- Push updated progress/badge to Vue on every 1 Hz tick
+        if activeSimByBusiness[id] and rt and rt.notifyRacingTeamDriversUpdated then
+          rt.notifyRacingTeamDriversUpdated(nBid)
         end
       else
         M.checkAutoStart(nBid)

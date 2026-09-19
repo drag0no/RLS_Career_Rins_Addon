@@ -2410,15 +2410,15 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isS
   if hMax < hMin then
     hMin, hMax = hMax, hMin
   end
-  if (hMax > 0 or hMin > 0) and career_modules_competitiveRace_aiRacers
+  local tolerance = rtState and rtState.K.RACING_TEAM_SCRUTINEERING_TOLERANCE or 0.05
+  local tolerancePct = math.floor(tolerance * 100 + 0.5)
+  -- Parc Fermé scrutineering: only check upper bracket ceiling (with tolerance).
+  -- Under-spec underdog vehicles (lower tier) are never penalized for winning against higher-spec fields.
+  if hMax > 0 and career_modules_competitiveRace_aiRacers
       and career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck then
     local pwLive = career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck()
-    if type(pwLive) == "number" then
-      if pwLive > hMax then
-        podiumHpBandReason = "Over class hp/kg limit — no podium rewards."
-      elseif pwLive < hMin then
-        podiumHpBandReason = "Below class minimum hp/kg — no podium rewards."
-      end
+    if type(pwLive) == "number" and pwLive > (hMax * (1 + tolerance)) then
+      podiumHpBandReason = string.format("Over class hp/kg limit (exceeded %d%% scrutineering tolerance) — no podium rewards.", tolerancePct)
     end
   end
 
@@ -2691,6 +2691,7 @@ local function formatRacingTeamDriverForUI(businessId, tech)
     canSpectate = simState and simState.canSpectate == true or false,
     simBadge = simState and simState.badge or nil,
     simPhase = simState and simState.phase or nil,
+    simProgress = simState and simState.progress or 0,
     serverTime = os.clock(),
     jobId = tech.jobId,
     jobLabel = jobLabel,
@@ -4467,9 +4468,9 @@ M.dropRacingTeamSponsorActive = dropRacingTeamSponsorActive
 M.getMaxPulledOutVehicles = getMaxPulledOutVehicles
 M.getMaxActiveJobs = getMaxActiveJobs
 
-function M.getCareerSimTimeForUI()
-  return getCareerSimTime()
-end
+M.getCareerSimTime = getCareerSimTime
+M.isOfferBlockedByDyno = isOfferBlockedByDyno
+M.driverCutPercentFromRacingXp = racingTeamFinances.driverCutPercentFromRacingXp
 
 function M.tickScheduledRaceReadyToasts()
   processScheduledRaceReadyToastQueue()

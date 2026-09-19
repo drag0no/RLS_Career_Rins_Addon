@@ -1,6 +1,7 @@
 local M = {}
 
 local freConfig = require("gameplay/fre/config")
+local rtState = require('ge/extensions/career/modules/business/racingTeamRuntimeState')
 
 local CONFIG_DIR = "competitiveRace"
 local CONFIG_RACE_FILENAME = "aiRacingConfig.json"
@@ -1224,13 +1225,14 @@ function M.onRaceBegin(raceName)
   gameplay_events_freContracts_state.refreshMaintenanceSchedule(gameplay_events_freContracts_state.getSimTime())
   runtime.dispatchUiActive = false
   runtime.suppressFrePayouts = true
-  -- Class cap / podium: trusted live hp/kg vs bracket max with 5% scrutineering tolerance.
+  -- Class cap / podium: trusted live hp/kg vs bracket max with scrutineering tolerance.
   local pwMax = tonumber(offer.classPwMax)
   local pwLive = nil
   if career_modules_competitiveRace_aiRacers and career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck then
     pwLive = career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck()
   end
-  local isOver = (pwMax and pwMax > 0 and type(pwLive) == "number" and pwLive > (pwMax * 1.05))
+  local tolerance = (rtState and rtState.getScrutineeringTolerance and rtState.getScrutineeringTolerance()) or (rtState and rtState.K and rtState.K.RACING_TEAM_SCRUTINEERING_TOLERANCE) or 0.05
+  local isOver = (pwMax and pwMax > 0 and type(pwLive) == "number" and pwLive > (pwMax * (1 + tolerance)))
   runtime.podiumEligible = {
     result = not isOver,
     pwLive = pwLive,
@@ -1238,11 +1240,12 @@ function M.onRaceBegin(raceName)
     fine = 350,
   }
   srTrace(string.format(
-    "onRaceBegin ARMED suppressFrePayouts=true podiumEligible=%s offerId=%s classPwMax=%s pwLive=%s",
+    "onRaceBegin ARMED suppressFrePayouts=true podiumEligible=%s offerId=%s classPwMax=%s pwLive=%s tolerance=%.2f",
     tostring(runtime.podiumEligible.result == true),
     tostring(offer.id),
     tostring(offer.classPwMax),
-    tostring(pwLive or "n/a")
+    tostring(pwLive or "n/a"),
+    tolerance
   ))
 end
 
@@ -1333,8 +1336,7 @@ local function payPodium(place)
       local isOwnerDriver = offer.playerProxyAlongsideRace == true
       local playerCut = 1.0
       if isOwnerDriver then
-        local rtState = rawget(_G, "career_modules_business_racingTeamRuntimeState")
-        playerCut = (rtState and rtState.K and tonumber(rtState.K.RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER)) or 0.85
+        playerCut = rtState and rtState.K.RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER or 0.85
       end
 
       local playerAmount = math.floor(amount * playerCut)
@@ -1494,17 +1496,19 @@ function M.settleFromAiResults(aiResults, raceName)
   local fine = inf.fine or 350
   local pwLive = inf.pwLive or 0
   local pwMax = inf.pwMax or 0
+  local tolerance = (rtState and rtState.getScrutineeringTolerance and rtState.getScrutineeringTolerance()) or (rtState and rtState.K and rtState.K.RACING_TEAM_SCRUTINEERING_TOLERANCE) or 0.05
+  local tolerancePct = math.floor(tolerance * 100 + 0.5)
   local isTeamOffer = type(o) == "table" and o.racingTeamBusinessOffer == true and o.businessId ~= nil
   local fineCharged = false
   if isTeamOffer and career_modules_bank then
     local bAccount = career_modules_bank.getBusinessAccount("racingTeam", o.businessId)
     local accountId = bAccount and (bAccount.id or bAccount.accountId)
     if accountId then
-      local dqMsg = string.format("Technical DQ (%.3f hp/kg > %.3f hp/kg limit)", pwLive, pwMax)
+      local dqMsg = string.format("Technical DQ (%.3f hp/kg > %.3f hp/kg limit +%d%% tolerance)", pwLive, pwMax, tolerancePct)
       fineCharged = career_modules_bank.removeFunds(accountId, fine, "Parc Ferme Fine", dqMsg, true) == true
     end
   end
-  local detail = string.format("Technical Disqualification: Power-to-weight (%.3f hp/kg) exceeded class limit (%.3f hp/kg). Podium purse withheld.", pwLive, pwMax)
+  local detail = string.format("Technical Disqualification: Power-to-weight (%.3f hp/kg) exceeded class limit (%.3f hp/kg +%d%% tolerance). Podium purse withheld.", pwLive, pwMax, tolerancePct)
   if fineCharged then detail = detail .. string.format(" $%d fine deducted from team funds.", fine) end
 
   mCelebrationRewards = { money = 0, noRewardDetail = detail }

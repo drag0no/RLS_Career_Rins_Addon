@@ -1383,8 +1383,8 @@ end
 
 local function getRacingTeamCareerSimTime()
   local rt = rawget(_G, "career_modules_business_racingTeam")
-  if rt and rt.getCareerSimTimeForUI then
-    return rt.getCareerSimTimeForUI()
+  if rt and rt.getCareerSimTime then
+    return rt.getCareerSimTime()
   end
   return nil
 end

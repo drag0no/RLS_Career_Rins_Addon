@@ -75,6 +75,8 @@ M.K = {
   -- PLAYER drove the race instead of a hired driver (85% net; 15% trackside crew share).
   -- AI/proxy races are unaffected (they still apply driver-cut on gross).
   RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER = 0.85,
+  -- 5% tolerance for in-race fuel burn mass reduction
+  RACING_TEAM_SCRUTINEERING_TOLERANCE = 0.05,
   POST_RACE_COOLDOWN_UI_POLL_INTERVAL_SIM = 1,
   RACING_TEAM_COOLDOWN_REDUCTION_PER_LEVEL = 0.05,
   SCHEDULED_RACE_READY_TOAST_INTERVAL = 2.5,

@@ -1357,8 +1357,8 @@ local function buildBusinessSanctionedPlan(available, playerPw, requestedCount, 
     return plan, dbg
 end
 
--- Racing team proxy: pool configs with hp/kg in [pwMin, pwMax], preferring highest pw in band.
-local function buildBracketMaxBiasedPlan(available, pwMin, pwMax, requestedCount)
+-- Racing team proxy: pool configs with hp/kg in [pwMin, pwMax], randomly distributed across category bracket band.
+local function buildBracketRandomPlan(available, pwMin, pwMax, requestedCount)
     local plan = {}
     if type(available) ~= "table" or type(requestedCount) ~= "number" or requestedCount < 1 then
         return plan
@@ -1380,11 +1380,11 @@ local function buildBracketMaxBiasedPlan(available, pwMin, pwMax, requestedCount
     if #rows == 0 then
         return plan
     end
-    table.sort(rows, function(a, b)
-        if a.pw ~= b.pw then return a.pw > b.pw end
-        if (a.model or "") ~= (b.model or "") then return (a.model or "") < (b.model or "") end
-        return (a.config or "") < (b.config or "")
-    end)
+    -- Fisher-Yates shuffle for natural random power distribution across the category bracket
+    for i = #rows, 2, -1 do
+        local j = math.random(i)
+        rows[i], rows[j] = rows[j], rows[i]
+    end
     local maxPerIdentity = 2
     local counts = {}
     local function poolKey(r)
@@ -1802,27 +1802,14 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
                 skillT = tonumber(sanctionedSpawnCtx.racingTeamProxyAiDifficultyT) or 1
             end
             skillT = math.max(0, math.min(1, skillT))
-            local span = bmax - bmin
             local effectiveBmax = bmax
-            if span > 0 then
-                -- Invert power handicap: higher driver skill reduces opponent max power (giving the driver an advantage)
-                local oppScale = 1 - skillT
-                if hp > 0 then
-                    local softCap = math.max(bmin, math.min(bmax, hp - PROXY_BRACKET_SOFT_PW_BELOW_PLAYER))
-                    effectiveBmax = softCap + (bmax - softCap) * oppScale
-                else
-                    local frac = 0.75 + 0.25 * oppScale
-                    effectiveBmax = bmin + span * frac
-                end
-                effectiveBmax = math.max(bmin, math.min(bmax, effectiveBmax))
-            end
             if type(cfg.vehiclePool) == "table" then
                 local merged = mergeVehiclePoolFromFirstAvailableTier(cfg.vehiclePool)
                 local availableBase = filterVehiclePoolToAvailable(merged)
                 local available = filterPoolByBracketMin(availableBase, bmin)
                 available = filterPoolByBracketMax(available, effectiveBmax)
                 if #available > 0 then
-                    local plan = buildBracketMaxBiasedPlan(available, bmin, effectiveBmax, requestedCount)
+                    local plan = buildBracketRandomPlan(available, bmin, effectiveBmax, requestedCount)
                     if #plan > 0 then
                         local spawned = spawnStagingPlan(raceName, race, facilityName, plan)
                         if aiSpawnDebugEnabled(cfg) then

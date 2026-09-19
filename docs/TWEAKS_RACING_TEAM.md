@@ -118,11 +118,10 @@ When Phase 3 finishes, settlement executes automatically:
 
 #### 3.1 Resolving the AI Driver Paradox
 In legacy code, opponent AI power scaled with the player driver's XP. This created a paradoxical inverted difficulty curve where rookie drivers faced slow AI and won easily, while veteran drivers faced hyper-tuned rocketships and lost constantly.
-- **Inverted Opponent Scaling**: Opponent vehicle power scaling has been completely inverted. Opponent difficulty now properly reflects the league tier rather than penalizing driver XP.
+- **Randomized Bracket Opponent Distribution**: Opponent vehicle power is now drawn randomly across the full sanctioned category bracket $[b_{\text{min}}, b_{\text{max}}]$, reflecting an authentic, varied motorsport field rather than artificial opponent handicaps.
 - **XP-Driven AI Attributes**: Driver XP now dynamically enhances 3D spectator driving attributes:
-  - **Aggression**: Scales smoothly from $0.60$ (rookie) to $0.98$ (elite).
-  - **Bravery**: Scales from $0.50$ to $0.95$.
-  - **Apex Precision**: Veteran drivers stick closer to racing lines and execute later, sharper braking zones.
+  - **Aggression**: Scales smoothly from $0.88$ (rookie) to $1.20$ (elite).
+  - **Traffic Overtaking & Line Precision**: Scales passing blend ($0.20$ to $0.85$), clearance scale, corner lift, throttle response, and late braking commitment. Elite drivers pass assertively and take sharper apex lines.
 
 #### 3.2 Tiered Driver Revenue Cuts (15%–35%)
 Hired driver cut percentages now scale realistically across 5 experience tiers:
@@ -174,6 +173,11 @@ Unlocking the `quick-travel` skill node now properly registers the racing team f
 1. The **Recovery Menu** (Quick Travel destinations).
 2. The **Bigmap** fast-travel teleport nodes.
 
+#### 4.5 Parc Fermé Scrutineering Tolerance & Underdog Victory Leniency
+Post-race tech inspections at Parc Fermé have been overhauled with authentic motorsport like regulations:
+- **Scrutineering Tolerance**: Defaulting to 5%. This margin accounts for natural vehicle weight loss during competition (fuel burn mass reduction).
+- **No Penalty for Underdog Story**: Historically, finishing a race in a vehicle with power-to-weight below the category minimum (`pwLive < hMin`) stripped the team of podium purse and awards. This punitive rule has been eliminated. If a talented driver punches above their weight class and takes a podium finish in an under-spec car against superior machinery, their victory is fully recognized and celebrated with all podium prize money, skill XP, and sponsor rewards intact.
+
 ---
 
 ### 5. Manager Automation Progression & UI Integration
@@ -204,19 +208,19 @@ Unlocking the `quick-travel` skill node now properly registers the racing team f
 | File | Type | Changes |
 | :--- | :--- | :--- |
 | [`racingTeamRaceSim.lua`](../lua/ge/extensions/career/modules/business/racingTeamRaceSim.lua) | **[NEW]** Logic | • 3-phase background race state machine (`driving_to_race`, `in_race`, `driving_from_race`).<br>• Stochastic 5-car math model with Gaussian lap variance and grid traffic delay.<br>• Full post-race settlement (purse, cuts, XP, goals, odometer accumulation, part wear).<br>• Silent HUD resolution: dispatches lock-screen phone notification (`racingTeam.raceFinished`) instead of screen pop-ups.<br>• 1 Hz throttled simulation ticker with zero per-frame allocations. |
-| [`racingTeam.lua`](../lua/ge/extensions/career/modules/business/racingTeam.lua) | Lua Logic | • Required and integrated `racingTeamRaceSim`.<br>• Inverted AI opponent scaling to resolve the Driver Paradox; scaled bravery, aggression, and lines.<br>• Implemented 15%–35% tiered driver cuts and 85% player-driving purse rebalance.<br>• Added non-podium race experience XP with binary half-decay downscaling.<br>• Added Manager Lv 1 & Lv 2 helpers and auto-start toggle persistence.<br>• Enriched driver formatting payload with live simulation progress and badges.<br>• Added `silentToast` option to suppress on-screen pop-ups during background simulation. |
+| [`racingTeam.lua`](../lua/ge/extensions/career/modules/business/racingTeam.lua) | Lua Logic | • Required and integrated `racingTeamRaceSim`.<br>• Inverted AI opponent scaling to resolve the Driver Paradox; scaled bravery, aggression, and lines.<br>• Implemented 15%–35% tiered driver cuts and 85% player-driving purse rebalance.<br>• Added non-podium race experience XP with binary half-decay downscaling.<br>•Removed lower-tier vehicle penalties to reward underdog wins.<br>• Added Manager Lv 1 & Lv 2 helpers and auto-start toggle persistence.<br>• Enriched driver formatting payload with live simulation progress and badges.<br>• Added `silentToast` option to suppress on-screen pop-ups during background simulation. |
 | [`racing-team.js`](../ui/ui-vue/src/modules/career/apps/manifests/racing-team.js) | App Manifest | • Registered `racingTeam.raceFinished` notification channel in phone app manifest. |
 | [`layout.lua`](../lua/ge/extensions/ui/phone/layout.lua) | Lua Bridge | • Mapped `racingTeam.raceFinished` to `racing-team` app in `NOTIFICATION_CHANNEL_APP_IDS`. |
-| [`racingTeamRuntimeState.lua`](../lua/ge/extensions/career/modules/business/racingTeamRuntimeState.lua) | Lua Logic | • Added `autoStartBackgroundRacesByBusiness` runtime state tracking. |
+| [`racingTeamRuntimeState.lua`](../lua/ge/extensions/career/modules/business/racingTeamRuntimeState.lua) | Lua Logic | • Added `autoStartBackgroundRacesByBusiness` runtime state tracking.<br>• Added single-source-of-truth `RACING_TEAM_SCRUTINEERING_TOLERANCE` constant. |
 | [`businessComputer.lua`](../lua/ge/extensions/career/modules/business/businessComputer.lua) | Lua Bridge | • Exported `sendRacingTeamDriverWithManager`, `setRacingTeamAutoStartBackgroundRaces`, and `cancelRacingTeamBackgroundRace`. |
 | [`racingTeamFinances.lua`](../lua/ge/extensions/career/modules/business/racingTeamFinances.lua) | Lua Logic | • Fixed dyno daily overhead double-charge bug.<br>• Formatted transparent financial transactions for driver cuts and pit crew shares. |
 | [`racingTeamGoals.lua`](../lua/ge/extensions/career/modules/business/racingTeamGoals.lua) | Lua Logic | • Integrated background race completions into team goal tracking. |
 | [`skillTrees/racingTeam.json`](../lua/ge/extensions/career/modules/business/skillTrees/racingTeam.json) | Data / Config | • Updated `manager` skill node descriptions for Lv 1 and Lv 2 background simulation powers.<br>• UTF-8 strictly without BOM. |
-| [`sanctionedRacing.lua`](../lua/ge/extensions/gameplay/events/freContracts/sanctionedRacing.lua) | Lua Logic | • Rebalanced player-driving prize cut to 85% net (15% crew share).<br>• Applied 15-minute player recovery cooldown. |
+| [`sanctionedRacing.lua`](../lua/ge/extensions/gameplay/events/freContracts/sanctionedRacing.lua) | Lua Logic | • Rebalanced player-driving prize cut to 85% net (15% crew share).<br>• Applied 15-minute player recovery cooldown.<br>• Integrated centralized scrutineering tolerance into podium eligibility checks and Parc Fermé technical DQ detail messages. |
 | [`recoveryPrompt.lua`](../lua/ge/extensions/overrides/core/recoveryPrompt.lua) | Lua Override | • Registered racing team facility as a valid quick-travel destination upon skill unlock. |
 | [`RaceOfferBoardCard.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/RaceOfferBoardCard.vue) | Vue Frontend | • Added animated progress bar track, progress fill, and simulation status badge.<br>• Added `"Send with Manager"` button between primary and secondary actions. |
 | [`BusinessRacingTab.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/BusinessRacingTab.vue) | Vue Frontend | • Added `"Auto-start background races"` toggle for Manager Lv 2.<br>• Wired `"Manage myself"` interception during transit grace period.<br>• Wired `"Send with Manager"` dispatch with tooltips and concurrency gating. |
 | [`BusinessDriversTab.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/BusinessDriversTab.vue) | Vue Frontend | • Display live simulation progress container, badges, and phase status on driver cards.<br>• Locked fleet assignment while simulating. |
 | [`businessComputerStore.js`](../ui/ui-vue/src/modules/career/stores/businessComputerStore.js) | JS Store | • Added store actions `sendRacingTeamDriverWithManager`, `setRacingTeamAutoStartBackgroundRaces`, and `cancelRacingTeamBackgroundRace`. |
 | [`businessUtils.js`](../ui/ui-vue/src/modules/career/utils/businessUtils.js) | JS Utility | • Added phase label formatting for `driving_to_race`, `in_race`, and `driving_from_race`. |
-| [`guideWikiTopics.js`](../ui/ui-vue/src/modules/career/data/guideWikiTopics.js) | Data / Docs | • Updated `proxy-races-and-drivers` and `sponsors-finances-and-skills` wiki entries with background simulation mechanics, transit grace period, and manager progression. |
+| [`guideWikiTopics.js`](../ui/ui-vue/src/modules/career/data/guideWikiTopics.js) | Data / Docs | • Updated `proxy-races-and-drivers`, `sponsors-finances-and-skills`, `sanctioned-races`, and `fleet-class-and-brackets` wiki entries with background simulation mechanics, transit grace period, manager progression, and underdog victory leniency. |
