@@ -511,8 +511,9 @@ local function settleBackgroundRace(businessId)
   -- 5. Dispatch toast and notification
   local playerPlace = sim.simResults and sim.simResults.playerPlace or 1
   local driverName = tech and tech.name or "Driver"
-  local toastMsg = string.format("Background race finished: %s took P%d!", driverName, playerPlace)
-  if ui_message then ui_message(toastMsg, 8, "Racing Team", playerPlace <= 3 and "info" or "warning") end
+  local xpEarned = settlementResult and settlementResult.businessSkillXp or 0
+  local toastMsg = string.format("Background race finished: %s took P%d (+%d XP gained).", driverName, playerPlace, xpEarned)
+  if ui_message then ui_message(toastMsg, 8, "Racing Team", "info") end
 
   log("I", "racingTeamRaceSim", string.format("Background race settled for business %s: P%d", tostring(businessId), playerPlace))
 end

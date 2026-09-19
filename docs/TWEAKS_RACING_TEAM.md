@@ -12,6 +12,7 @@
   - **Level 2**: Unlocks autonomous **"Auto-start background races"** (with fail-open toggle), custom booking intervals (10–60 min), and automatic car-to-bracket matching.
 - **AI Driver Paradox Fix**: Inverted legacy opponent scaling. Experienced drivers now gain an authentic competitive edge rather than facing unrealistically overpowered AI fields. Driver XP now directly scales aggression, bravery, apex line precision, and late braking.
 - **Rebalanced Driver Revenue Cuts (15%–35%)**: Replaced the legacy flat driver cut with a tiered structure based on experience (Tier 1: 15% up to Tier 5: 35%), making rookie drivers affordable and veteran drivers rewarding.
+- **Experience XP on Every Race Finish**: Drivers no longer receive 0 XP when losing or finishing off the podium. Every completed race awards baseline track experience XP via binary half-decay (P4: 25% of P3 XP; P5: 12.5% of P3 XP, with active sponsor bonuses), ensuring drivers still learn without undermining podium incentives.
 - **Player-Driving Penalty Rebalance (85% Net Purse)**: Slashed the punitive 75% team tax down to a fair **15% pit crew & team operations share** (awarding **85% net earnings** to the player/team account), paired with an authentic 15-minute driver fatigue cooldown.
 - **Dyno Skill Gate & Facility Overhead Fix**: Gated dyno access behind the skill tree node and eliminated duplicate/phantom daily overhead charges.
 - **Dyno Certification & Out-of-Class Protection**: Added dyno certification prompts and modals for modified fleet vehicles to prevent out-of-bracket entries.
@@ -142,6 +143,15 @@ Previously, driving in a sanctioned race personally penalized the player with a 
 - A realistic **15-minute driver fatigue cooldown** applies after racing personally, preventing spam while keeping driver management valuable.
 - All cuts and cooldowns are transparently displayed in UI tooltips, financial transaction ledgers, toasts, and in-game wiki guides.
 
+#### 3.4 Race Experience & Non-Podium XP (No More 0 XP on Losses)
+In legacy RLS Career, finishing off the podium (P4+) awarded exactly **0 XP** to both the proxy driver and the team. This punished player progression heavily, especially when drivers were developing:
+- **Binary Half-Decay Track Experience XP**: Drivers still earn track experience for completing a race, but off-podium finishes decay exponentially ($2^{\max(2, \text{place}-2)}$) relative to the P3 podium baseline:
+  - **P4 Finish**: **25.0%** of P3 podium XP (divisor 4, minimum 5 XP).
+  - **P5 Finish**: **12.5%** of P3 podium XP (divisor 8, minimum 5 XP).
+- **Sponsor Contract Multipliers**: Any active sponsor contract XP multiplier bonuses continue to apply to race experience earnings.
+- **Unified Across Spectator & Background Modes**: Works identically whether you spectate the race in 3D or dispatch it in the background via the Manager.
+- **Clear Milestone Feedback**: Toast notifications and post-race summaries celebrate driver learning milestones (e.g. *"P4 Finish (Driver Name): +30 XP gained from race experience."*).
+
 ---
 
 ### 4. Operations, Infrastructure & Quality of Life
@@ -193,7 +203,7 @@ Unlocking the `quick-travel` skill node now properly registers the racing team f
 | File | Type | Changes |
 | :--- | :--- | :--- |
 | [`racingTeamRaceSim.lua`](../lua/ge/extensions/career/modules/business/racingTeamRaceSim.lua) | **[NEW]** Logic | • 3-phase background race state machine (`driving_to_race`, `in_race`, `driving_from_race`).<br>• Stochastic 5-car math model with Gaussian lap variance and grid traffic delay.<br>• Full post-race settlement (purse, cuts, XP, goals, odometer accumulation, part wear).<br>• 1 Hz throttled simulation ticker with zero per-frame allocations. |
-| [`racingTeam.lua`](../lua/ge/extensions/career/modules/business/racingTeam.lua) | Lua Logic | • Required and integrated `racingTeamRaceSim`.<br>• Inverted AI opponent scaling to resolve the Driver Paradox; scaled bravery, aggression, and lines.<br>• Implemented 15%–35% tiered driver cuts and 85% player-driving purse rebalance.<br>• Added Manager Lv 1 & Lv 2 helpers and auto-start toggle persistence.<br>• Enriched driver formatting payload with live simulation progress and badges. |
+| [`racingTeam.lua`](../lua/ge/extensions/career/modules/business/racingTeam.lua) | Lua Logic | • Required and integrated `racingTeamRaceSim`.<br>• Inverted AI opponent scaling to resolve the Driver Paradox; scaled bravery, aggression, and lines.<br>• Implemented 15%–35% tiered driver cuts and 85% player-driving purse rebalance.<br>• Added non-podium race experience XP (P4+ finishes no longer award 0 XP).<br>• Added Manager Lv 1 & Lv 2 helpers and auto-start toggle persistence.<br>• Enriched driver formatting payload with live simulation progress and badges. |
 | [`racingTeamRuntimeState.lua`](../lua/ge/extensions/career/modules/business/racingTeamRuntimeState.lua) | Lua Logic | • Added `autoStartBackgroundRacesByBusiness` runtime state tracking. |
 | [`businessComputer.lua`](../lua/ge/extensions/career/modules/business/businessComputer.lua) | Lua Bridge | • Exported `sendRacingTeamDriverWithManager`, `setRacingTeamAutoStartBackgroundRaces`, and `cancelRacingTeamBackgroundRace`. |
 | [`racingTeamFinances.lua`](../lua/ge/extensions/career/modules/business/racingTeamFinances.lua) | Lua Logic | • Fixed dyno daily overhead double-charge bug.<br>• Formatted transparent financial transactions for driver cuts and pit crew shares. |

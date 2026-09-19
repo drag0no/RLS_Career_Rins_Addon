@@ -716,7 +716,7 @@ export const GUIDE_TOPICS = [
           'Sponsor contracts unlock in League 2. "Home" shows active deals and available offers — money and XP bonuses with a stacking cap. Slots are limited; contracts expire if you wait too long.',
           'Operating costs tick on a schedule — bays, drivers, manager, dyno overhead — so keep an eye on the ledger.',
           'Spend team skill XP in three trees: Team Ops (laptop, phone app, pit fuel, manager L1/L2 with background race simulation), QOL (dyno, garage slots, towing, quick travel), and Driver (expanded roster, cooldown reduction, podium analytics).',
-          'Proxy race results feed team and driver XP. "Podium Analytics" boosts XP when your fleet cars podium.',
+          'Proxy race results feed team and driver XP. Drivers earn XP from every race completed—including valuable track experience on off-podium finishes. "Podium Analytics" boosts XP when your fleet cars podium.',
         ],
       },
     ],

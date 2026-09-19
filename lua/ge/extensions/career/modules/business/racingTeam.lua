@@ -2417,97 +2417,112 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
       end
     end
   end
-  if place >= 1 and place <= 3 then
-    if podiumHpBandReason then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = podiumHpBandReason }
-    end
-    do
-      local offerForNotify = offer
-      if type(offerForNotify) == "table" then
-        offerForNotify = {}
-        for k, v in pairs(offer) do
-          offerForNotify[k] = v
-        end
-        offerForNotify.racingTeamBusinessOffer = true
-        offerForNotify.businessId = offerForNotify.businessId or businessId
-      end
-      M.notifyOfficialSanctionedPodium(place, offerForNotify)
-    end
-    local amount = 0
-    local xpStored = nil
-    if place == 1 then
-      amount = tonumber(offer.payoutFirst) or 0
-      xpStored = offer.xpFirst
-    elseif place == 2 then
-      amount = tonumber(offer.payoutSecond) or 0
-      xpStored = offer.xpSecond
-    elseif place == 3 then
-      amount = tonumber(offer.payoutThird) or 0
-      xpStored = offer.xpThird
-    end
-    amount = math.floor(math.max(0, amount))
-    local xpNum = tonumber(xpStored)
-    local xpAmount = (xpNum ~= nil) and math.max(0, math.floor(xpNum)) or proxyPodiumXpFromMoney(amount)
-    local bm, bx = racingTeamSponsorBonusTotals(businessId)
-    amount = math.floor(amount * (1 + bm) + 0.5)
-    xpAmount = math.floor(xpAmount * (1 + bx) + 0.5)
-    local paLevel = getSkillTreeNodeLevel(businessId, "driver", "podium-analytics")
-    if paLevel > 0 then
-      xpAmount = math.floor(xpAmount * (1 + 0.1 * paLevel) + 0.5)
-    end
-    if amount <= 0 then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      if career_saveSystem.saveCurrent then
-        career_saveSystem.saveCurrent()
-      end
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "No payout configured for this podium position." }
-    end
-    if not career_modules_bank or not career_modules_bank.getBusinessAccount or not career_modules_bank.rewardToAccount then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "Bank unavailable — reward not applied." }
-    end
-    local businessAccount = career_modules_bank.getBusinessAccount(rtState.businessType, businessId)
-    local accountId = businessAccount and (businessAccount.id or businessAccount.accountId)
-    if not accountId then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "No business account — reward not applied." }
-    end
-    
-    local techCut = driverId and getRacingTeamDriverById(businessId, driverId)
-    local dname = techCut and techCut.name or "Driver"
-    local pct = math.floor(racingTeamFinances.driverCutPercentFromRacingXp(techCut and techCut.racingSkillXp or 0) + 0.5)
-    local cut = math.floor(amount * pct / 100 + 0.5)
-    local netPayout = amount - cut
-    local txLabel = string.format("Sanctioned team race (%s) - P%d", dname, place)
-    local txDesc = string.format("Circuit payout: +$%d (%d%% net), -$%d (%d%% driver share — %s)", netPayout, 100 - pct, cut, pct, dname)
-    
-    local ok = career_modules_bank.rewardToAccount({
-      money = { amount = amount, canBeNegative = false },
-    }, accountId, txLabel, txDesc)
-    if not ok then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "Could not deposit race payout." }
-    end
-    do
-      racingTeamFinances.applyDriverCutAfterPayout(businessId, amount, {
-        racingSkillXp = techCut and techCut.racingSkillXp,
-        driverName = techCut and techCut.name,
-      })
-    end
-    local uiMessage = string.format("P%d Finish (%s): +$%d (%d%% net, %d%% driver share).", place, dname, netPayout, 100 - pct, pct)
-    if ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
+
+  local isPodium = (place >= 1 and place <= 3)
+
+  -- Check class HP/weight limits for podium eligibility
+  if podiumHpBandReason then
+    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = 0 })
+    return { money = 0, businessSkillXp = 0, noRewardDetail = podiumHpBandReason }
+  end
+
+  -- Determine base purse and XP
+  local amount = 0
+  local xpStored = nil
+  if place == 1 then
+    amount = tonumber(offer.payoutFirst) or 0
+    xpStored = offer.xpFirst
+  elseif place == 2 then
+    amount = tonumber(offer.payoutSecond) or 0
+    xpStored = offer.xpSecond
+  elseif place == 3 then
+    amount = tonumber(offer.payoutThird) or 0
+    xpStored = offer.xpThird
+  else
+    -- Safe P3 XP fallback with binary half-decay downscaling
+    local baseLossXp = tonumber(offer.xpThird) or proxyPodiumXpFromMoney(tonumber(offer.payoutThird) or ((tonumber(offer.payoutFirst) or 2000) * 0.35))
+    local decayDivisor = 2 ^ math.max(2, place - 2)
+    xpStored = math.max(5, math.floor(baseLossXp / decayDivisor + 0.5))
+  end
+
+  amount = math.floor(math.max(0, amount))
+  local xpNum = tonumber(xpStored)
+  local xpAmount = (xpNum ~= nil) and math.max(0, math.floor(xpNum)) or proxyPodiumXpFromMoney(amount)
+
+  -- Stacking sponsor bonuses
+  local bm, bx = racingTeamSponsorBonusTotals(businessId)
+  amount = math.floor(amount * (1 + bm) + 0.5)
+  xpAmount = math.floor(xpAmount * (1 + bx) + 0.5)
+
+  -- Podium Analytics applies strictly to podium finishes
+  local paLevel = getSkillTreeNodeLevel(businessId, "driver", "podium-analytics")
+  if isPodium and paLevel > 0 then
+    xpAmount = math.floor(xpAmount * (1 + 0.1 * paLevel) + 0.5)
+  end
+
+  local techCut = driverId and getRacingTeamDriverById(businessId, driverId)
+  local dname = techCut and techCut.name or "Driver"
+  local pct = math.floor(racingTeamFinances.driverCutPercentFromRacingXp(techCut and techCut.racingSkillXp or 0) + 0.5)
+  local cut = math.floor(amount * pct / 100 + 0.5)
+  local netPayout = amount - cut
+
+  -- Off-podium or unconfigured payout flow
+  if not isPodium or amount <= 0 then
     if xpAmount > 0 then
       addRacingTeamBusinessSkillXpValue(businessId, xpAmount)
     end
-    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = xpAmount })
-    if career_saveSystem.saveCurrent then
-      career_saveSystem.saveCurrent()
-    end
-    return { money = amount, businessSkillXp = xpAmount, noRewardDetail = nil }
+    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = xpAmount })
+    local uiMessage = string.format("P%d Finish (%s): +%d XP gained from race experience.", place, dname, xpAmount)
+    if ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
+    if career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
+    local noRewardDetail = string.format("P%d Finish — +%d XP gained from race experience (podium required for prize money).", place, xpAmount)
+    return { money = 0, businessSkillXp = xpAmount, noRewardDetail = noRewardDetail }
   end
-  applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = 0 })
-  return { money = 0, businessSkillXp = 0, noRewardDetail = "Didn't place on the podium — no podium rewards." }
+
+  -- Official podium goal notification
+  do
+    local offerForNotify = offer
+    if type(offerForNotify) == "table" then
+      offerForNotify = {}
+      for k, v in pairs(offer) do offerForNotify[k] = v end
+      offerForNotify.racingTeamBusinessOffer = true
+      offerForNotify.businessId = offerForNotify.businessId or businessId
+    end
+    M.notifyOfficialSanctionedPodium(place, offerForNotify)
+  end
+
+  -- Bank deposit for podium purse
+  if not career_modules_bank or not career_modules_bank.getBusinessAccount or not career_modules_bank.rewardToAccount then
+    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
+    return { money = 0, businessSkillXp = 0, noRewardDetail = "Bank unavailable — reward not applied." }
+  end
+  local businessAccount = career_modules_bank.getBusinessAccount(rtState.businessType, businessId)
+  local accountId = businessAccount and (businessAccount.id or businessAccount.accountId)
+  if not accountId then
+    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
+    return { money = 0, businessSkillXp = 0, noRewardDetail = "No business account — reward not applied." }
+  end
+
+  local txLabel = string.format("Sanctioned team race (%s) - P%d", dname, place)
+  local txDesc = string.format("Circuit payout: +$%d (%d%% net), -$%d (%d%% driver share — %s)", netPayout, 100 - pct, cut, pct, dname)
+  local moneyDict = { money = { amount = amount, canBeNegative = false } }
+  local ok = career_modules_bank.rewardToAccount(moneyDict, accountId, txLabel, txDesc)
+  if not ok then
+    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
+    return { money = 0, businessSkillXp = 0, noRewardDetail = "Could not deposit race payout." }
+  end
+
+  -- Record driver cut & award podium rewards
+  racingTeamFinances.applyDriverCutAfterPayout(businessId, amount, { racingSkillXp = techCut and techCut.racingSkillXp, driverName = dname })
+  if xpAmount > 0 then
+    addRacingTeamBusinessSkillXpValue(businessId, xpAmount)
+  end
+  applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = xpAmount })
+  local uiMessage = string.format("P%d Finish (%s): +$%d (%d%% net, %d%% driver share).", place, dname, netPayout, 100 - pct, pct)
+  if ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
+  if career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
+
+  return { money = amount, businessSkillXp = xpAmount, noRewardDetail = nil }
 end
 
 local function onBusinessSanctionedRaceOutcome(offer, place, reason)
