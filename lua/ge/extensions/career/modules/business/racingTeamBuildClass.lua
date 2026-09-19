@@ -279,6 +279,7 @@ function M.debugIsStockBuild(modelKey, configKey, partsTree)
   return isStockBuild(modelKey, configKey, partsTree)
 end
 
+M.pickFactoryBaselineConfigKey = pickFactoryBaselineConfigKey
 function M.debugBaselineConfigKey(modelKey)
   return pickFactoryBaselineConfigKey(modelKey)
 end

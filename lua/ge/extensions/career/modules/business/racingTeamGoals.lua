@@ -2,6 +2,7 @@ local M = {}
 
 local rtState = require('ge/extensions/career/modules/business/racingTeamRuntimeState')
 local racingTeamRaceOffers = require('ge/extensions/career/modules/business/racingTeamRaceOffers')
+local racingTeamBuildClass = require('ge/extensions/career/modules/business/racingTeamBuildClass')
 
 local function normalizeBusinessId(v)
   return tonumber(v) or v
@@ -460,35 +461,41 @@ local function fleetHasVehicleNearSanctionedBracketTop(businessId, bracketId)
   return false
 end
 
+local function getModelBaselinePw(businessId, modelKey)
+  if not modelKey or not racingTeamBuildClass.pickFactoryBaselineConfigKey then return nil end
+  local baseKey = racingTeamBuildClass.pickFactoryBaselineConfigKey(modelKey)
+  if not baseKey or not rtState.rtInternal.getEffectiveTeamJobVehiclePw then return nil end
+  local vehConf = { vehicleConfig = { model_key = modelKey, key = baseKey } }
+  return rtState.rtInternal.getEffectiveTeamJobVehiclePw(businessId, vehConf)
+end
+
 local function maybeCompleteHomeMechanicFromFleetPw(businessId)
   local bid = normalizeBusinessId(businessId)
-  if not bid then
-    return
-  end
-  local id = tostring(bid)
-  if M.tuningMilestonePreDoneForGoal(bid, HOME_MECHANIC_GOAL_ID) then
-    return
-  end
-  if M.idCompleted(bid, HOME_MECHANIC_GOAL_ID) then
-    return
-  end
-  if not hasBusinessVehicle(bid) then
-    return
-  end
+  if not bid then return end
+  if M.tuningMilestonePreDoneForGoal(bid, HOME_MECHANIC_GOAL_ID) then return end
+  if M.idCompleted(bid, HOME_MECHANIC_GOAL_ID) then return end
+  if not hasBusinessVehicle(bid) then return end
+  
   local cur = rtState.rtInternal.getBestTeamJobVehiclePw(bid)
-  if not cur or cur <= 0 then
-    return
+  if not cur or cur <= 0 then return end
+
+  local id = tostring(bid)
+  local curBase = rtState.homeMechanicBaselinePwByBusiness[id]
+  local modelBase = nil
+  for _, v in ipairs(career_modules_business_businessInventory.getBusinessVehicles(bid) or {}) do
+    local modelKey = v and v.vehicleConfig and v.vehicleConfig.model_key
+    modelBase = modelKey and getModelBaselinePw(bid, modelKey)
+    if modelBase ~= nil and modelBase > 0 then break end
   end
-  local base = rtState.homeMechanicBaselinePwByBusiness[id]
-  if base == nil then
-    rtState.homeMechanicBaselinePwByBusiness[id] = cur
+
+  if curBase == nil or (curBase and modelBase and modelBase < curBase) then
+    curBase = modelBase or cur
+    rtState.homeMechanicBaselinePwByBusiness[id] = curBase
     local _, savePath = career_saveSystem.getCurrentProfile()
-    if savePath then
-      rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath)
-    end
-    return
+    if savePath then rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath) end
   end
-  if cur > base + 1e-5 then
+
+  if curBase and cur > curBase + 1e-5 then
     M.setTuningMilestoneGoalPreDone(bid, HOME_MECHANIC_GOAL_ID)
   end
 end
@@ -865,11 +872,14 @@ function M.evaluateGoalProgress(businessId, g)
       return true, g.progressDone or (g.targetLabel or "Complete")
     end
     if gid == HOME_MECHANIC_GOAL_ID then
+      local cur = rtState.rtInternal.getBestTeamJobVehiclePw(businessId)
       local base = rtState.homeMechanicBaselinePwByBusiness[id]
-      if base and base > 0 then
-        return false, "Install upgrades or run the dyno to raise your car's power class"
+      local label = g.progressLabel or "Install parts or dyno a team car to start"
+      if cur and cur > 0 and base and base > 0 then
+        label = string.format("Current power: %.2f hp/kg <> Baseline to beat: %.2f hp/kg", cur, base)
       end
-      return false, g.progressLabel or "Install parts or dyno a team car to start"
+      scheduleHomeMechanicPwRecheckAfterParts(id)
+      return false, label
     end
     if gid == RT_T2_G4_TUNING_GOAL_ID then
       if fleetHasVehicleNearSanctionedBracketTop(businessId, "modified_club_low") then

@@ -209,6 +209,13 @@ local function vehicleInfoWeightKg(vi)
   if not w and vi.aggregates and vi.aggregates.total_weight then
     w = tonumber(vi.aggregates.total_weight)
   end
+  if not w and vi.Weight then
+    w = tonumber(vi.Weight)
+  end
+  if not w and vi.aggregates and vi.aggregates.Weight then
+    local agg = vi.aggregates.Weight
+    w = tonumber(agg.min) or tonumber(agg.max)
+  end
   return w
 end
 
@@ -221,15 +228,11 @@ local function hpPerKgFromHpAndWeightKg(hp, wkg)
 end
 
 local function configWeightKgFromModelConfig(modelKey, configKey)
-  if not core_vehicles or not core_vehicles.getConfig then
-    return nil
-  end
+  if not core_vehicles or not core_vehicles.getConfig then return nil end
   local c = core_vehicles.getConfig(modelKey, configKey)
-  if not c then
-    return nil
-  end
-  local w = c.total_weight or (c.aggregates and c.aggregates.total_weight)
-  return tonumber(w)
+  if not c then return nil end
+  
+  return vehicleInfoWeightKg(c)
 end
 
 function M.getSanctionedStockPwCeiling()
@@ -263,23 +266,21 @@ end
 
 -- === Effective HP/PW per fleet vehicle (uses dyno peaks when present)
 function M.getEffectiveTeamJobVehicleHp(businessId, vehicle)
-  if not vehicle or vehicle.vehicleId == nil then
+  if not vehicle then
     return nil
   end
-  local vid = vehicle.vehicleId
-  if vid == nil then
-    return nil
-  end
-  local id = tostring(normalizeBusinessId(businessId))
-  local vidStr = tostring(vid)
-  local peaks = rtState.classOptimizationPeakHpByBusiness[id]
-  local rawPeak = peaks and peaks[vidStr]
   local dyno = nil
-  if type(rawPeak) == "table" then
-    dyno = tonumber(rawPeak.hp)
-  else
-    dyno = tonumber(rawPeak)
+  if vehicle.vehicleId ~= nil then
+    local id = tostring(normalizeBusinessId(businessId))
+    local peaks = rtState.classOptimizationPeakHpByBusiness[id]
+    local rawPeak = peaks and peaks[tostring(vehicle.vehicleId)]
+    if type(rawPeak) == "table" then
+      dyno = tonumber(rawPeak.hp)
+    else
+      dyno = tonumber(rawPeak)
+    end
   end
+  
   local vc = vehicle.vehicleConfig
   local mk = vc and vc.model_key
   local ck = vc and (vc.key or vc.config_key)
@@ -287,6 +288,7 @@ function M.getEffectiveTeamJobVehicleHp(businessId, vehicle)
   if mk and ck then
     catHp = vehicleInfoPowerHp(M.getCatalogVehicleInfo(mk, ck))
   end
+  
   local best = tonumber(dyno) or tonumber(catHp) or 0
   if best <= 0 then
     return nil

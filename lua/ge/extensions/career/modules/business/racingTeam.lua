@@ -3161,7 +3161,7 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
   end
   if (fleetSanctionedClassLabel == nil or fleetSanctionedClassLabel == "")
       and not (type(fleetEffectivePw) == "number" and fleetEffectivePw > 0) then
-    fleetClassStatusMessage = "no weight found for config - pull out vehicle or open parts"
+    fleetClassStatusMessage = "no weight found - pull out vehicle"
   end
   local dynoStatus = getVehicleDynoStatus(businessId, vehicleId)
   local cooldownSec = getFleetVehiclePostRaceCooldownRemainingSec(businessId, vehicleId) or 0
