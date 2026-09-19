@@ -13,6 +13,7 @@ M.offerJobIdCounters = {}
 M.staminaShortTrackStreakByBusiness = {}
 M.sanctionedOfficialFirstPlaceWinsByBusiness = {}
 M.classOptimizationPeakHpByBusiness = {}
+M.dynoRequiredByBusiness = {}
 M.persistLoaded = {}
 
 M.vehicleCooldownByBusiness = {}

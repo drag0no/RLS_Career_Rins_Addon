@@ -943,13 +943,38 @@ function M.notifyBusinessVehiclePartsPurchased(businessId, parts)
   scheduleHomeMechanicPwRecheckAfterParts(bid)
 end
 
+-- BeamNG powertrain engine.maxPower is measured in Watts (e.g. 150,000 W = ~201 mechanical HP).
+-- 1 Mechanical Horsepower = 745.699872 Watts.
+local WATTS_PER_HP = 745.699872
+local function ensureHorsepower(power)
+  local p = tonumber(power)
+  if not p or p <= 0 then return 0 end
+  -- If power is provided in Watts (> 10 kW), convert to mechanical horsepower
+  if p > 10000 then return p / WATTS_PER_HP end
+  return p
+end
+
+-- Resolve the catalog/baseline horsepower for a fleet vehicle
+local function getVehicleCatalogBaselineHp(targetVehicle, curHp)
+  if curHp and curHp > 0 then return curHp end
+  if not targetVehicle then return nil end
+  
+  local vc = targetVehicle.vehicleConfig
+  local mk = vc and vc.model_key or targetVehicle.model_key
+  local ck = vc and (vc.key or vc.config_key) or targetVehicle.config_key
+  local getCat = rtState.rtInternal.getCatalogVehicleInfo or (career_modules_business_racingTeam and career_modules_business_racingTeam.getCatalogVehicleInfo)
+  local vi = getCat and getCat(mk, ck)
+  if not vi then return nil end
+  return tonumber(vi.Power) or (vi.aggregates and vi.aggregates.Power and (tonumber(vi.aggregates.Power.min) or tonumber(vi.aggregates.Power.max)))
+end
+
 function M.notifyTeamVehicleDynoPeakHp(businessId, vehicleId, powerHp, weightKgOpt)
   local bid = normalizeBusinessId(businessId)
   if not bid or vehicleId == nil then
     return
   end
-  local p = tonumber(powerHp)
-  if not p or p <= 0 then
+  local p = ensureHorsepower(powerHp)
+  if p <= 0 then
     return
   end
   if career_modules_business_businessManager and career_modules_business_businessManager.getPurchasedBusinesses then
@@ -962,14 +987,14 @@ function M.notifyTeamVehicleDynoPeakHp(businessId, vehicleId, powerHp, weightKgO
     return
   end
   local vehicles = career_modules_business_businessInventory.getBusinessVehicles(bid) or {}
-  local ok = false
+  local targetVehicle = nil
   for _, v in ipairs(vehicles) do
     if tostring(v.vehicleId) == tostring(vehicleId) then
-      ok = true
+      targetVehicle = v
       break
     end
   end
-  if not ok then
+  if not targetVehicle then
     return
   end
   rtState.rtInternal.getOfferState(bid)
@@ -1000,17 +1025,41 @@ function M.notifyTeamVehicleDynoPeakHp(businessId, vehicleId, powerHp, weightKgO
   if newW and newW > 0 then
     wChanged = (curW == nil or math.abs(newW - curW) > 0.5)
   end
-  if hpChanged or wChanged then
-    rtState.classOptimizationPeakHpByBusiness[id][vidStr] = newEntry
-    local _, savePath = career_saveSystem.getCurrentProfile()
-    if savePath then
-      rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath)
+
+  local dynoLevel = rtState.rtInternal.getSkillTreeNodeLevel and rtState.rtInternal.getSkillTreeNodeLevel(bid, "qol", "dyno") or 0
+  if dynoLevel > 0 then
+    -- Workshop Dyno is unlocked: certify official vehicle power and clear any dyno-required flag
+    local wasRequired = (rtState.dynoRequiredByBusiness and rtState.dynoRequiredByBusiness[id] and rtState.dynoRequiredByBusiness[id][vidStr] == true)
+    if rtState.dynoRequiredByBusiness and rtState.dynoRequiredByBusiness[id] then rtState.dynoRequiredByBusiness[id][vidStr] = nil end
+    if hpChanged or wChanged or wasRequired then
+      rtState.classOptimizationPeakHpByBusiness[id][vidStr] = newEntry
+      local _, savePath = career_saveSystem.getCurrentProfile()
+      if savePath then
+        rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath)
+      end
+      racingTeamRaceOffers.bumpRefresh(bid)
+      if rtState.rtInternal.advanceRacingTeamGoalsIfReady then
+        rtState.rtInternal.advanceRacingTeamGoalsIfReady(bid)
+      end
+      maybeCompleteHomeMechanicFromFleetPw(bid)
     end
-    racingTeamRaceOffers.bumpRefresh(bid)
-    if rtState.rtInternal.advanceRacingTeamGoalsIfReady then
-      rtState.rtInternal.advanceRacingTeamGoalsIfReady(bid)
+  else
+    -- Without Workshop Dyno: check +5% watchdog rule against baseline catalog power.
+    -- Vehicles modified past +5% tolerance are flagged until certified on the paddock dyno.
+    local baseHp = getVehicleCatalogBaselineHp(targetVehicle, curHp)
+    local isRequired = (baseHp and baseHp > 0 and ((p - baseHp) / baseHp > 0.05)) or false
+
+    rtState.dynoRequiredByBusiness[id] = rtState.dynoRequiredByBusiness[id] or {}
+    local wasRequired = rtState.dynoRequiredByBusiness[id][vidStr] == true
+
+    if isRequired ~= wasRequired then
+      rtState.dynoRequiredByBusiness[id][vidStr] = isRequired and true or nil
+      local _, savePath = career_saveSystem.getCurrentProfile()
+      if savePath then
+        rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath)
+      end
+      racingTeamRaceOffers.bumpRefresh(bid)
     end
-    maybeCompleteHomeMechanicFromFleetPw(bid)
   end
 end
 

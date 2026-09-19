@@ -5,13 +5,18 @@
         :src="displayImage"
         :alt="displayName"
       />
-      <span class="status-badge">Fleet</span>
+      <span v-if="vehicle.cooldownSec > 0" class="status-badge status-badge--cooldown">Cooling down</span>
+      <span v-else class="status-badge">Fleet</span>
     </div>
     <div class="fleet-assign-card__body">
       <div class="fleet-assign-card__title-block">
         <h3>{{ displayName }}</h3>
         <p v-if="sanctionedClassLabel || classStatusMessage" class="fleet-assign-card__class">{{ sanctionedClassLabel || classStatusMessage }}</p>
-        <p v-if="effectiveHpLabel" class="fleet-assign-card__hp">{{ effectiveHpLabel }}</p>
+        <p v-if="effectiveHpLabel" class="fleet-assign-card__hp">
+          {{ effectiveHpLabel }}
+          <span v-if="vehicle.dynoStatus === 1" class="dyno-tag">Dyno Certified</span>
+          <span v-else-if="vehicle.dynoStatus === -1" class="dyno-tag dyno-tag--required">Dyno Required</span>
+        </p>
       </div>
       <button
         type="button"
@@ -112,6 +117,26 @@ defineEmits(["assign"])
     color: white;
     border: none;
   }
+
+  .status-badge--cooldown {
+    background: rgba(220, 130, 20, 0.92);
+  }
+}
+
+.dyno-tag {
+  font-size: 0.8em;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  margin-left: 0.4em;
+}
+
+.dyno-tag--required {
+  color: #facc15;
+  background: rgba(234, 179, 8, 0.18);
+  border-color: rgba(234, 179, 8, 0.4);
 }
 
 .fleet-assign-card__body {

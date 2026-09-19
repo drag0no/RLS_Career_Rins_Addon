@@ -62,7 +62,7 @@
                 <div class="vehicle-row__copy">
                   <h4>{{ fleetCardName(v) }}</h4>
                   <p v-if="store.businessType === 'racingTeam' && fleetSanctionedClassDisplay(v)" class="vehicle-row__meta vehicle-row__meta--class">
-                    {{ fleetSanctionedClassDisplay(v) }}
+                    <span class="vehicle-row__bracket">{{ fleetSanctionedClassDisplay(v) }}</span>
                   </p>
                   <p
                     v-if="store.businessType === 'racingTeam' && (fleetEffectiveHpDisplay(v) != null || fleetEffectivePwDisplay(v) != null)"
@@ -71,6 +71,8 @@
                     <template v-if="fleetEffectiveHpDisplay(v) != null">{{ fleetEffectiveHpDisplay(v) }} HP</template>
                     <template v-if="fleetEffectiveHpDisplay(v) != null && fleetEffectivePwDisplay(v) != null"> · </template>
                     <template v-if="fleetEffectivePwDisplay(v) != null">{{ fleetEffectivePwDisplay(v) }} hp/kg</template>
+                    <span v-if="v.dynoStatus === 1" class="vehicle-row__dyno">Dyno Certified</span>
+                    <span v-else-if="v.dynoStatus === -1" class="vehicle-row__dyno-required">Dyno Required</span>
                   </p>
                   <p v-if="v.vehicleYear && v.vehicleYear !== 'Unknown'" class="vehicle-row__meta">
                     {{ v.vehicleYear }}
@@ -402,15 +404,12 @@ function fleetVehicleCooldownSec(vehicle) {
     return 0
   }
   const key = fleetAnchorKey(vehicle)
-  if (!key) {
-    return 0
+  const anchor = key ? fleetCooldownAnchors.value[key] : null
+  if (anchor && anchor.startSec > 0) {
+    const elapsed = Math.floor((Date.now() - anchor.startMs) / 1000)
+    return Math.max(0, anchor.startSec - elapsed)
   }
-  const anchor = fleetCooldownAnchors.value[key]
-  if (!anchor || anchor.startSec <= 0) {
-    return 0
-  }
-  const elapsed = Math.floor((Date.now() - anchor.startMs) / 1000)
-  return Math.max(0, anchor.startSec - elapsed)
+  return Math.max(0, Number(vehicle?.cooldownSec) || 0)
 }
 
 function isDeliveryPending(vehicle) {
@@ -985,6 +984,31 @@ onUnmounted(() => {
 
 .vehicle-row__badge--delivery {
   background: rgba(220, 130, 20, 0.92);
+}
+
+.vehicle-row__bracket {
+  font-weight: 600;
+  color: rgba(255, 220, 180, 0.95);
+}
+
+.vehicle-row__dyno {
+  font-size: 0.8em;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  margin-left: 0.5em;
+}
+
+.vehicle-row__dyno-required {
+  font-size: 0.8em;
+  color: #facc15;
+  background: rgba(234, 179, 8, 0.18);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  margin-left: 0.5em;
 }
 
 .vehicle-row__cooldown {

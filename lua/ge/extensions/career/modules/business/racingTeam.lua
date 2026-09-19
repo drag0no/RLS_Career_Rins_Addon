@@ -24,6 +24,39 @@ local function normalizeBusinessId(businessId)
   return tonumber(businessId) or businessId
 end
 
+local function getVehicleDynoStatus(businessId, vehicleId)
+  if not businessId or vehicleId == nil then
+    return 0
+  end
+  local idStr = tostring(normalizeBusinessId(businessId))
+  local vidStr = tostring(vehicleId)
+  if rtState.dynoRequiredByBusiness and rtState.dynoRequiredByBusiness[idStr] and rtState.dynoRequiredByBusiness[idStr][vidStr] == true then
+    return -1
+  end
+  local peaks = rtState.classOptimizationPeakHpByBusiness and rtState.classOptimizationPeakHpByBusiness[idStr]
+  if peaks and peaks[vidStr] ~= nil then
+    return 1
+  end
+  return 0
+end
+
+local function isOfferBlockedByDyno(businessId, vehicleId, offer)
+  if not offer or getVehicleDynoStatus(businessId, vehicleId) ~= -1 then
+    return false
+  end
+  local branch = offer.hpBracketBranch or offer.branch
+  return branch ~= nil and branch ~= "stock"
+end
+
+local function showDynoRequiredMessageIfBlocked(businessId, vehicleId, offer)
+  if isOfferBlockedByDyno(businessId, vehicleId, offer) then
+    if ui_message then ui_message("Dyno Certification Required: Vehicle must be dyno-tested to enter sanctioned races.", 6, "Racing Team", "warning") end
+    return true
+  else
+    return false
+  end
+end
+
 local function rtDevLog(businessId, level, message, source, context)
   local dl = rtState.rtInternal.devLog
   if dl and dl.append then
@@ -233,6 +266,14 @@ local function loadRacingTeamPersistedState(businessId, state)
       end
     end
   end
+  rtState.dynoRequiredByBusiness[id] = {}
+  if data.dynoRequired and type(data.dynoRequired) == "table" then
+    for k, v in pairs(data.dynoRequired) do
+      if v == true then
+        rtState.dynoRequiredByBusiness[id][tostring(k)] = true
+      end
+    end
+  end
   local l2Offered = tonumber(data.league2InviteOfferedAt) or tonumber(data.wcaraInviteOfferedAt)
   local l2Declined = (data.league2InviteDeclined == true) or (data.wcaraInviteDeclined == true)
   local invTarget = data.league2InviteTargetLeague
@@ -410,6 +451,7 @@ local function saveRacingTeamPersistedState(businessId, currentSavePath)
     shortTrackCleanStreak = rtState.staminaShortTrackStreakByBusiness[id] or 0,
     sanctionedOfficialFirstPlaceWins = rtState.sanctionedOfficialFirstPlaceWinsByBusiness[id] or 0,
     classOptimizationPeakHp = rtState.classOptimizationPeakHpByBusiness[id] or {},
+    dynoRequired = rtState.dynoRequiredByBusiness[id] or {},
     league2InviteOfferedAt = (rtState.league2InviteByBusiness[id] or {}).offeredAt,
     league2InviteDeclined = (rtState.league2InviteByBusiness[id] or {}).declined == true,
     league2InviteTargetLeague = (rtState.league2InviteByBusiness[id] or {}).targetLeague,
@@ -1324,6 +1366,9 @@ local function acceptRacingTeamRaceOffer(businessId, offerId, techId)
   if not idx or not picked then
     return false
   end
+  if showDynoRequiredMessageIfBlocked(businessId, fleetVehicleId, picked) then
+    return "dyno_required"
+  end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, picked) then
     if guihooks then
       guihooks.trigger("racingTeam:vehicleOutOfClass", { businessId = tostring(businessId) })
@@ -1548,12 +1593,20 @@ local function listLeague1FleetVehiclesForSanctionedOffer(businessId, offerId)
           fleetEffectivePw = formatted.fleetEffectivePw,
           fleetSanctionedClassLabel = formatted.fleetSanctionedClassLabel,
           fleetClassStatusMessage = formatted.fleetClassStatusMessage,
+          dynoStatus = formatted.dynoStatus,
           overpowered = overpowered,
           onCooldown = onCooldown,
           cooldownSec = cooldownSec
         })
       else
-        table.insert(out, { vehicleId = vid, vehicleName = "Vehicle " .. tostring(vid), overpowered = overpowered, onCooldown = onCooldown, cooldownSec = cooldownSec })
+        table.insert(out, {
+          vehicleId = vid,
+          vehicleName = "Vehicle " .. tostring(vid),
+          dynoStatus = getVehicleDynoStatus(businessId, vid),
+          overpowered = overpowered,
+          onCooldown = onCooldown,
+          cooldownSec = cooldownSec
+        })
       end
     end
   end
@@ -1599,6 +1652,9 @@ local function acceptRacingTeamRaceOfferAsPlayer(businessId, offerId, fleetVehic
       ui_message("That race offer is no longer on the board (refresh or pick another offer).", 8, "Racing Team", "warning")
     end
     return "offer_not_on_board"
+  end
+  if showDynoRequiredMessageIfBlocked(businessId, fleetVehicleId, picked) then
+    return "dyno_required"
   end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, picked) then
     if guihooks then
@@ -1741,6 +1797,7 @@ local function listLeague2FleetVehiclesForSanctionedOffer(businessId, offerId)
           fleetEffectivePw = formatted.fleetEffectivePw,
           fleetSanctionedClassLabel = formatted.fleetSanctionedClassLabel,
           fleetClassStatusMessage = formatted.fleetClassStatusMessage,
+          dynoStatus = formatted.dynoStatus,
           overpowered = overpowered,
           onCooldown = onCooldown,
           cooldownSec = cooldownSec,
@@ -1751,6 +1808,7 @@ local function listLeague2FleetVehiclesForSanctionedOffer(businessId, offerId)
         table.insert(out, {
           vehicleId = vid,
           vehicleName = "Vehicle " .. tostring(vid),
+          dynoStatus = getVehicleDynoStatus(businessId, vid),
           overpowered = overpowered,
           onCooldown = onCooldown,
           cooldownSec = cooldownSec,
@@ -1808,6 +1866,9 @@ local function acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(businessId, offer
       ui_message("That race offer is no longer on the board (refresh or pick another offer).", 8, "Racing Team", "warning")
     end
     return "offer_not_on_board"
+  end
+  if showDynoRequiredMessageIfBlocked(businessId, fleetVehicleId, picked) then
+    return "dyno_required"
   end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, picked) then
     if guihooks then
@@ -2054,6 +2115,9 @@ function M.proxyDriverRaceValidateAndBuildRequest(opts)
     return { ok = false, err = "no_valid_fleet_vehicle" }
   end
   local pr = tech.pendingRaceOffer
+  if isOfferBlockedByDyno(businessId, fleetVehicleId, pr) then
+    return { ok = false, err = "dyno_required" }
+  end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, pr) then
     return { ok = false, err = "fleet_hp_over_class_max" }
   end
@@ -2589,6 +2653,7 @@ local function formatRacingTeamDriverForUI(businessId, tech)
     jobReward = jobReward,
     fleetVehicleId = fleetVehicleId,
     fleetVehicleName = fleetVehicleName,
+    dynoStatus = getVehicleDynoStatus(businessId, fleetVehicleId),
     pendingRaceOffer = tech.pendingRaceOffer,
     scheduledRaceSimTime = scheduledRaceSimTime,
     scheduledRaceReadyWallEpoch = scheduledRaceReadyWallEpoch,
@@ -3052,6 +3117,8 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
       and not (type(fleetEffectivePw) == "number" and fleetEffectivePw > 0) then
     fleetClassStatusMessage = "no weight found for config - pull out vehicle or open parts"
   end
+  local dynoStatus = getVehicleDynoStatus(businessId, vehicleId)
+  local cooldownSec = getFleetVehiclePostRaceCooldownRemainingSec(businessId, vehicleId) or 0
   return {
     id = tostring(vehicleId),
     vehicleId = vehicleId,
@@ -3070,7 +3137,9 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
     fleetEffectiveHp = fleetEffectiveHp,
     fleetEffectivePw = fleetEffectivePw,
     fleetSanctionedClassLabel = fleetSanctionedClassLabel,
-    fleetClassStatusMessage = fleetClassStatusMessage
+    fleetClassStatusMessage = fleetClassStatusMessage,
+    dynoStatus = dynoStatus,
+    cooldownSec = cooldownSec,
   }
 end
 
@@ -3988,6 +4057,7 @@ local function resetBusinessForSale(businessId)
   rtState.staminaShortTrackStreakByBusiness[id] = nil
   rtState.sanctionedOfficialFirstPlaceWinsByBusiness[id] = nil
   rtState.classOptimizationPeakHpByBusiness[id] = nil
+  rtState.dynoRequiredByBusiness[id] = nil
   rtState.persistLoaded[id] = true
   rtState.vehicleCooldownByBusiness[id] = nil
   rtState.playerCooldownByBusiness[id] = nil
@@ -4107,6 +4177,7 @@ local function onCareerActivated()
   rtState.staminaShortTrackStreakByBusiness = {}
   rtState.sanctionedOfficialFirstPlaceWinsByBusiness = {}
   rtState.classOptimizationPeakHpByBusiness = {}
+  rtState.dynoRequiredByBusiness = {}
   rtState.businessDrivers = {}
   rtState.league2InviteByBusiness = {}
   rtState.league2InvitePromoUiByBusiness = {}

@@ -218,13 +218,14 @@
               </div>
               <span v-if="fv.overpowered" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Over class</span>
               <span v-if="fv.onCooldown" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Cooling down {{ formatCooldown(fv.cooldownSec) }}</span>
+              <span v-if="fv.dynoStatus === -1" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(234,179,8,0.2)', color: '#facc15', border: '1px solid rgba(234,179,8,0.5)' }">Dyno Required</span>
             </div>
             <div class="driver-picker-actions">
               <button
                 type="button"
                 class="btn btn-primary"
                 data-focusable
-                :disabled="raceLeague1BusyVehicleId !== null"
+                :disabled="raceLeague1BusyVehicleId !== null || isFleetVehicleDynoRequired(fv, selectedOffer)"
                 @click.stop="confirmLeague1RaceWithFleet(fv)"
                 @mousedown.stop
               >
@@ -255,13 +256,14 @@
               <span v-if="fv.overpowered" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Over class</span>
               <span v-if="fv.onCooldown" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Vehicle cooling {{ formatCooldown(fv.cooldownSec) }}</span>
               <span v-if="fv.playerOnCooldown" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Player cooling {{ formatCooldown(fv.playerCooldownSec) }}</span>
+              <span v-if="fv.dynoStatus === -1" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(234,179,8,0.2)', color: '#facc15', border: '1px solid rgba(234,179,8,0.5)' }">Dyno Required</span>
             </div>
             <div class="driver-picker-actions">
               <button
                 type="button"
                 class="btn btn-primary"
                 data-focusable
-                :disabled="raceLeague2BusyVehicleId !== null || fv.onCooldown || fv.playerOnCooldown || fv.overpowered"
+                :disabled="raceLeague2BusyVehicleId !== null || fv.onCooldown || fv.playerOnCooldown || fv.overpowered || isFleetVehicleDynoRequired(fv, selectedOffer)"
                 @click.stop="confirmLeague2RaceWithFleet(fv)"
                 @mousedown.stop
               >
@@ -285,13 +287,16 @@
                 <span v-if="hasFleetVehicleAssigned(tech) && isDriverOnPostRaceCooldown(tech)" class="driver-picker-sub warn">
                   — recovering {{ formatCooldownCounter(remainingSecondsForPostRaceCooldown(tech)) }}
                 </span>
+                <span v-else-if="hasFleetVehicleAssigned(tech) && isDriverVehicleDynoRequired(tech, selectedOffer)" class="driver-picker-sub warn">
+                  — dyno certification required
+                </span>
               </div>
               <div class="driver-picker-actions">
                 <button
                   type="button"
                   class="btn btn-primary"
                   data-focusable
-                  :disabled="!hasFleetVehicleAssigned(tech) || isDriverOnPostRaceCooldown(tech)"
+                  :disabled="!hasFleetVehicleAssigned(tech) || isDriverOnPostRaceCooldown(tech) || isDriverVehicleDynoRequired(tech, selectedOffer)"
                   @click.stop="confirmRaceWithDriver(tech)"
                   @mousedown.stop
                 >
@@ -346,6 +351,28 @@
               class="btn btn-primary"
               data-focusable
               @click.stop="vehicleOnCooldownModalOpen = false"
+              @mousedown.stop
+            >OK</button>
+          </div>
+        </div>
+      </div>
+      <div
+        v-if="vehicleDynoRequiredModalOpen"
+        class="modal-overlay"
+        @click.self.stop="vehicleDynoRequiredModalOpen = false"
+        @mousedown.self.stop="vehicleDynoRequiredModalOpen = false"
+      >
+        <div class="modal-content" @click.stop @mousedown.stop>
+          <h2>Dyno Certification Required</h2>
+          <p>
+            This car has been modified by more than 5% above baseline and requires dyno certification before entering sanctioned races. Test it on your workshop dyno to certify its power-to-weight bracket.
+          </p>
+          <div class="modal-buttons">
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-focusable
+              @click.stop="vehicleDynoRequiredModalOpen = false"
               @mousedown.stop
             >OK</button>
           </div>
@@ -487,6 +514,7 @@ const decliningOfferId = ref(null)
 
 const vehicleOutOfClassModalOpen = ref(false)
 const vehicleOnCooldownModalOpen = ref(false)
+const vehicleDynoRequiredModalOpen = ref(false)
 const vehicleOnCooldownSec = ref(0)
 
 const remainingSecondsForScheduledDriver = (t) => {
@@ -724,6 +752,7 @@ const LEAGUE1_ACCEPT_TOAST = {
   not_eligible_pw: "This car is outside the race power-to-weight bracket (too high or bracket read failed).",
   fleet_power_weight_unknown:
     "Cannot read this car's power-to-weight (dyno or weight missing). Run a dyno on it or pick another vehicle.",
+  dyno_required: "Dyno certification required: This vehicle has been modified and must be tested on the dyno before entering sanctioned races.",
   insufficient_funds: "Not enough team funds for the entry fee.",
   offer_not_on_board: "That offer is no longer on the board — refresh and pick again.",
   bad_fleet_vehicle: "Fleet vehicle not found. Pull the car from inventory or reload.",
@@ -744,6 +773,20 @@ const hasFleetVehicleAssigned = (tech) => {
 }
 
 const isDriverOnPostRaceCooldown = (tech) => remainingSecondsForPostRaceCooldown(tech) > 0
+
+const isDriverVehicleDynoRequired = (tech, offer) => {
+  if (!tech || !hasFleetVehicleAssigned(tech)) return false
+  const status = Number(tech.dynoStatus ?? tech.fleetVehicleDynoStatus)
+  if (status !== -1 && !tech.fleetVehicleDynoRequired) return false
+  const branch = offer?.hpBracketBranch || offer?.branch
+  return branch && branch !== "stock"
+}
+
+const isFleetVehicleDynoRequired = (fv, offer) => {
+  if (!fv || Number(fv.dynoStatus) !== -1) return false
+  const branch = offer?.hpBracketBranch || offer?.branch
+  return branch && branch !== "stock"
+}
 
 const formatPostRaceCooldownText = (tech) => formatCooldownCounter(remainingSecondsForPostRaceCooldown(tech))
 
@@ -887,6 +930,10 @@ const confirmLeague2RaceWithFleet = async (fv) => {
       vehicleOnCooldownModalOpen.value = true
       return
     }
+    if (res === "dyno_required") {
+      vehicleDynoRequiredModalOpen.value = true
+      return
+    }
     if (res !== true) {
       const key = typeof res === "string" ? String(res).toLowerCase() : ""
       const specific = key ? LEAGUE1_ACCEPT_TOAST[key] : null
@@ -940,6 +987,10 @@ const confirmLeague1RaceWithFleet = async (fv) => {
     }
     if (res === "vehicle_cooldown" || String(res || "").toLowerCase() === "vehicle_cooldown" || vehicleOnCooldownModalOpen.value) {
       vehicleOnCooldownModalOpen.value = true
+      return
+    }
+    if (res === "dyno_required" || vehicleDynoRequiredModalOpen.value) {
+      vehicleDynoRequiredModalOpen.value = true
       return
     }
     if (res !== true) {
@@ -1008,6 +1059,10 @@ const confirmRaceWithDriver = async (tech) => {
     vehicleOnCooldownModalOpen.value = true
     return
   }
+  if (accepted === "dyno_required" || vehicleDynoRequiredModalOpen.value) {
+    vehicleDynoRequiredModalOpen.value = true
+    return
+  }
   if (accepted !== true) {
     const key = typeof accepted === "string" ? String(accepted).toLowerCase() : ""
     const specific = key ? LEAGUE1_ACCEPT_TOAST[key] : null
@@ -1047,6 +1102,7 @@ const armScheduledErrMessage = (err) => {
     no_valid_fleet_vehicle: "Driver needs a valid fleet vehicle.",
     missing_business_or_driver: "Missing business or driver.",
     no_business: "No business selected.",
+    dyno_required: "Dyno certification required before entering sanctioned races.",
     fleet_hp_over_class_max: "Fleet car is too powerful for this race class.",
     fleet_hp_under_class_min: "Fleet car is below the minimum HP for this race class.",
     fleet_hp_bracket_mismatch: "Fleet car does not match the race HP class.",
@@ -1073,6 +1129,7 @@ const proxyRaceErrMessage = (err) => {
     teleport_failed: "Could not place the team car at staging.",
     enter_vehicle_failed: "Could not switch you into the team car.",
     no_business: "No business selected.",
+    dyno_required: "Dyno certification required before entering sanctioned races.",
     no_track_flow: "Track flow is not available.",
     no_proxy_flow: "Race flow extension is not ready. Restart the game or verify the mod install.",
     lua_error: "Something went wrong. Check the log.",
@@ -1135,6 +1192,10 @@ const startScheduledRaceSpectate = async (driverId) => {
       return
     }
     const err = res && res.err ? res.err : "unknown_error"
+    if (err === "dyno_required") {
+      vehicleDynoRequiredModalOpen.value = true
+      return
+    }
     let showOos = isOutOfSpecErr(err)
     if (!showOos) {
       try {
@@ -1171,6 +1232,10 @@ const onRaceFromGarage = async () => {
       return
     }
     const err = res && res.err ? res.err : "unknown_error"
+    if (err === "dyno_required") {
+      vehicleDynoRequiredModalOpen.value = true
+      return
+    }
     let showOos = isOutOfSpecErr(err)
     if (!showOos) {
       try {
