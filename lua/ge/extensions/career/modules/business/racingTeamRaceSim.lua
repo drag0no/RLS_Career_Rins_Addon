@@ -425,7 +425,7 @@ function M.cancelBackgroundRace(businessId, driverId, reason)
       if rt.notifyRacingTeamDriversUpdated then
         rt.notifyRacingTeamDriversUpdated(businessId)
       end
-    elseif reason == "drop_out" then
+    elseif reason == "drop_out" or reason == "dropped" then
       if rt.cancelUnarmedScheduledRacingTeamProxyRace then
         return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, sim.driverId)
       end
@@ -455,7 +455,8 @@ local function settleBackgroundRace(businessId)
   -- 1. Settle with standard banking, XP, goals, and driver cut
   local settlementResult = nil
   if rt.settleProxySanctionedRaceFromAiResults and results then
-    settlementResult = rt.settleProxySanctionedRaceFromAiResults(businessId, results, true)
+    local override = {offer=offer, driverId=sim.driverId}
+    settlementResult = rt.settleProxySanctionedRaceFromAiResults(businessId, results, true, override)
   end
 
   -- 2. Accumulate odometer mileage
@@ -489,7 +490,7 @@ local function settleBackgroundRace(businessId)
     end
   end
 
-  -- 4. Arm driver cooldown and clear pending offer
+  -- 4. Arm driver & vehicle cooldown and clear pending offer
   local tech = rt.getRacingTeamDriverById and rt.getRacingTeamDriverById(businessId, sim.driverId)
   if tech then
     local rtf = getRacingTeamFleet()
@@ -500,6 +501,9 @@ local function settleBackgroundRace(businessId)
     tech.pendingRaceOffer = nil
     tech.currentAction = "idle"
     tech.phase = "idle"
+  end
+  if sim.fleetVehicleId and rt.armFleetVehiclePostRaceCooldown then
+    rt.armFleetVehiclePostRaceCooldown(businessId, sim.fleetVehicleId)
   end
 
   if rt.racingTeamPersistDrivers then

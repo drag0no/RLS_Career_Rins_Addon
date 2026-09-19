@@ -439,6 +439,9 @@ local function onUpdate(dtReal, dtSim, dtRaw)
   if rt and rt.tickRacingTeamManagerAccumulated then
     rt.tickRacingTeamManagerAccumulated(dtSim)
   end
+  if rt and rt.tickRacingTeamRaceSimAccumulated then
+    rt.tickRacingTeamRaceSimAccumulated(dtSim)
+  end
   if not cachedRacingTeamFinances then
     local ok, mod = pcall(function()
       return require("ge/extensions/career/modules/business/racingTeamFinances")

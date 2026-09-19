@@ -2353,7 +2353,7 @@ local function applyProxySanctionedRaceDriverStats(businessId, driverId, place, 
   end
 end
 
-local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isSilent)
+local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isSilent, override)
   businessId = normalizeBusinessId(businessId)
   if not businessId then
     return { money = 0, businessSkillXp = 0, noRewardDetail = "Invalid business." }
@@ -2361,8 +2361,13 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isS
   getOfferState(businessId)
   local req = getProxyDriverRaceRequest(businessId)
   local offer = req and type(req.offerSnapshot) == "table" and req.offerSnapshot
-  if not offer and req and tonumber(req.driverId) then
-    local tech = getRacingTeamDriverById(businessId, tonumber(req.driverId))
+  local driverId = req and tonumber(req.driverId)
+  if type(override) == "table" then
+    if override.offer then offer = override.offer end
+    if override.driverId then driverId = override.driverId end
+  end
+  if not offer and driverId then
+    local tech = getRacingTeamDriverById(businessId, driverId)
     offer = tech and tech.pendingRaceOffer
   end
   if not offer then
@@ -2381,7 +2386,6 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isS
   if not place then
     return { money = 0, businessSkillXp = 0, noRewardDetail = "Couldn't determine placement — no podium reward." }
   end
-  local driverId = req and tonumber(req.driverId)
   do
     local fleetVid = nil
     if driverId then
@@ -4343,18 +4347,9 @@ local function tickRacingTeamManagerAccumulated(dtSim)
   end
 end
 
-local function onUpdate(dtReal, dtSim, dtRaw)
-  if not career_career or not career_career.isActive or not career_career.isActive() then return end
-  local deltaSim = math.max(dtSim or 0, 0)
-  if deltaSim <= 0 then return end
-  
-  tickScheduledRaceReadyToastsAccumulated(deltaSim)
-  tickPostRaceCooldownDriverUiPushAccumulated(deltaSim)
-  if racingTeamManager and racingTeamManager.tickAccumulated then
-    racingTeamManager.tickAccumulated(deltaSim)
-  end
+local function tickRacingTeamRaceSimAccumulated(dtSim)
   if racingTeamRaceSim and racingTeamRaceSim.tickAccumulated then
-    racingTeamRaceSim.tickAccumulated(deltaSim)
+    racingTeamRaceSim.tickAccumulated(dtSim)
   end
 end
 
@@ -4384,7 +4379,7 @@ function M.setAutoStartBackgroundRaces(businessId, enabled)
   return true
 end
 
-M.onUpdate = onUpdate
+M.tickRacingTeamRaceSimAccumulated = tickRacingTeamRaceSimAccumulated
 M.hasManagerLevel1 = hasManagerLevel1
 M.hasManagerLevel2 = hasManagerLevel2
 M.sendDriverWithManager = racingTeamRaceSim.startBackgroundRace
@@ -4420,6 +4415,7 @@ M.listLeague1FleetVehiclesForSanctionedOffer = listLeague1FleetVehiclesForSancti
 M.listLeague2FleetVehiclesForSanctionedOffer = listLeague2FleetVehiclesForSanctionedOffer
 M.acceptRacingTeamRaceOfferAsPlayerAlongsideProxy = acceptRacingTeamRaceOfferAsPlayerAlongsideProxy
 M.getFleetVehiclePostRaceCooldownRemainingSec = getFleetVehiclePostRaceCooldownRemainingSec
+M.armFleetVehiclePostRaceCooldown = armFleetVehiclePostRaceCooldown
 M.getPlayerPostRaceCooldownRemainingSec = getPlayerPostRaceCooldownRemainingSec
 M.armPlayerPostRaceCooldown = armPlayerPostRaceCooldown
 M.getRacingTeamPlayerPostRaceCooldownSeconds = getRacingTeamPlayerPostRaceCooldownSeconds
