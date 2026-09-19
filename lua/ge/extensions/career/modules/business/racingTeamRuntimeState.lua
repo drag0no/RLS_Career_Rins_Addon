@@ -15,6 +15,7 @@ M.sanctionedOfficialFirstPlaceWinsByBusiness = {}
 M.classOptimizationPeakHpByBusiness = {}
 M.dynoRequiredByBusiness = {}
 M.persistLoaded = {}
+M.autoStartBackgroundRacesByBusiness = {}
 
 M.vehicleCooldownByBusiness = {}
 M.playerCooldownByBusiness = {}

@@ -19,8 +19,20 @@
         <span v-if="Number(place.xp) > 0" class="race-offer-place__xp">{{ formatMoney(place.xp) }} XP</span>
       </div>
     </div>
+    <div v-if="isInBackgroundSim" class="race-offer-card__sim-progress">
+      <div class="race-offer-card__sim-info">
+        <span class="race-offer-card__sim-badge">{{ simBadge || statusText }}</span>
+      </div>
+      <div class="race-offer-card__progress-track" aria-hidden="true">
+        <div
+          class="race-offer-card__progress-fill"
+          :style="{ width: `${Math.min(100, Math.max(0, Math.round((simProgress || 0) * 100)))}%` }"
+        />
+      </div>
+    </div>
     <div class="race-offer-card__actions">
       <button
+        v-if="!hidePrimary"
         type="button"
         class="btn btn-primary"
         data-focusable
@@ -31,10 +43,23 @@
         {{ primaryLabel }}
       </button>
       <button
+        v-if="showSendWithManager"
+        type="button"
+        class="btn btn-secondary race-offer-card__btn-manager"
+        data-focusable
+        :disabled="declining || sendWithManagerDisabled"
+        :title="sendWithManagerTooltip || ''"
+        @click.stop="$emit('send-with-manager')"
+        @mousedown.stop
+      >
+        {{ sendWithManagerLabel }}
+      </button>
+      <button
+        v-if="!hideSecondary"
         type="button"
         class="btn btn-secondary"
         data-focusable
-        :disabled="declining"
+        :disabled="declining || secondaryDisabled"
         @click.stop="$emit('decline')"
         @mousedown.stop
       >
@@ -73,13 +98,53 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  secondaryDisabled: {
+    type: Boolean,
+    default: false
+  },
+  hidePrimary: {
+    type: Boolean,
+    default: false
+  },
+  hideSecondary: {
+    type: Boolean,
+    default: false
+  },
+  showSendWithManager: {
+    type: Boolean,
+    default: false
+  },
+  sendWithManagerDisabled: {
+    type: Boolean,
+    default: false
+  },
+  sendWithManagerTooltip: {
+    type: String,
+    default: ""
+  },
+  sendWithManagerLabel: {
+    type: String,
+    default: "Send with Manager"
+  },
+  isInBackgroundSim: {
+    type: Boolean,
+    default: false
+  },
+  simProgress: {
+    type: Number,
+    default: 0
+  },
+  simBadge: {
+    type: String,
+    default: ""
+  },
   statusText: {
     type: String,
     default: ""
   }
 })
 
-defineEmits(["accept", "decline"])
+defineEmits(["accept", "decline", "send-with-manager"])
 
 const title = computed(() => props.offer?.raceLabel || props.offer?.raceName || "Race")
 
@@ -244,6 +309,41 @@ function formatMoney(n) {
   color: rgba(244, 196, 156, 0.78);
 }
 
+.race-offer-card__sim-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  margin-top: 0.15em;
+}
+
+.race-offer-card__sim-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.race-offer-card__sim-badge {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ff9933;
+}
+
+.race-offer-card__progress-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.race-offer-card__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6600, #ff9933);
+  border-radius: 3px;
+  transition: width 0.15s linear;
+}
+
 .race-offer-card__actions {
   display: flex;
   gap: 0.45em;
@@ -257,6 +357,13 @@ function formatMoney(n) {
   border-radius: 999px;
   font-size: 0.82em;
   font-weight: 700;
+}
+
+.race-offer-card__btn-manager {
+  border-color: rgba(245, 120, 0, 0.45);
+  &:hover:not(:disabled) {
+    border-color: rgba(245, 140, 0, 0.7);
+  }
 }
 
 .btn {

@@ -1228,6 +1228,51 @@ local function simulateRacingTeamProxyRace(opts)
   return beginRes
 end
 
+local function sendRacingTeamDriverWithManager(opts)
+  if type(opts) ~= "table" then
+    return { ok = false, err = "invalid_opts" }
+  end
+  local businessId = opts.businessId
+  local module, businessType = resolveBusinessModule(businessId)
+  if businessType ~= "racingTeam" or not module then
+    return { ok = false, err = "not_racing_team" }
+  end
+  if module.sendDriverWithManager then
+    return module.sendDriverWithManager(businessId, opts.driverId)
+  end
+  return { ok = false, err = "not_supported" }
+end
+
+local function setRacingTeamAutoStartBackgroundRaces(opts)
+  if type(opts) ~= "table" then
+    return false
+  end
+  local businessId = opts.businessId
+  local module, businessType = resolveBusinessModule(businessId)
+  if businessType ~= "racingTeam" or not module then
+    return false
+  end
+  if module.setAutoStartBackgroundRaces then
+    return module.setAutoStartBackgroundRaces(businessId, opts.enabled)
+  end
+  return false
+end
+
+local function cancelRacingTeamBackgroundRace(opts)
+  if type(opts) ~= "table" then
+    return { ok = false, err = "invalid_opts" }
+  end
+  local businessId = opts.businessId
+  local module, businessType = resolveBusinessModule(businessId)
+  if businessType ~= "racingTeam" or not module then
+    return { ok = false, err = "not_racing_team" }
+  end
+  if module.cancelBackgroundRaceSim then
+    return module.cancelBackgroundRaceSim(businessId, opts.driverId, opts.reason)
+  end
+  return { ok = false, err = "not_supported" }
+end
+
 local function isProxyScheduledDriverFleetOverpowered(businessId, driverId)
   if not businessId or driverId == nil then
     return { overpowered = false }
@@ -3484,6 +3529,9 @@ M.enterRacingTeamProxyStagingLoadingEarly = enterRacingTeamProxyStagingLoadingEa
 M.preflightRacingTeamProxySpectateUi = preflightRacingTeamProxySpectateUi
 M.refreshRacingTeamProxySpectatorUiMinimal = refreshRacingTeamProxySpectatorUiMinimal
 M.simulateRacingTeamProxyRace = simulateRacingTeamProxyRace
+M.sendRacingTeamDriverWithManager = sendRacingTeamDriverWithManager
+M.setRacingTeamAutoStartBackgroundRaces = setRacingTeamAutoStartBackgroundRaces
+M.cancelRacingTeamBackgroundRace = cancelRacingTeamBackgroundRace
 M.isProxyScheduledDriverFleetOverpowered = isProxyScheduledDriverFleetOverpowered
 M.isArmedProxyFleetOverpoweredForRequest = isArmedProxyFleetOverpoweredForRequest
 M.cancelRacingTeamProxySession = cancelRacingTeamProxySession

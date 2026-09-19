@@ -37,9 +37,12 @@ export const formatPhase = (tech, short = false) => {
     idle: "Idle",
     build: "Building",
     update: "Tuning",
-    cooldown: short ? "Cooldown" : "Cooling Down"
+    cooldown: short ? "Cooldown" : "Cooling Down",
+    driving_to_race: short ? "In Transit" : "Traveling to Track",
+    in_race: short ? "Racing" : "In Race",
+    driving_from_race: short ? "Returning" : "Returning to Garage"
   }
-  return tech.label || map[tech.phase] || tech.action || "Working"
+  return tech.label || map[tech.phase] || map[tech.simPhase] || tech.action || "Working"
 }
 
 export const formatExpiry = (seconds) => {

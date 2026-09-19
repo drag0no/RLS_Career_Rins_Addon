@@ -41,8 +41,8 @@
         {
           "id": "manager",
           "title": "Manager",
-          "description": "Auto-book sanctioned races for idle drivers (L2: pick interval + bracket match)",
-          "detailedDescription": "League 2+ — toggle on Races tab or Racing Team phone.\n\n**L1** — Books idle drivers every **30 min** (real time).\n\n**L2** — Interval **10–60 min**; matches fleet car to offer bracket.\n\n**Shop App** — Lock-screen alert when a booked race is ready to spectate (not when it is booked).",
+          "description": "Auto-book races & background simulation (L1: Send with Manager, L2: Auto-start & bracket match)",
+          "detailedDescription": "League 2+ — toggle on Races tab or Racing Team phone.\n\n**L1** — Auto-books idle drivers every **30 min** (real time). Unlocks **Send with Manager** to simulate races in the background with a 2.5m grace period to take over.\n\n**L2** — Configurable booking interval (**10–60 min**), fleet car bracket matching, and **Autonomous Auto-Start** for background races.\n\n**Shop App** — Alerts when races are ready to spectate or conclude.",
           "cost": {
             "base": 100000,
             "increment": 75000

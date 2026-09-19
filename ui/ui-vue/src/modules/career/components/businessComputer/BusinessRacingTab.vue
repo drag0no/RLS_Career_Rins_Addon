@@ -23,19 +23,35 @@
         <div class="manager-auto-panel__heading">
           <div class="manager-auto-panel__title-row">
             <h3 class="manager-auto-panel__title">Manager automation</h3>
-            <label
-              class="manager-auto-toggle"
-              :class="{ 'manager-auto-toggle--disabled': managerAutoToggleBusy }"
-            >
-              <input
-                type="checkbox"
-                :checked="managerAutoAssign"
-                :disabled="managerAutoToggleBusy"
-                @change="onManagerAutoToggle"
-              />
-              <span class="manager-auto-toggle__slider" aria-hidden="true" />
-              <span class="manager-auto-toggle__label">{{ layout === 'phone' ? 'Auto-assign' : 'Auto-assign sanctioned offers' }}</span>
-            </label>
+            <div class="manager-auto-panel__toggles">
+              <label
+                class="manager-auto-toggle"
+                :class="{ 'manager-auto-toggle--disabled': managerAutoToggleBusy }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="managerAutoAssign"
+                  :disabled="managerAutoToggleBusy"
+                  @change="onManagerAutoToggle"
+                />
+                <span class="manager-auto-toggle__slider" aria-hidden="true" />
+                <span class="manager-auto-toggle__label">{{ layout === 'phone' ? 'Auto-assign' : 'Auto-assign sanctioned offers' }}</span>
+              </label>
+              <label
+                v-if="managerSkillLevel >= 2"
+                class="manager-auto-toggle"
+                :class="{ 'manager-auto-toggle--disabled': managerAutoStartRacesBusy }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="managerAutoStartBackgroundRaces"
+                  :disabled="managerAutoStartRacesBusy"
+                  @change="onManagerAutoStartRacesToggle"
+                />
+                <span class="manager-auto-toggle__slider" aria-hidden="true" />
+                <span class="manager-auto-toggle__label">{{ layout === 'phone' ? 'Auto-race' : 'Auto-start background races' }}</span>
+              </label>
+            </div>
           </div>
           <div v-if="managerSkillLevel >= 2" class="manager-auto-panel__interval">
             <span class="manager-auto-interval-text">Automation interval:</span>
@@ -96,12 +112,21 @@
             <RaceOfferBoardCard
               :offer="row.offer"
               :driver-name="row.driverName"
-              :declining="armScheduledBusyId === row.driverId || dropScheduledBusyId === row.driverId"
-              :primary-disabled="!row.scheduledRaceReady"
-              :status-text="row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock)"
-              primary-label="Spectate"
+              :declining="armScheduledBusyId === row.driverId || dropScheduledBusyId === row.driverId || sendWithManagerBusyId === row.driverId"
+              :primary-disabled="!row.scheduledRaceReady || !row.canSpectate"
+              :hide-primary="row.isInSim && !row.canSpectate"
+              :hide-secondary="row.isInSim && !row.canSpectate"
+              :show-send-with-manager="!row.isInSim"
+              :send-with-manager-disabled="!row.scheduledRaceReady || managerSkillLevel < 1 || !!store.businessData?.activeBackgroundRace"
+              :send-with-manager-tooltip="getSendWithManagerTooltip(row)"
+              :is-in-background-sim="row.isInSim"
+              :sim-progress="row.simProgress"
+              :sim-badge="row.simBadge"
+              :status-text="row.isInSim ? row.simBadge : (row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock))"
+              primary-label="Manage myself"
               secondary-label="Drop out"
-              @accept="startScheduledRaceSpectate(row.driverId)"
+              @accept="onManageMyself(row.driverId)"
+              @send-with-manager="onSendDriverWithManager(row.driverId)"
               @decline="dropScheduledRace(row.driverId)"
             />
           </li>
@@ -111,12 +136,21 @@
             <RaceOfferBoardCard
               :offer="row.offer"
               :driver-name="row.driverName"
-              :declining="armScheduledBusyId === row.driverId || dropScheduledBusyId === row.driverId"
-              :primary-disabled="!row.scheduledRaceReady"
-              :status-text="row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock)"
-              primary-label="Spectate"
+              :declining="armScheduledBusyId === row.driverId || dropScheduledBusyId === row.driverId || sendWithManagerBusyId === row.driverId"
+              :primary-disabled="!row.scheduledRaceReady || !row.canSpectate"
+              :hide-primary="row.isInSim && !row.canSpectate"
+              :hide-secondary="row.isInSim && !row.canSpectate"
+              :show-send-with-manager="!row.isInSim"
+              :send-with-manager-disabled="!row.scheduledRaceReady || managerSkillLevel < 1 || !!store.businessData?.activeBackgroundRace"
+              :send-with-manager-tooltip="getSendWithManagerTooltip(row)"
+              :is-in-background-sim="row.isInSim"
+              :sim-progress="row.simProgress"
+              :sim-badge="row.simBadge"
+              :status-text="row.isInSim ? row.simBadge : (row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock))"
+              primary-label="Manage myself"
               secondary-label="Drop out"
-              @accept="startScheduledRaceSpectate(row.driverId)"
+              @accept="onManageMyself(row.driverId)"
+              @send-with-manager="onSendDriverWithManager(row.driverId)"
               @decline="dropScheduledRace(row.driverId)"
             />
           </div>
@@ -510,6 +544,8 @@ const armScheduledBusyId = ref(null)
 
 const dropScheduledBusyId = ref(null)
 
+const sendWithManagerBusyId = ref(null)
+
 const decliningOfferId = ref(null)
 
 const vehicleOutOfClassModalOpen = ref(false)
@@ -550,6 +586,7 @@ const showManagerAutomationPanel = computed(() => {
 const managerSkillLevel = computed(() => Number(store.businessData?.racingTeamManagerSkillLevel ?? 0))
 
 const managerAutoAssign = computed(() => store.businessData?.racingTeamManagerAutoAssign === true)
+const managerAutoStartBackgroundRaces = computed(() => store.businessData?.racingTeamManagerAutoStartRaces !== false)
 
 const DEFAULT_MANAGER_INTERVAL_SEC = 1800
 
@@ -655,6 +692,20 @@ async function onManagerAutoToggle (ev) {
   }
 }
 
+const managerAutoStartRacesBusy = ref(false)
+async function onManagerAutoStartRacesToggle (ev) {
+  const enabled = ev.target.checked
+  managerAutoStartRacesBusy.value = true
+  try {
+    await store.setRacingTeamAutoStartBackgroundRaces(enabled)
+    await store.loadBusinessData(store.businessType, store.businessId)
+  } catch (err) {
+    console.error("[BusinessRacingTab] setRacingTeamAutoStartBackgroundRaces", err)
+  } finally {
+    managerAutoStartRacesBusy.value = false
+  }
+}
+
 watch(managerIntervalModel, async (sec, prevSec) => {
   if (sec === prevSec || managerIntervalBusy.value) return
   if (!Number.isFinite(sec) || sec <= 0) return
@@ -698,6 +749,11 @@ const driversWithScheduledRaces = computed(() => {
       scheduledRaceReady: remaining !== null ? remaining <= 0 : t.scheduledRaceReady === true,
       secondsUntilScheduledRace: remaining ?? 0,
       useWallClock,
+      isInSim: t.isInSim === true,
+      simPhase: t.simPhase || "",
+      simBadge: t.simBadge || "",
+      simProgress: Number(t.simProgress ?? 0),
+      canSpectate: t.canSpectate !== false,
     })
   }
   return rows
@@ -1154,6 +1210,10 @@ const dropScheduledRace = async (driverId) => {
   if (driverId === undefined || driverId === null) return
   dropScheduledBusyId.value = driverId
   try {
+    const row = driversWithScheduledRaces.value.find((r) => r.driverId === driverId)
+    if (row && row.isInSim) {
+      await store.cancelRacingTeamBackgroundRace(driverId, "dropped")
+    }
     const res = await store.cancelRacingTeamProxyScheduledRace(driverId)
     if (res && res.ok) {
       await store.loadBusinessData(store.businessType, store.businessId)
@@ -1169,6 +1229,57 @@ const dropScheduledRace = async (driverId) => {
     }
   } finally {
     dropScheduledBusyId.value = null
+  }
+}
+
+const onManageMyself = async (driverId) => {
+  if (driverId === undefined || driverId === null) return
+  const row = driversWithScheduledRaces.value.find((r) => r.driverId === driverId)
+  if (row && row.isInSim) {
+    try {
+      await store.cancelRacingTeamBackgroundRace(driverId, "manage_myself")
+      await store.loadBusinessData(store.businessType, store.businessId)
+    } catch (e) {
+      console.error("[BusinessRacingTab] cancelRacingTeamBackgroundRace error", e)
+    }
+  }
+  await startScheduledRaceSpectate(driverId)
+}
+
+const getSendWithManagerTooltip = (row) => {
+  if (managerSkillLevel.value < 1) {
+    return "Requires Manager Lv 1"
+  }
+  if (store.businessData?.activeBackgroundRace) {
+    return "Manager is already supervising a race"
+  }
+  if (!row?.scheduledRaceReady) {
+    return "Race is not ready yet"
+  }
+  return "Send driver to race in the background with team manager"
+}
+
+const onSendDriverWithManager = async (driverId) => {
+  if (driverId === undefined || driverId === null) return
+  sendWithManagerBusyId.value = driverId
+  try {
+    const res = await store.sendRacingTeamDriverWithManager(driverId)
+    if (res && res.ok) {
+      try {
+        lua.ui_message("Driver dispatched with team manager for background race.", 6, "Racing Team", "info")
+      } catch (e) {}
+      await store.loadBusinessData(store.businessType, store.businessId)
+    } else {
+      const err = res?.err || "unknown_error"
+      const msg = armScheduledErrMessage(err)
+      try {
+        lua.ui_message(msg, 6, "Racing Team", "warning")
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.error("[BusinessRacingTab] sendDriverWithManager", err)
+  } finally {
+    sendWithManagerBusyId.value = null
   }
 }
 
@@ -1294,6 +1405,12 @@ const onRaceFromGarage = async () => {
   font-size: 1em;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
+}
+.manager-auto-panel__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
 }
 .manager-auto-toggle {
   display: inline-flex;

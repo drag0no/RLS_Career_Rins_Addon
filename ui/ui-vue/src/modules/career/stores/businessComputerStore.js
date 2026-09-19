@@ -728,6 +728,54 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     }
   }
 
+  const sendRacingTeamDriverWithManager = async (driverId) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) {
+      return { ok: false, err: "no_business" }
+    }
+    const tid = Number(driverId)
+    if (!Number.isFinite(tid)) return { ok: false, err: "invalid_driver" }
+    try {
+      return await lua.career_modules_business_businessComputer.sendRacingTeamDriverWithManager({
+        businessId: String(bid),
+        driverId: tid,
+      })
+    } catch (_e) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
+  const setRacingTeamAutoStartBackgroundRaces = async (enabled) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) return false
+    try {
+      return await lua.career_modules_business_businessComputer.setRacingTeamAutoStartBackgroundRaces({
+        businessId: String(bid),
+        enabled: enabled === true,
+      })
+    } catch (_e) {
+      return false
+    }
+  }
+
+  const cancelRacingTeamBackgroundRace = async (driverId, reason) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) {
+      return { ok: false, err: "no_business" }
+    }
+    const tid = Number(driverId)
+    if (!Number.isFinite(tid)) return { ok: false, err: "invalid_driver" }
+    try {
+      return await lua.career_modules_business_businessComputer.cancelRacingTeamBackgroundRace({
+        businessId: String(bid),
+        driverId: tid,
+        reason: String(reason || ""),
+      })
+    } catch (_e) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
   const isProxyScheduledDriverFleetOverpowered = async (driverId) => {
     const bid = luaBusinessId()
     if (bid === null || bid === undefined) return { overpowered: false }
@@ -3490,6 +3538,9 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     getProxyDriverRaceRequest,
     beginRacingTeamProxyRaceFromBusinessComputer,
     simulateRacingTeamProxyRace,
+    sendRacingTeamDriverWithManager,
+    setRacingTeamAutoStartBackgroundRaces,
+    cancelRacingTeamBackgroundRace,
     isProxyScheduledDriverFleetOverpowered,
     isArmedProxyFleetOverpoweredForRequest,
     cancelRacingTeamProxySession,

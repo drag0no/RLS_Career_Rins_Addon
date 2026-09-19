@@ -10,6 +10,7 @@ local racingTeamLeagueInvite = require('ge/extensions/career/modules/business/ra
 local racingTeamRaceOffers = require('ge/extensions/career/modules/business/racingTeamRaceOffers')
 local racingTeamFleet = require('ge/extensions/career/modules/business/racingTeamFleet')
 local racingTeamGoals = require('ge/extensions/career/modules/business/racingTeamGoals')
+local racingTeamRaceSim = require('ge/extensions/career/modules/business/racingTeamRaceSim')
 require('ge/extensions/career/modules/business/racingTeamDevLog')
 
 local rtState = require('ge/extensions/career/modules/business/racingTeamRuntimeState')
@@ -70,6 +71,14 @@ local function getSkillTreeNodeLevel(businessId, treeId, nodeId)
   if not mod or not mod.getNodeProgress then return 0 end
   local ok, lv = pcall(mod.getNodeProgress, normalizeBusinessId(businessId), treeId, nodeId)
   return (ok and math.max(0, math.floor(tonumber(lv) or 0))) or 0
+end
+
+local function hasManagerLevel1(businessId)
+  return getSkillTreeNodeLevel(businessId, "team-operations", "manager") >= 1
+end
+
+local function hasManagerLevel2(businessId)
+  return getSkillTreeNodeLevel(businessId, "team-operations", "manager") >= 2
 end
 
 local function getRacingTeamGarageSlotsSkillLevel(businessId)
@@ -383,6 +392,12 @@ local function loadRacingTeamPersistedState(businessId, state)
       end
     end
   end
+  if data.autoStartBackgroundRaces ~= nil then
+    rtState.autoStartBackgroundRacesByBusiness[id] = data.autoStartBackgroundRaces == true
+  else
+    rtState.autoStartBackgroundRacesByBusiness[id] = true
+  end
+  racingTeamRaceSim.loadPersistedState(businessId, data.activeBackgroundRaceSim)
 end
 
 local function saveRacingTeamPersistedState(businessId, currentSavePath)
@@ -462,6 +477,8 @@ local function saveRacingTeamPersistedState(businessId, currentSavePath)
     raceUnlockSplashShown = rtState.raceUnlockSplashShownByBusiness[id] == true,
     careerFinaleSplashPending = rtState.careerFinaleSplashPendingByBusiness[id] == true,
     careerFinaleSplashShown = rtState.careerFinaleSplashShownByBusiness[id] == true,
+    autoStartBackgroundRaces = rtState.autoStartBackgroundRacesByBusiness[id] ~= false,
+    activeBackgroundRaceSim = racingTeamRaceSim.getPersistedStateForSave(id),
     vehicleCooldowns = (function()
       local out = {}
       local now = os.time()
@@ -2638,15 +2655,22 @@ local function formatRacingTeamDriverForUI(businessId, tech)
       fleetVehicleName = "Unavailable"
     end
   end
+  
+  local simState = racingTeamRaceSim and racingTeamRaceSim.getDriverSimState and racingTeamRaceSim.getDriverSimState(businessId, tech.id)
+  local isInSim = simState ~= nil
   return {
     id = tech.id,
     name = tech.name,
     state = tech.state or 0,
-    action = tech.currentAction or "idle",
-    label = label,
-    progress = 0,
-    elapsedSeconds = 0,
-    totalSeconds = 0,
+    action = simState and simState.phase or tech.currentAction or "idle",
+    label = simState and simState.badge or label,
+    progress = simState and simState.progress or 0,
+    elapsedSeconds = simState and simState.stateElapsed or 0,
+    totalSeconds = simState and simState.stateDuration or 0,
+    isInSim = isInSim,
+    canSpectate = simState and simState.canSpectate == true or false,
+    simBadge = simState and simState.badge or nil,
+    simPhase = simState and simState.phase or nil,
     serverTime = os.clock(),
     jobId = tech.jobId,
     jobLabel = jobLabel,
@@ -2663,7 +2687,8 @@ local function formatRacingTeamDriverForUI(businessId, tech)
       and not tech.jobId
       and not tech.pendingRaceOffer
       and (tech.currentAction == "idle")
-      and postRaceCd <= 0,
+      and postRaceCd <= 0
+      and not isInSim,
     postRaceCooldownRemainingSec = postRaceCd,
     racingCooldownUntilSimTime = tonumber(tech.racingCooldownUntilSimTime),
     postRaceCooldownReadyWallEpoch = tonumber(tech.postRaceCooldownReadyWallEpoch),
@@ -3857,6 +3882,8 @@ local function buildRacingTeamUIDataCore(businessId)
     racingTeamManagerAssignIntervalRemainingSec = racingTeamManagerAssignIntervalRemainingSec,
     racingTeamManagerNextAssignWallEpoch = racingTeamManagerNextAssignWallEpoch,
     racingTeamManagerAssignIntervalOptions = racingTeamManagerAssignIntervalOptions,
+    racingTeamManagerAutoStartRaces = rtState.autoStartBackgroundRacesByBusiness[tostring(normalizeBusinessId(businessId))] ~= false,
+    activeBackgroundRace = racingTeamRaceSim.getActiveSim(businessId) ~= nil,
     racingTeamFleetCooldowns = (function()
       local out = {}
       local inv = career_modules_business_businessInventory
@@ -4178,6 +4205,7 @@ local function onCareerActivated()
   rtState.sanctionedOfficialFirstPlaceWinsByBusiness = {}
   rtState.classOptimizationPeakHpByBusiness = {}
   rtState.dynoRequiredByBusiness = {}
+  rtState.autoStartBackgroundRacesByBusiness = {}
   rtState.businessDrivers = {}
   rtState.league2InviteByBusiness = {}
   rtState.league2InvitePromoUiByBusiness = {}
@@ -4198,10 +4226,9 @@ local function onCareerActivated()
   rtState.postRaceCooldownUiPollAccumulator = 0
   rtState.allLeaderboardsBaselineByBusiness = {}
   rtState.completedGoalLeaderboardTimesByBusiness = {}
+  racingTeamRaceSim.onCareerActivated()
   racingTeamFinances.onCareerActivated()
-  if racingTeamManager and racingTeamManager.onCareerActivated then
-    racingTeamManager.onCareerActivated()
-  end
+  racingTeamManager.onCareerActivated()
   career_modules_business_businessManager.registerBusiness(rtState.businessType, businessObject)
   ensureTabsRegistered()
 
@@ -4294,14 +4321,62 @@ local function tickScheduledRaceReadyToastsAccumulated(dtSim)
   processScheduledRaceReadyToastQueue()
 end
 
-M.tickScheduledRaceReadyToastsAccumulated = tickScheduledRaceReadyToastsAccumulated
-M.tickHomeMechanicPwDeferredRechecks = racingTeamGoals.tickHomeMechanicPwDeferredRechecks
-M.tickPostRaceCooldownDriverUiPushAccumulated = tickPostRaceCooldownDriverUiPushAccumulated
-function M.tickRacingTeamManagerAccumulated(dtSim)
+local function tickRacingTeamManagerAccumulated(dtSim)
   if racingTeamManager and racingTeamManager.tickAccumulated then
     racingTeamManager.tickAccumulated(dtSim)
   end
 end
+
+local function onUpdate(dtReal, dtSim, dtRaw)
+  if not career_career or not career_career.isActive or not career_career.isActive() then return end
+  local deltaSim = math.max(dtSim or 0, 0)
+  if deltaSim <= 0 then return end
+  
+  tickScheduledRaceReadyToastsAccumulated(deltaSim)
+  tickPostRaceCooldownDriverUiPushAccumulated(deltaSim)
+  if racingTeamManager and racingTeamManager.tickAccumulated then
+    racingTeamManager.tickAccumulated(deltaSim)
+  end
+  if racingTeamRaceSim and racingTeamRaceSim.tickAccumulated then
+    racingTeamRaceSim.tickAccumulated(deltaSim)
+  end
+end
+
+function M.getAutoStartBackgroundRaces(businessId)
+  local id = tostring(normalizeBusinessId(businessId))
+  local val = rtState.autoStartBackgroundRacesByBusiness[id]
+  if val == nil then return true end
+  return val == true
+end
+
+function M.setAutoStartBackgroundRaces(businessId, enabled)
+  local id = tostring(normalizeBusinessId(businessId))
+  if not rtState.autoStartBackgroundRacesByBusiness then
+    rtState.autoStartBackgroundRacesByBusiness = {}
+  end
+  rtState.autoStartBackgroundRacesByBusiness[id] = (enabled == true)
+  local _, savePath = career_saveSystem.getCurrentProfile()
+  if savePath then
+    saveRacingTeamPersistedState(businessId, savePath)
+  end
+  if guihooks and guihooks.trigger then
+    guihooks.trigger("racingTeamManagerSettingsUpdated", {
+      businessId = tostring(businessId),
+      autoStartBackgroundRaces = (enabled == true),
+    })
+  end
+  return true
+end
+
+M.onUpdate = onUpdate
+M.hasManagerLevel1 = hasManagerLevel1
+M.hasManagerLevel2 = hasManagerLevel2
+M.sendDriverWithManager = racingTeamRaceSim.startBackgroundRace
+M.cancelBackgroundRaceSim = racingTeamRaceSim.cancelBackgroundRace
+M.tickScheduledRaceReadyToastsAccumulated = tickScheduledRaceReadyToastsAccumulated
+M.tickHomeMechanicPwDeferredRechecks = racingTeamGoals.tickHomeMechanicPwDeferredRechecks
+M.tickPostRaceCooldownDriverUiPushAccumulated = tickPostRaceCooldownDriverUiPushAccumulated
+M.tickRacingTeamManagerAccumulated = tickRacingTeamManagerAccumulated
 M.sanctionedOfferMatchesFleetVehicle = sanctionedOfferMatchesFleetVehicle
 M.fleetVehicleOverpoweredForOffer = fleetVehicleOverpoweredForOffer
 M.fleetVehicleEligibleForOffer = fleetVehicleEligibleForOffer
