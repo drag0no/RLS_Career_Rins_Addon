@@ -1506,7 +1506,7 @@ function M.settleFromAiResults(aiResults, raceName)
   end
   local detail = string.format("Technical Disqualification: Power-to-weight (%.3f hp/kg) exceeded class limit (%.3f hp/kg). Podium purse withheld.", pwLive, pwMax)
   if fineCharged then detail = detail .. string.format(" $%d fine deducted from team funds.", fine) end
-  
+
   mCelebrationRewards = { money = 0, noRewardDetail = detail }
   if ui_message then ui_message(detail, 8, "Parc Ferme", "error") end
   M.finishOfferClear()

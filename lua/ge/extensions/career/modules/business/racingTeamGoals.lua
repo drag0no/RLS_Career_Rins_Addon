@@ -958,7 +958,7 @@ end
 local function getVehicleCatalogBaselineHp(targetVehicle, curHp)
   if curHp and curHp > 0 then return curHp end
   if not targetVehicle then return nil end
-  
+
   local vc = targetVehicle.vehicleConfig
   local mk = vc and vc.model_key or targetVehicle.model_key
   local ck = vc and (vc.key or vc.config_key) or targetVehicle.config_key
