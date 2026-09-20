@@ -2,22 +2,17 @@
 
 ## TL;DR — What's New?
 
-- **No More Boring Spectator Grinds**: Eliminates the chore of sitting through slow, repetitive 3D spectator races where passive AI rarely overtakes and your driver is virtually guaranteed to lose. Hired drivers can now race autonomously in the background while you explore, tune, or run deliveries.
-- **Parallel Background Race Simulation**: Hired drivers can now run scheduled sanctioned races autonomously in the background with a 1 Hz throttled, allocation-free engine.
-- **Interactive 2.5-Minute Transit Grace Period**: When a background race starts, a 2.5-minute transit countdown begins. You can click **"Manage myself"** at any time during transit to intercept and smoothly load into the 3D spectator race without penalty.
+- **No More Boring Spectator Grinds**: Eliminates the chore of sitting through slow, repetitive 3D spectator races where passive AI rarely overtakes and your driver is virtually guaranteed to lose. Hired drivers can now race autonomously in the background while you explore, tune, or run deliveries. Background races award prize money, deduct tiered driver cuts, credit team & driver XP, trigger sponsor milestones, accumulate real vehicle odometer mileage (0.5 mi/lap short, 1.4 mi/lap long), apply incident wear risk to parts on mistakes, and arm driver cooldowns.
 - **Realistic 5-Car Stochastic Math Model**: Background races resolve dynamically using a physics-grounded math model accounting for vehicle power-to-weight, driver skill XP, track characteristics (short vs. long courses), starting grid traffic (+0.7s per car ahead), Gaussian lap variance, and driver mistake risks.
-- **Complete Post-Race Settlement**: Background races award prize money, deduct tiered driver cuts, credit team & driver XP, trigger sponsor milestones, accumulate real vehicle odometer mileage (0.5 mi/lap short, 1.4 mi/lap long), apply incident wear risk to parts on mistakes, and arm driver cooldowns.
 - **Manager Automation Tiers**:
-  - **Level 1**: Unlocks manual **"Send with Manager"** dispatch for ready scheduled races (single concurrent background race limit).
-  - **Level 2**: Unlocks autonomous **"Auto-start background races"** (with fail-open toggle), custom booking intervals (10–60 min), and automatic car-to-bracket matching.
-- **AI Driver Paradox Fix**: Inverted legacy opponent scaling. Experienced drivers now gain an authentic competitive edge rather than facing unrealistically overpowered AI fields. Driver XP now directly scales aggression, bravery, apex line precision, and late braking.
+  - **Level 1**: Unlocks manual **"Send with Manager"** dispatch for ready scheduled races.
+  - **Level 2**: Unlocks autonomous **"Auto-start background races"**, custom booking intervals (10–60 min), and automatic car-to-bracket matching.
+- **AI Driver Paradox Fix**: Driver XP now directly scales aggression, bravery, apex line precision, and late braking, and not punished with stronger AI, how it was done previously.
 - **Rebalanced Driver Revenue Cuts (15%–35%)**: Replaced the legacy flat driver cut with a tiered structure based on experience (Tier 1: 15% up to Tier 5: 35%), making rookie drivers affordable and veteran drivers rewarding.
-- **Experience XP on Every Race Finish**: Drivers no longer receive 0 XP when losing or finishing off the podium. Every completed race awards baseline track experience XP via binary half-decay (P4: 25% of P3 XP; P5: 12.5% of P3 XP, with active sponsor bonuses), ensuring drivers still learn without undermining podium incentives.
+- **Experience XP on Every Race Finish**: Drivers no longer receive 0 XP when losing or finishing off the podium. Every completed race awards baseline track experience XP, ensuring drivers still learn without undermining podium incentives.
 - **Player-Driving Penalty Rebalance (85% Net Purse)**: Slashed the punitive 75% team tax down to a fair **15% pit crew & team operations share** (awarding **85% net earnings** to the player/team account), paired with an authentic 15-minute driver fatigue cooldown.
-- **Dyno Skill Gate & Facility Overhead Fix**: Gated dyno access behind the skill tree node and eliminated duplicate/phantom daily overhead charges.
-- **Dyno Certification & Out-of-Class Protection**: Added dyno certification prompts and modals for modified fleet vehicles to prevent out-of-bracket entries.
-- **Garage Slot Capacity Fix**: Garage slot skill upgrades now properly expand active fleet vehicle storage caps and bay limits (+1 vehicle slot per level).
-- **Quick-Travel Recovery Registration**: Quick-Travel skill node now correctly registers the racing team facility on the recovery menu and bigmap fast-travel system.
+- **Dyno Assessment & Certification System**: Replaced loose modification checks with an authoritative 3-state certification status (`Assessment Required`, `In Progress`, `Certified`). Teams with a Workshop Dyno certify instantly and free; without a dyno, vehicles can be assessed by third-party testing ($1,200, 5-minute timer) via the Vehicles tab. Modifying parts or tuning immediately drops vehicles back to `Assessment Required`.
+- **Underdog Racing Support**: Eliminates punitive power-to-weight floor disqualifications. Vehicles below bracket minimums (`pw < pwMin`) are freely eligible to enter higher tiers.
 
 ---
 
@@ -37,15 +32,12 @@ Frustrated by this dynamic, digging deeper into *why* hired drivers were constan
    Investigating why hired drivers lost so consistently led directly into the codebase, uncovering a design flaw: **opponent AI vehicle power was mathematically scaled up with your own driver's XP**. Fresh rookie drivers faced slow, beatable opponents, whereas leveling up a driver and investing in their career matched them against stronger AI supercars. Training your driver actively doomed them to lose.
 3. **The Player-Driving Penalty Trap**:
    When players inevitably grew tired of watching their AI driver lose and chose to take the wheel themselves, the game hit them with a punitive **75% "team tax" penalty**, pocketing three-quarters of the prize money despite the player doing 100% of the driving.
-4. **Disproportionate & Rigid Driver Cuts**:
-   Hired drivers demanded excessive flat cuts regardless of their actual experience tier, providing zero financial logic to team progression.
-5. **A Broken Infrastructure & Perk Stack**:
+4. **A Broken Infrastructure & Perk Stack**:
    - The dyno could be accessed without unlocking its skill perk, while a double-dipping bug drained the team ledger with phantom daily overhead charges.
    - Purchasing Garage Slot perks (+1 vehicle capacity) cost substantial funds and XP but failed to increase the fleet vehicle cap.
    - Quick-travel fast recovery was completely non-functional upon unlock, failing to register the site.
-   - Modified fleet cars lacked clear power-to-weight certification gates, causing silent disqualifications or unfair bracket matchups.
 
-What started as an effort to eliminate boring, uncompetitive spectator sessions revealed that nearly every pillar of the business was dysfunctional. This overhaul rebuilds the racing team from the ground up: introducing a parallel background simulation engine, interactive takeovers, physics-grounded AI math, inverted fair scaling, rebalanced financial shares, and robust business infrastructure.
+What started as an effort to eliminate boring, uncompetitive spectator sessions revealed that most of the business mechanics were dysfunctional. This overhaul rebuilds the racing team from the ground up: introducing a parallel background simulation engine, interactive takeovers, physics-grounded AI math, inverted fair scaling, rebalanced financial shares, and robust business infrastructure.
 
 ---
 
@@ -117,7 +109,7 @@ When Phase 3 finishes, settlement executes automatically:
 ### 3. AI Driver Progression & Economy Rebalance
 
 #### 3.1 Resolving the AI Driver Paradox
-In legacy code, opponent AI power scaled with the player driver's XP. This created a paradoxical inverted difficulty curve where rookie drivers faced slow AI and won easily, while veteran drivers faced hyper-tuned rocketships and lost constantly.
+In legacy code, opponent AI power scaled with the player driver's XP. This created a paradoxical inverted difficulty curve where rookie drivers faced slow AI, while veteran drivers faced hyper-tuned rocketships.
 - **Randomized Bracket Opponent Distribution**: Opponent vehicle power is now drawn randomly across the full sanctioned category bracket $[b_{\text{min}}, b_{\text{max}}]$, reflecting an authentic, varied motorsport field rather than artificial opponent handicaps.
 - **XP-Driven AI Attributes**: Driver XP now dynamically enhances 3D spectator driving attributes:
   - **Aggression**: Scales smoothly from $0.88$ (rookie) to $1.20$ (elite).
@@ -160,10 +152,12 @@ In legacy RLS Career, finishing off the podium (P4+) awarded exactly **0 XP** to
 - **Skill Gate Enforced**: Access to vehicle dyno certification is now strictly gated behind unlocking the `dyno` node in the QOL skill tree.
 - **Phantom Overhead Eliminated**: Fixed a bug where daily business overhead double-charged facility maintenance fees when the dyno was unlocked or under repair.
 
-#### 4.2 Dyno Certification & Power-to-Weight Gating
-When entering sanctioned races:
-- If a fleet vehicle has been modified by more than 5% over baseline, it requires testing on the workshop dyno to re-certify its power-to-weight bracket.
-- The UI displays clear **"Dyno Required"** warnings and blocks entry until certified, preventing unexpected disqualification.
+#### 4.2 Vehicle Dyno Assessment & Certification System (`dynoStatus`)
+Vehicle certification uses an authoritative 3-state enum:
+- **`-1` (Assessment Required)**: Newly bought vehicles (without an in-house workshop dyno) and any modified vehicle start in this uncertified state. Fleet cards display an orange `"Assessment Required"` badge and assign buttons are blocked.
+- **`0` (In Progress / Assessing...)**: When the player clicks **"Assess Car ($1,200)"** on the Vehicles tab, $1,200 is debited from the team bank account and a 5-minute (300s sim time) third-party dyno assessment begins. A blue `"Assessing..."` badge appears on the car.
+- **`1` (Dyno Certified)**: The assessment timer completes, registering peak horsepower and weight to certify the vehicle with a green `"Dyno Certified"` badge. If the team owns the Workshop Dyno skill perk (`dynoLevel > 0`), certification is **instant, automatic, and free** upon purchase or tuning.
+- **Automatic Invalidation**: Whenever a certified vehicle undergoes any modification (parts installed via the business computer or career garage, or tuning sliders adjusted), its certification is immediately cleared back to `-1`, requiring re-assessment.
 
 #### 4.3 Garage Slot Capacity Fix
 Purchasing the `garageSlots` skill (+1 vehicle slot per level, max 2 levels) previously failed to increase the fleet vehicle limit. The inventory cap has been correctly bound to the skill level, allowing teams to expand their roster to 3 and 4 vehicles as intended.
@@ -173,10 +167,9 @@ Unlocking the `quick-travel` skill node now properly registers the racing team f
 1. The **Recovery Menu** (Quick Travel destinations).
 2. The **Bigmap** fast-travel teleport nodes.
 
-#### 4.5 Parc Fermé Scrutineering Tolerance & Underdog Victory Leniency
-Post-race tech inspections at Parc Fermé have been overhauled with authentic motorsport like regulations:
-- **Scrutineering Tolerance**: Defaulting to 5%. This margin accounts for natural vehicle weight loss during competition (fuel burn mass reduction).
-- **No Penalty for Underdog Story**: Historically, finishing a race in a vehicle with power-to-weight below the category minimum (`pwLive < hMin`) stripped the team of podium purse and awards. This punitive rule has been eliminated. If a talented driver punches above their weight class and takes a podium finish in an under-spec car against superior machinery, their victory is fully recognized and celebrated with all podium prize money, skill XP, and sponsor rewards intact.
+#### 4.5 Scrutineering Ceiling Enforcement & Underdog Racing Support
+- **Ceiling-Only Scrutineering**: Scrutineering simply enforces that cars do not exceed the class power ceiling (`pwLive <= pwMax`).
+- **Underdog Racing Support (`pw < pwMin`)**: Historically, entering a vehicle with power-to-weight below the category minimum was barred or disqualified. This punitive restriction has been eliminated. Underdog cars can freely enter higher tiers.
 
 ---
 
@@ -208,19 +201,23 @@ Post-race tech inspections at Parc Fermé have been overhauled with authentic mo
 | File | Type | Changes |
 | :--- | :--- | :--- |
 | [`racingTeamRaceSim.lua`](../lua/ge/extensions/career/modules/business/racingTeamRaceSim.lua) | **[NEW]** Logic | • 3-phase background race state machine (`driving_to_race`, `in_race`, `driving_from_race`).<br>• Stochastic 5-car math model with Gaussian lap variance and grid traffic delay.<br>• Full post-race settlement (purse, cuts, XP, goals, odometer accumulation, part wear).<br>• Silent HUD resolution: dispatches lock-screen phone notification (`racingTeam.raceFinished`) instead of screen pop-ups.<br>• 1 Hz throttled simulation ticker with zero per-frame allocations. |
-| [`racingTeam.lua`](../lua/ge/extensions/career/modules/business/racingTeam.lua) | Lua Logic | • Required and integrated `racingTeamRaceSim`.<br>• Inverted AI opponent scaling to resolve the Driver Paradox; scaled bravery, aggression, and lines.<br>• Implemented 15%–35% tiered driver cuts and 85% player-driving purse rebalance.<br>• Added non-podium race experience XP with binary half-decay downscaling.<br>•Removed lower-tier vehicle penalties to reward underdog wins.<br>• Added Manager Lv 1 & Lv 2 helpers and auto-start toggle persistence.<br>• Enriched driver formatting payload with live simulation progress and badges.<br>• Added `silentToast` option to suppress on-screen pop-ups during background simulation. |
+| [`racingTeam.lua`](../lua/ge/extensions/career/modules/business/racingTeam.lua) | Lua Logic | • Required and integrated `racingTeamRaceSim`.<br>• Inverted AI opponent scaling to resolve the Driver Paradox; scaled bravery, aggression, and lines.<br>• Implemented 15%–35% tiered driver cuts and 85% player-driving purse rebalance.<br>• Added non-podium race experience XP with binary half-decay downscaling.<br>• Removed lower-tier vehicle penalties to reward underdog wins.<br>• Added Manager Lv 1 & Lv 2 helpers and auto-start toggle persistence.<br>• Enriched driver formatting payload with live simulation progress and badges.<br>• Implemented 3-state `dynoStatus` assessment tracking, invalidation on vehicle modifications, third-party assessment purchase flow, and background assessment timer ticking.<br>• Added player scheduled race tracking (`id = "player"`) for League 1 & 2+ with fee refunds on drop-out.<br>• Cleaned up dead functions (`buildOfferFromFactoryConfig`, `generateVehicleOffer`) and streamlined hot-loop guard checks. |
 | [`racing-team.js`](../ui/ui-vue/src/modules/career/apps/manifests/racing-team.js) | App Manifest | • Registered `racingTeam.raceFinished` notification channel in phone app manifest. |
 | [`layout.lua`](../lua/ge/extensions/ui/phone/layout.lua) | Lua Bridge | • Mapped `racingTeam.raceFinished` to `racing-team` app in `NOTIFICATION_CHANNEL_APP_IDS`. |
-| [`racingTeamRuntimeState.lua`](../lua/ge/extensions/career/modules/business/racingTeamRuntimeState.lua) | Lua Logic | • Added `autoStartBackgroundRacesByBusiness` runtime state tracking.<br>• Added single-source-of-truth `RACING_TEAM_SCRUTINEERING_TOLERANCE` constant. |
-| [`businessComputer.lua`](../lua/ge/extensions/career/modules/business/businessComputer.lua) | Lua Bridge | • Exported `sendRacingTeamDriverWithManager`, `setRacingTeamAutoStartBackgroundRaces`, and `cancelRacingTeamBackgroundRace`. |
+| [`racingTeamRuntimeState.lua`](../lua/ge/extensions/career/modules/business/racingTeamRuntimeState.lua) | Lua Logic | • Added `autoStartBackgroundRacesByBusiness` runtime state tracking.<br>• Added dyno certification tracking tables (`dynoRequiredByBusiness`, `vehicleAssessmentInProgressByBusiness`). |
+| [`businessComputer.lua`](../lua/ge/extensions/career/modules/business/businessComputer.lua) | Lua Bridge | • Exported `sendRacingTeamDriverWithManager`, `setRacingTeamAutoStartBackgroundRaces`, `cancelRacingTeamBackgroundRace`, and `startRacingTeamVehicleAssessment`. |
 | [`racingTeamFinances.lua`](../lua/ge/extensions/career/modules/business/racingTeamFinances.lua) | Lua Logic | • Fixed dyno daily overhead double-charge bug.<br>• Formatted transparent financial transactions for driver cuts and pit crew shares. |
-| [`racingTeamGoals.lua`](../lua/ge/extensions/career/modules/business/racingTeamGoals.lua) | Lua Logic | • Integrated background race completions into team goal tracking. |
-| [`skillTrees/racingTeam.json`](../lua/ge/extensions/career/modules/business/skillTrees/racingTeam.json) | Data / Config | • Updated `manager` skill node descriptions for Lv 1 and Lv 2 background simulation powers.<br>• UTF-8 strictly without BOM. |
-| [`sanctionedRacing.lua`](../lua/ge/extensions/gameplay/events/freContracts/sanctionedRacing.lua) | Lua Logic | • Rebalanced player-driving prize cut to 85% net (15% crew share).<br>• Applied 15-minute player recovery cooldown.<br>• Integrated centralized scrutineering tolerance into podium eligibility checks and Parc Fermé technical DQ detail messages. |
+| [`racingTeamGoals.lua`](../lua/ge/extensions/career/modules/business/racingTeamGoals.lua) | Lua Logic | • Integrated background race completions into team goal tracking.<br>• Cleaned dead baseline HP helpers and simplified dyno peak HP notifications. |
+| [`skillTrees/racingTeam.json`](../lua/ge/extensions/career/modules/business/skillTrees/racingTeam.json) | Data / Config | • Updated `manager` skill node descriptions for Lv 1 and Lv 2 background simulation powers. |
+| [`sanctionedRacing.lua`](../lua/ge/extensions/gameplay/events/freContracts/sanctionedRacing.lua) | Lua Logic | • Rebalanced player-driving prize cut to 85% net (15% crew share).<br>• Applied 15-minute player recovery cooldown.<br>• Enforces clean class ceiling checks (`pwLive <= pwMax`).<br>• Added race abort and stage cleanup callbacks to clear player scheduled race state. |
+| [`aiRacers.lua`](../lua/ge/extensions/gameplay/events/freeroam/aiRacers.lua) | Lua Logic | • Preserved bracket bounds for underdog players in 3D sanctioned races instead of downscaling opponent AI fields. |
 | [`recoveryPrompt.lua`](../lua/ge/extensions/overrides/core/recoveryPrompt.lua) | Lua Override | • Registered racing team facility as a valid quick-travel destination upon skill unlock. |
 | [`RaceOfferBoardCard.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/RaceOfferBoardCard.vue) | Vue Frontend | • Added animated progress bar track, progress fill, and simulation status badge.<br>• Added `"Send with Manager"` button between primary and secondary actions. |
-| [`BusinessRacingTab.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/BusinessRacingTab.vue) | Vue Frontend | • Added `"Auto-start background races"` toggle for Manager Lv 2.<br>• Wired `"Manage myself"` interception during transit grace period.<br>• Wired `"Send with Manager"` dispatch with tooltips and concurrency gating. |
+| [`BusinessRacingTab.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/BusinessRacingTab.vue) | Vue Frontend | • Unified scheduled race layout via dynamic `<component :is="...">` wrapper.<br>• Precomputed presentation states in `driversWithScheduledRaces`.<br>• Consolidated race acceptance modal and toast handling into `handleRaceAcceptResult`.<br>• Added `"Auto-start background races"` toggle for Manager Lv 2.<br>• Wired `"Manage myself"` interception during transit grace period.<br>• Wired `"Send with Manager"` dispatch with tooltips and concurrency gating. |
 | [`BusinessDriversTab.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/BusinessDriversTab.vue) | Vue Frontend | • Display live simulation progress container, badges, and phase status on driver cards.<br>• Locked fleet assignment while simulating. |
-| [`businessComputerStore.js`](../ui/ui-vue/src/modules/career/stores/businessComputerStore.js) | JS Store | • Added store actions `sendRacingTeamDriverWithManager`, `setRacingTeamAutoStartBackgroundRaces`, and `cancelRacingTeamBackgroundRace`. |
-| [`businessUtils.js`](../ui/ui-vue/src/modules/career/utils/businessUtils.js) | JS Utility | • Added phase label formatting for `driving_to_race`, `in_race`, and `driving_from_race`. |
+| [`BusinessVehiclesTab.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/BusinessVehiclesTab.vue) | Vue Frontend | • Integrated 3-state `dynoBadgeDisplay` badge rendering.<br>• Wired **"Assess Car ($1,200)"** action button for uncertified fleet vehicles. |
+| [`FleetAssignCard.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/FleetAssignCard.vue) | Vue Frontend | • Bound centralized `getDynoStatusBadge` computed for vehicle assignment badges and assign button disabling (`dynoStatus !== 1`). |
+| [`HomeScheduledRacesWidget.vue`](../ui/ui-vue/src/modules/career/components/businessComputer/widgets/HomeScheduledRacesWidget.vue) | Vue Frontend | • Precomputed scheduled race meta strings and action buttons; added player direct "Drive to Track" shortcut. |
+| [`businessComputerStore.js`](../ui/ui-vue/src/modules/career/stores/businessComputerStore.js) | JS Store | • Added store actions `sendRacingTeamDriverWithManager`, `setRacingTeamAutoStartBackgroundRaces`, `cancelRacingTeamBackgroundRace`, and `startRacingTeamVehicleAssessment`.<br>• Enabled `"player"` driverId support in proxy race cancellation. |
+| [`businessUtils.js`](../ui/ui-vue/src/modules/career/utils/businessUtils.js) | JS Utility | • Added `getDynoStatusBadge` helper for `-1` (Assessment Required), `0` (Assessing...), and `1` (Dyno Certified).<br>• Added phase label formatting for `driving_to_race`, `in_race`, and `driving_from_race`. |
 | [`guideWikiTopics.js`](../ui/ui-vue/src/modules/career/data/guideWikiTopics.js) | Data / Docs | • Updated `proxy-races-and-drivers`, `sponsors-finances-and-skills`, `sanctioned-races`, and `fleet-class-and-brackets` wiki entries with background simulation mechanics, transit grace period, manager progression, and underdog victory leniency. |
