@@ -71,8 +71,7 @@
                     <template v-if="fleetEffectiveHpDisplay(v) != null">{{ fleetEffectiveHpDisplay(v) }} HP</template>
                     <template v-if="fleetEffectiveHpDisplay(v) != null && fleetEffectivePwDisplay(v) != null"> · </template>
                     <template v-if="fleetEffectivePwDisplay(v) != null">{{ fleetEffectivePwDisplay(v) }} hp/kg</template>
-                    <span v-if="v.dynoStatus === 1" class="vehicle-row__dyno">Dyno Certified</span>
-                    <span v-else-if="v.dynoStatus === -1" class="vehicle-row__dyno-required">Dyno Required</span>
+                    <span :class="dynoBadgeDisplay(v).class">{{ dynoBadgeDisplay(v).label }}</span>
                   </p>
                   <p v-if="v.vehicleYear && v.vehicleYear !== 'Unknown'" class="vehicle-row__meta">
                     {{ v.vehicleYear }}
@@ -232,6 +231,24 @@
                 >
                   Repair
                 </button>
+                <button
+                  v-if="store.businessType === 'racingTeam' && v.dynoStatus === -1"
+                  class="btn btn-secondary"
+                  data-focusable
+                  :disabled="isVehicleLockedForDelivery(v)"
+                  @click.stop="handleAssessVehicle(v)"
+                  @mousedown.stop
+                >
+                  Assess Car (${{ v.assessmentCost || 1200 }})
+                </button>
+                <button
+                  v-else-if="store.businessType === 'racingTeam' && v.dynoStatus === 0"
+                  class="btn btn-secondary"
+                  data-focusable
+                  disabled
+                >
+                  Assessing... ({{ formatAssessmentTime(v.assessmentRemainingSec) }})
+                </button>
               </div>
             </div>
           </article>
@@ -304,7 +321,7 @@
 <script setup>
 import { ref, computed, Teleport, watch, inject, nextTick, onMounted, onUnmounted } from "vue"
 import { useBusinessComputerStore } from "../../stores/businessComputerStore"
-import { normalizeId } from "../../utils/businessUtils"
+import { normalizeId, getDynoStatusBadge } from "../../utils/businessUtils"
 import { formatSanctionedClassWithBucket } from "../../utils/sanctionedClassFormat"
 import { vBngTooltip } from "@/common/directives"
 import { lua, useBridge } from "@/bridge"
@@ -314,6 +331,16 @@ const store = useBusinessComputerStore()
 const bridge = useBridge()
 const GARAGE_SLOTS_MAX_LEVEL = 2
 const moneyFormat = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
+
+const DYNO_CLASS_MAP = {
+  "dyno-tag--certified": "vehicle-row__dyno",
+  "dyno-tag--assessing": "vehicle-row__dyno-progress",
+  "dyno-tag--required": "vehicle-row__dyno-required",
+}
+const dynoBadgeDisplay = (v) => {
+  const badge = getDynoStatusBadge(v?.dynoStatus)
+  return { label: badge.label, class: DYNO_CLASS_MAP[badge.badgeClass] || "vehicle-row__dyno" }
+}
 
 const fleetVehicles = computed(() => {
   const v = store.vehicles
@@ -621,6 +648,19 @@ const refreshGarageSlotsSkillLevel = async () => {
 
 const goToGarageSlotsSkillTree = () => {
   store.switchView("skill-tree")
+}
+
+const handleAssessVehicle = async (v) => {
+  const vid = v?.vehicleId ?? v?.id
+  if (vid === null || vid === undefined) return
+  await store.startRacingTeamVehicleAssessment(vid)
+}
+
+const formatAssessmentTime = (sec) => {
+  const s = Number(sec) || 0
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return `${m}:${rem.toString().padStart(2, "0")}`
 }
 
 const isPulledOut = (vehicle) => {
@@ -1006,6 +1046,16 @@ onUnmounted(() => {
   color: #facc15;
   background: rgba(234, 179, 8, 0.18);
   border: 1px solid rgba(234, 179, 8, 0.4);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  margin-left: 0.5em;
+}
+
+.vehicle-row__dyno-progress {
+  font-size: 0.8em;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.4);
   padding: 0.1em 0.4em;
   border-radius: 3px;
   margin-left: 0.5em;

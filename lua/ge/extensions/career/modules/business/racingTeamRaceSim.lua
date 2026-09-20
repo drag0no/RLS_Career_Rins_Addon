@@ -606,7 +606,7 @@ function M.tickAccumulated(dtSim)
     return
   end
 
-  local step = math.min(accumulator, 30.0)
+  local step = math.min(accumulator, 10.0)
   accumulator = 0
 
   local bm = career_modules_business_businessManager
@@ -632,14 +632,16 @@ function M.tickAccumulated(dtSim)
 
         if sim.phase == PHASE_DRIVING_TO_RACE then
           if sim.stateElapsed >= sim.stateDuration then
+            local excess = sim.stateElapsed - sim.stateDuration
             sim.phase = PHASE_IN_RACE
-            sim.stateElapsed = 0
+            sim.stateElapsed = excess
             sim.stateDuration = sim.raceDuration
           end
         elseif sim.phase == PHASE_IN_RACE then
           if sim.stateElapsed >= sim.stateDuration then
+            local excess = sim.stateElapsed - sim.stateDuration
             sim.phase = PHASE_DRIVING_FROM_RACE
-            sim.stateElapsed = 0
+            sim.stateElapsed = excess
             sim.stateDuration = DURATION_DRIVING_FROM_RACE
           end
         elseif sim.phase == PHASE_DRIVING_FROM_RACE then

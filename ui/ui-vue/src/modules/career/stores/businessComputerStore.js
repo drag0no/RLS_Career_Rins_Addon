@@ -816,12 +816,26 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
   const cancelRacingTeamProxyScheduledRace = async (driverId) => {
     const bid = luaBusinessId()
     if (bid === null || bid === undefined) return { ok: false, err: "no_business" }
+    const isPlayer = String(driverId) === "player"
     const tid = Number(driverId)
-    if (!Number.isFinite(tid)) return { ok: false, err: "missing_business_or_driver" }
+    if (!isPlayer && !Number.isFinite(tid)) return { ok: false, err: "missing_business_or_driver" }
     try {
       return await lua.career_modules_business_businessComputer.cancelRacingTeamProxyScheduledRace(
         String(bid),
-        tid
+        isPlayer ? "player" : tid
+      )
+    } catch (error) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
+  const startRacingTeamVehicleAssessment = async (vehicleId) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) return { ok: false, err: "no_business" }
+    try {
+      return await lua.career_modules_business_businessComputer.startRacingTeamVehicleAssessment(
+        String(bid),
+        vehicleId
       )
     } catch (error) {
       return { ok: false, err: "lua_error" }
@@ -3545,6 +3559,7 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     isArmedProxyFleetOverpoweredForRequest,
     cancelRacingTeamProxySession,
     cancelRacingTeamProxyScheduledRace,
+    startRacingTeamVehicleAssessment,
     declineJob,
     abandonJob,
     sellVehicle,

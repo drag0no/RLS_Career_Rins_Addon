@@ -11,12 +11,8 @@
           <div class="race-row__text">
             <span class="race-row__title">{{ row.raceTitle }}</span>
             <span class="race-row__driver">{{ row.driverName }}</span>
-            <span
-              v-if="row.scheduledRaceReady"
-              class="race-row__meta race-row__meta--ready"
-            >Ready to spectate</span>
-            <span v-else-if="!row.scheduledRaceReady" class="race-row__meta">
-              {{ formatWaitText(row.secondsUntilScheduledRace, row.useWallClock) }}
+            <span :class="['race-row__meta', { 'race-row__meta--ready': row.metaReady }]">
+              {{ row.metaText }}
             </span>
           </div>
         </li>
@@ -27,9 +23,9 @@
             :offer="row.offer"
             :driver-name="row.driverName"
             :declining="spectateBusyId === row.driverId || dropScheduledBusyId === row.driverId"
-            :primary-disabled="!row.scheduledRaceReady"
-            :status-text="row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock)"
-            primary-label="Spectate"
+            :primary-disabled="row.primaryDisabled"
+            :status-text="row.statusText"
+            :primary-label="row.primaryLabel"
             secondary-label="Drop out"
             @accept="onSpectate(row.driverId)"
             @decline="onDropScheduled(row.driverId)"
@@ -112,31 +108,6 @@ const remainingSecondsForScheduledDriver = (t) => {
   return null
 }
 
-const scheduledRows = computed(() => {
-  void store.racingTeamCareerSimTime
-  void scheduleUiSecondTick.value
-  const list = store.techs
-  if (!Array.isArray(list)) return []
-  const rows = []
-  for (const t of list) {
-    if (!t || t.fired || !t.pendingRaceOffer) continue
-    const pr = t.pendingRaceOffer
-    const useWallClock = Number.isFinite(Number(pr.scheduledRaceReadyWallEpoch ?? t.scheduledRaceReadyWallEpoch))
-    const remaining = remainingSecondsForScheduledDriver(t)
-    rows.push({
-      key: `d-${t.id}-${pr.id ?? ""}`,
-      driverId: t.id,
-      driverName: t.name || `Driver #${t.id}`,
-      raceTitle: pr.raceLabel || pr.raceName || "Race",
-      offer: pr,
-      scheduledRaceReady: remaining !== null ? remaining <= 0 : t.scheduledRaceReady === true,
-      secondsUntilScheduledRace: remaining ?? 0,
-      useWallClock,
-    })
-  }
-  return rows
-})
-
 const formatWaitText = (seconds, useWallClock) => {
   if (!useWallClock && (store.racingTeamCareerSimTime === null || store.racingTeamCareerSimTime === undefined)) {
     if (Number.isFinite(seconds) && seconds > 0) {
@@ -151,11 +122,43 @@ const formatWaitText = (seconds, useWallClock) => {
   const s = Math.max(0, Math.floor(seconds))
   const minutes = Math.floor(s / 60)
   const secs = s % 60
-  if (minutes > 0) {
-    return `Ready in ${minutes}m ${secs}s`
-  }
-  return `Ready in ${secs}s`
+  return minutes > 0 ? `Ready in ${minutes}m ${secs}s` : `Ready in ${secs}s`
 }
+
+const scheduledRows = computed(() => {
+  void store.racingTeamCareerSimTime
+  void scheduleUiSecondTick.value
+  const list = store.techs
+  if (!Array.isArray(list)) return []
+  const rows = []
+  for (const t of list) {
+    if (!t || t.fired || !t.pendingRaceOffer) continue
+    const pr = t.pendingRaceOffer
+    const useWallClock = Number.isFinite(Number(pr.scheduledRaceReadyWallEpoch ?? t.scheduledRaceReadyWallEpoch))
+    const remaining = remainingSecondsForScheduledDriver(t)
+    const isPlayer = t.isPlayer === true || String(t.id) === "player"
+    const ready = remaining !== null ? remaining <= 0 : t.scheduledRaceReady === true
+    const waitText = formatWaitText(remaining ?? 0, useWallClock)
+
+    rows.push({
+      key: `d-${t.id}-${pr.id ?? ""}`,
+      driverId: t.id,
+      driverName: t.name || `Driver #${t.id}`,
+      isPlayer,
+      raceTitle: pr.raceLabel || pr.raceName || "Race",
+      offer: pr,
+      scheduledRaceReady: ready,
+      primaryDisabled: !ready && !isPlayer,
+      primaryLabel: isPlayer ? "Drive to Track" : "Spectate",
+      statusText: isPlayer ? "" : (ready ? "" : waitText),
+      metaText: isPlayer ? "Ready to race" : (ready ? "Ready to spectate" : waitText),
+      metaReady: isPlayer || ready,
+      secondsUntilScheduledRace: remaining ?? 0,
+      useWallClock,
+    })
+  }
+  return rows
+})
 
 const goToRaceTab = () => {
   emit("open-tab")
@@ -222,6 +225,15 @@ const onDropScheduled = async (driverId) => {
 
 const onSpectate = async (driverId) => {
   if (driverId === undefined || driverId === null) return
+  const row = scheduledRows.value.find((r) => r.driverId === driverId)
+  if (row?.isPlayer) {
+    if (store.exitBusinessComputerToPlay) {
+      store.exitBusinessComputerToPlay()
+    } else if (lua.career_career && lua.career_career.closeAllMenus) {
+      lua.career_career.closeAllMenus()
+    }
+    return
+  }
   spectateBusyId.value = driverId
   try {
     const res = await store.simulateRacingTeamProxyRace({ driverId })

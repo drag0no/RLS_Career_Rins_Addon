@@ -14,13 +14,14 @@
         <p v-if="sanctionedClassLabel || classStatusMessage" class="fleet-assign-card__class">{{ sanctionedClassLabel || classStatusMessage }}</p>
         <p v-if="effectiveHpLabel" class="fleet-assign-card__hp">
           {{ effectiveHpLabel }}
-          <span v-if="vehicle.dynoStatus === 1" class="dyno-tag">Dyno Certified</span>
-          <span v-else-if="vehicle.dynoStatus === -1" class="dyno-tag dyno-tag--required">Dyno Required</span>
+          <span :class="['dyno-tag', dynoBadge.badgeClass]">{{ dynoBadge.label }}</span>
         </p>
       </div>
       <button
         type="button"
         class="btn btn-primary fleet-assign-card__button"
+        :disabled="vehicle.dynoStatus !== 1 || vehicle.cooldownSec > 0"
+        :title="vehicle.dynoStatus !== 1 ? 'Assessment Required' : (vehicle.cooldownSec > 0 ? 'Vehicle Cooling Down' : '')"
         @click.stop="$emit('assign', vehicle)"
         @mousedown.stop
         data-focusable
@@ -34,6 +35,7 @@
 <script setup>
 import { computed } from "vue"
 import { formatSanctionedClassWithBucket } from "../../utils/sanctionedClassFormat"
+import { getDynoStatusBadge } from "../../utils/businessUtils"
 
 const props = defineProps({
   vehicle: {
@@ -71,6 +73,8 @@ const effectiveHpLabel = computed(() => {
   if (Number.isFinite(pw) && pw > 0) parts.push(`${(Math.round(pw * 100) / 100).toFixed(2)} hp/kg`)
   return parts.join(" · ")
 })
+
+const dynoBadge = computed(() => getDynoStatusBadge(props.vehicle?.dynoStatus))
 
 defineEmits(["assign"])
 </script>
@@ -137,6 +141,13 @@ defineEmits(["assign"])
   color: #facc15;
   background: rgba(234, 179, 8, 0.18);
   border-color: rgba(234, 179, 8, 0.4);
+}
+
+.dyno-tag--assessing,
+.dyno-tag--progress {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
 .fleet-assign-card__body {

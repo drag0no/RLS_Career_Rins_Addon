@@ -1225,27 +1225,24 @@ function M.onRaceBegin(raceName)
   gameplay_events_freContracts_state.refreshMaintenanceSchedule(gameplay_events_freContracts_state.getSimTime())
   runtime.dispatchUiActive = false
   runtime.suppressFrePayouts = true
-  -- Class cap / podium: trusted live hp/kg vs bracket max with scrutineering tolerance.
+  -- Class cap / podium: live hp/kg vs bracket max.
   local pwMax = tonumber(offer.classPwMax)
   local pwLive = nil
   if career_modules_competitiveRace_aiRacers and career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck then
     pwLive = career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck()
   end
-  local tolerance = (rtState and rtState.getScrutineeringTolerance and rtState.getScrutineeringTolerance()) or (rtState and rtState.K and rtState.K.RACING_TEAM_SCRUTINEERING_TOLERANCE) or 0.05
-  local isOver = (pwMax and pwMax > 0 and type(pwLive) == "number" and pwLive > (pwMax * (1 + tolerance)))
+  local isOver = (pwMax and pwMax > 0 and type(pwLive) == "number" and pwLive > pwMax)
   runtime.podiumEligible = {
     result = not isOver,
     pwLive = pwLive,
     pwMax = pwMax,
-    fine = 350,
   }
   srTrace(string.format(
-    "onRaceBegin ARMED suppressFrePayouts=true podiumEligible=%s offerId=%s classPwMax=%s pwLive=%s tolerance=%.2f",
+    "onRaceBegin ARMED suppressFrePayouts=true podiumEligible=%s offerId=%s classPwMax=%s pwLive=%s",
     tostring(runtime.podiumEligible.result == true),
     tostring(offer.id),
     tostring(offer.classPwMax),
-    tostring(pwLive or "n/a"),
-    tolerance
+    tostring(pwLive or "n/a")
   ))
 end
 
@@ -1433,23 +1430,21 @@ function M.settleFromAiResults(aiResults, raceName)
     end
     return
   end
-  mCelebrationRewards = nil
-  local function armFleetIfTeamOffer(offer)
-    if not offer then
-      return
-    end
-    local rt = rawget(_G, "career_modules_business_racingTeam")
-    if rt and rt.armFleetVehicleCooldownAfterSanctionedRaceSettled then
-      rt.armFleetVehicleCooldownAfterSanctionedRaceSettled(offer)
-    end
+
+  local rt = rawget(_G, "career_modules_business_racingTeam")
+  if o and rt and rt.armFleetVehicleCooldownAfterSanctionedRaceSettled then
+    rt.armFleetVehicleCooldownAfterSanctionedRaceSettled(o)
   end
+
+  mCelebrationRewards = nil
+
   if not aiResults then
     notifyBusinessRematchOutcome(o, nil, "no_results")
     mCelebrationRewards = { money = 0, noRewardDetail = "No race results — no podium reward." }
-    armFleetIfTeamOffer(o)
     M.finishOfferClear()
     return
   end
+
   local place = nil
   for _, row in ipairs(aiResults) do
     if row.isPlayer then
@@ -1460,16 +1455,16 @@ function M.settleFromAiResults(aiResults, raceName)
   if not place then
     notifyBusinessRematchOutcome(o, nil, "no_place")
     mCelebrationRewards = { money = 0, noRewardDetail = "Couldn't determine placement — no podium reward." }
-    armFleetIfTeamOffer(o)
     M.finishOfferClear()
     return
   end
+
   if place ~= 1 then
     notifyBusinessRematchOutcome(o, place, "non_win")
   else
     notifyBusinessRematchOutcome(o, place, "win")
   end
-  armFleetIfTeamOffer(o)
+
   if place > 3 then
     mCelebrationRewards = { money = 0, noRewardDetail = "Didn't place on the podium — no podium rewards." }
     M.finishOfferClear()
@@ -1493,26 +1488,11 @@ function M.settleFromAiResults(aiResults, raceName)
 
   srTrace(string.format("settleFromAiResults SKIP podium place=%d podiumEligible=false", place))
   local inf = runtime.podiumEligible or {}
-  local fine = inf.fine or 350
   local pwLive = inf.pwLive or 0
   local pwMax = inf.pwMax or 0
-  local tolerance = (rtState and rtState.getScrutineeringTolerance and rtState.getScrutineeringTolerance()) or (rtState and rtState.K and rtState.K.RACING_TEAM_SCRUTINEERING_TOLERANCE) or 0.05
-  local tolerancePct = math.floor(tolerance * 100 + 0.5)
-  local isTeamOffer = type(o) == "table" and o.racingTeamBusinessOffer == true and o.businessId ~= nil
-  local fineCharged = false
-  if isTeamOffer and career_modules_bank then
-    local bAccount = career_modules_bank.getBusinessAccount("racingTeam", o.businessId)
-    local accountId = bAccount and (bAccount.id or bAccount.accountId)
-    if accountId then
-      local dqMsg = string.format("Technical DQ (%.3f hp/kg > %.3f hp/kg limit +%d%% tolerance)", pwLive, pwMax, tolerancePct)
-      fineCharged = career_modules_bank.removeFunds(accountId, fine, "Parc Ferme Fine", dqMsg, true) == true
-    end
-  end
-  local detail = string.format("Technical Disqualification: Power-to-weight (%.3f hp/kg) exceeded class limit (%.3f hp/kg +%d%% tolerance). Podium purse withheld.", pwLive, pwMax, tolerancePct)
-  if fineCharged then detail = detail .. string.format(" $%d fine deducted from team funds.", fine) end
-
+  local detail = string.format("Technical Disqualification: Power-to-weight (%.3f hp/kg) exceeded class limit (%.3f hp/kg). Podium purse withheld.", pwLive, pwMax)
   mCelebrationRewards = { money = 0, noRewardDetail = detail }
-  if ui_message then ui_message(detail, 8, "Parc Ferme", "error") end
+  if ui_message then ui_message(detail, 8, "Scrutineering", "warning") end
   M.finishOfferClear()
 end
 
@@ -1529,6 +1509,10 @@ function M.onRaceAborted()
   end
   if o then
     notifyBusinessRematchOutcome(o, nil, "aborted")
+    local rt = rawget(_G, "career_modules_business_racingTeam")
+    if o.businessId and rt and rt.clearPlayerScheduledRace then
+      rt.clearPlayerScheduledRace(o.businessId)
+    end
   end
   -- Also clear on abort of a committed offer (not just racing/suppressed): leaving it in place
   -- means commitAndNavigateExternalOffer rejects every next accept with "already committed".

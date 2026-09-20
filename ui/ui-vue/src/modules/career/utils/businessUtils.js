@@ -45,6 +45,13 @@ export const formatPhase = (tech, short = false) => {
   return tech.label || map[tech.phase] || map[tech.simPhase] || tech.action || "Working"
 }
 
+export const getDynoStatusBadge = (status) => {
+  const s = Number(status)
+  if (s === 1) return { label: "Dyno Certified", badgeClass: "dyno-tag--certified" }
+  if (s === 0) return { label: "Assessing...", badgeClass: "dyno-tag--assessing" }
+  return { label: "Assessment Required", badgeClass: "dyno-tag--required" }
+}
+
 export const formatExpiry = (seconds) => {
   if (typeof seconds !== 'number') return 'Unknown'
   if (seconds <= 0) return 'Expired'

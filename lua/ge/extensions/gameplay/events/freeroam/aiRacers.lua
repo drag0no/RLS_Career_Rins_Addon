@@ -1838,11 +1838,16 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
 
         if type(cfg.vehiclePool) == "table" and type(cfg.vehiclePool.stock) == "table" then
             local effHp = hp
-            if effHp <= 0 and type(sanctionedSpawnCtx) == "table" then
-                local hi = tonumber(sanctionedSpawnCtx.classPwMax) or tonumber(sanctionedSpawnCtx.classHpMax)
-                if hi and hi > 0 then
-                    effHp = hi
-                end
+            local bMin = type(sanctionedSpawnCtx) == "table" and (tonumber(sanctionedSpawnCtx.classPwMin) or tonumber(sanctionedSpawnCtx.classHpMin)) or nil
+            local bMax = type(sanctionedSpawnCtx) == "table" and (tonumber(sanctionedSpawnCtx.classPwMax) or tonumber(sanctionedSpawnCtx.classHpMax)) or nil
+            if bMin and bMax and bMax < bMin then bMin, bMax = bMax, bMin end
+            if bMax and bMax > 0 and bMin and bMin > 0 and effHp < bMin then
+                -- For sanctioned bracketed races, opponents must represent the race bracket [bMin, bMax].
+                -- If player is an underdog (effHp < bMin), opponents are NOT downscaled to match the player.
+                effHp = (bMin + bMax) * 0.5
+                hpMin = bMin
+            elseif bMax and bMax > 0 and effHp <= 0 then
+                effHp = bMax
             end
             if effHp > 0 then
                 local startClass = getClassFromHpForVehiclePool(effHp)

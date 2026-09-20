@@ -1358,19 +1358,33 @@ end
 
 local function cancelRacingTeamProxyScheduledRace(businessId, driverId)
   businessId = tonumber(businessId) or businessId
-  driverId = tonumber(driverId)
-  if not businessId or not driverId then
+  local isPlayer = tostring(driverId) == "player"
+  local numDriverId = tonumber(driverId)
+  if not businessId or (not isPlayer and not numDriverId) then
     return { ok = false, err = "missing_business_or_driver" }
   end
   local req = getProxyDriverRaceRequest(businessId)
-  if req and req.racingTeamProxyRace == true and tonumber(req.driverId) == driverId then
+  if not isPlayer and req and req.racingTeamProxyRace == true and tonumber(req.driverId) == numDriverId then
     return cancelRacingTeamProxySession(businessId)
   end
   local rt = career_modules_business_racingTeam
   if not rt or not rt.cancelUnarmedScheduledRacingTeamProxyRace then
     return { ok = false, err = "no_racing_team" }
   end
-  return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, driverId)
+  return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, isPlayer and "player" or numDriverId)
+end
+
+local function startRacingTeamVehicleAssessment(businessId, vehicleId)
+  businessId = tonumber(businessId) or businessId
+  vehicleId = tonumber(vehicleId) or vehicleId
+  if not businessId or vehicleId == nil then
+    return { ok = false, err = "missing_business_or_vehicle" }
+  end
+  local rt = career_modules_business_racingTeam
+  if not rt or not rt.startVehicleAssessment then
+    return { ok = false, err = "no_racing_team_assess" }
+  end
+  return rt.startVehicleAssessment(businessId, vehicleId)
 end
 
 local function isScheduledRaceReadyForDriver(businessId, techId)
@@ -3536,6 +3550,7 @@ M.isProxyScheduledDriverFleetOverpowered = isProxyScheduledDriverFleetOverpowere
 M.isArmedProxyFleetOverpoweredForRequest = isArmedProxyFleetOverpoweredForRequest
 M.cancelRacingTeamProxySession = cancelRacingTeamProxySession
 M.cancelRacingTeamProxyScheduledRace = cancelRacingTeamProxyScheduledRace
+M.startRacingTeamVehicleAssessment = startRacingTeamVehicleAssessment
 M.isScheduledRaceReadyForDriver = isScheduledRaceReadyForDriver
 M.getRacingTeamCareerSimTime = getRacingTeamCareerSimTime
 M.tickRacingTeamScheduledRaceToasts = tickRacingTeamScheduledRaceToasts
