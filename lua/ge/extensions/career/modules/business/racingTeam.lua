@@ -2479,7 +2479,7 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isS
     applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = xpAmount })
     local uiMessage = string.format("P%d Finish (%s): +%d XP gained from race experience.", place, dname, xpAmount)
     if not silentToast and ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
-    if career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
+    if not silentToast and career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
     local noRewardDetail = string.format("P%d Finish — +%d XP gained from race experience (podium required for prize money).", place, xpAmount)
     return { money = 0, businessSkillXp = xpAmount, noRewardDetail = noRewardDetail }
   end
@@ -2525,7 +2525,7 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isS
   applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = xpAmount })
   local uiMessage = string.format("P%d Finish (%s): +$%d (%d%% net, %d%% driver share).", place, dname, netPayout, 100 - pct, pct)
   if not silentToast and ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
-  if career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
+  if not silentToast and career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
 
   return { money = amount, businessSkillXp = xpAmount, noRewardDetail = nil }
 end

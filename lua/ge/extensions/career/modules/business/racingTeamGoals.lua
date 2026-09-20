@@ -959,7 +959,8 @@ local WATTS_PER_HP = 745.699872
 local function ensureHorsepower(power)
   local p = tonumber(power)
   if not p or p <= 0 then return 0 end
-  -- If power is provided in Watts (> 10 kW), convert to mechanical horsepower
+  -- BeamNG engine reports maxPower in Watts. Heuristic: values > 10 kW (≈13.4 HP) are assumed Watts. 
+  -- No production or mod vehicle exceeds 10,000 mechanical HP.
   if p > 10000 then return p / WATTS_PER_HP end
   return p
 end
@@ -975,7 +976,8 @@ local function getVehicleCatalogBaselineHp(targetVehicle, curHp)
   local getCat = rtState.rtInternal.getCatalogVehicleInfo or (career_modules_business_racingTeam and career_modules_business_racingTeam.getCatalogVehicleInfo)
   local vi = getCat and getCat(mk, ck)
   if not vi then return nil end
-  return tonumber(vi.Power) or (vi.aggregates and vi.aggregates.Power and (tonumber(vi.aggregates.Power.min) or tonumber(vi.aggregates.Power.max)))
+  local raw = tonumber(vi.Power) or (vi.aggregates and vi.aggregates.Power and (tonumber(vi.aggregates.Power.min) or tonumber(vi.aggregates.Power.max)))
+  return ensureHorsepower(raw)
 end
 
 function M.notifyTeamVehicleDynoPeakHp(businessId, vehicleId, powerHp, weightKgOpt)

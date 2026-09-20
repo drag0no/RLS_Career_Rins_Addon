@@ -606,7 +606,7 @@ function M.tickAccumulated(dtSim)
     return
   end
 
-  local step = accumulator
+  local step = math.min(accumulator, 30.0)
   accumulator = 0
 
   local bm = career_modules_business_businessManager
