@@ -1,5 +1,5 @@
 local M = {}
-M.dependencies = { "career_career", "career_saveSystem", "career_modules_business_businessManager" }
+M.dependencies = { "career_career", "career_saveSystem" }
 
 local jbeamIO = require("jbeam/io")
 

@@ -248,32 +248,19 @@
                       </button>
                     </div>
                   </template>
-                </div>
-                <div v-else class="install-button-wrapper">
-                  <button
-                    v-if="!hasOwnedVariants(option)"
-                    class="btn btn-primary"
-                    @click="installPart(option, activeSlotForParts)"
-                    data-focusable
-                  >
-                    Install
-                  </button>
-                  <div v-else class="install-dropdown-wrapper">
+                  <!-- Owned inventory copies of the currently-installed part -->
+                  <div v-if="hasOwnedVariants(option)" class="install-dropdown-wrapper">
                     <button
-                      class="btn btn-primary"
+                      class="btn btn-secondary"
                       @click.stop="toggleInstallMenu(activeSlotForParts.path, option.name)"
                       data-focusable
                     >
-                      Install
+                      Owned
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6 9 12 15 18 9"/>
                       </svg>
                     </button>
                     <div v-if="installMenuVisible === `${activeSlotForParts.path}_${option.name}`" class="install-menu">
-                      <button v-if="!option.fromInventory" class="install-menu-item-button" @click="installPart(option, activeSlotForParts)" data-focusable>
-                        <span>New</span>
-                        <span class="price-badge">$ {{ formatPrice(option.value) }}</span>
-                      </button>
                       <div v-for="usedPart in getOwnedVariants(option)" :key="usedPart.partId" class="install-menu-item">
                         <button class="install-menu-item-button" @click="installUsedPart(usedPart, activeSlotForParts)" data-focusable>
                           <span>Owned</span>
@@ -284,7 +271,50 @@
                     </div>
                   </div>
                 </div>
+                <div v-else class="install-button-wrapper">
+                  <button
+                    v-if="!hasOwnedVariants(option)"
+                    class="btn btn-primary"
+                    @click="installPart(option, activeSlotForParts)"
+                    data-focusable
+                  >
+                    Install
+                  </button>
+                  <div v-else class="split-button-wrapper">
+                    <button
+                      class="btn btn-primary split-btn-main"
+                      @click="installUsedPart(getOwnedVariants(option)[0], activeSlotForParts)"
+                      data-focusable
+                    >
+                      Owned
+                    </button>
+                    <button
+                      class="btn btn-primary split-btn-arrow"
+                      @click.stop="toggleInstallMenu(activeSlotForParts.path, option.name)"
+                      data-focusable
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </button>
+                    <div v-if="installMenuVisible === `${activeSlotForParts.path}_${option.name}`" class="install-menu">
+                      <div v-for="usedPart in getOwnedVariants(option)" :key="usedPart.partId" class="install-menu-item">
+                        <button class="install-menu-item-button" @click="installUsedPart(usedPart, activeSlotForParts)" data-focusable>
+                          <span>Install Owned</span>
+                          <span class="mileage-badge">{{ formatMileage(getUsedPartMileage(usedPart)) }}</span>
+                          <span class="price-badge">$ {{ formatPrice(usedPart.finalValue || usedPart.value) }}</span>
+                        </button>
+                      </div>
+                      <button v-if="!option.fromInventory" class="install-menu-item-button" @click="installPart(option, activeSlotForParts)" data-focusable>
+                        <span>Install New</span>
+                        <span class="price-badge">$ {{ formatPrice(option.value) }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
               </div>
+
             </div>
           </div>
 
@@ -913,7 +943,7 @@ const handleClickOutside = (e) => {
   if (!e.target.closest('.installed-button-wrapper')) {
     removeMenuVisible.value = null
   }
-  if (!e.target.closest('.install-dropdown-wrapper')) {
+  if (!e.target.closest('.install-dropdown-wrapper') && !e.target.closest('.split-button-wrapper')) {
     installMenuVisible.value = null
   }
 }
@@ -1350,6 +1380,25 @@ onBeforeUnmount(() => {
       background: rgba(65, 65, 65, 1);
     }
   }
+
+  &.btn-secondary {
+    background: rgba(55, 55, 55, 1);
+    color: rgba(245, 130, 60, 1);
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+
+    svg {
+      width: 12px;
+      height: 12px;
+      transition: transform 0.2s;
+    }
+
+    &:hover {
+      background: rgba(245, 73, 0, 1);
+      color: white;
+    }
+  }
 }
 
 .installed-button-wrapper,
@@ -1357,6 +1406,26 @@ onBeforeUnmount(() => {
 .install-dropdown-wrapper {
   position: relative;
   display: inline-block;
+}
+
+.split-button-wrapper {
+  position: relative;
+  display: inline-flex;
+  border-radius: 0.375em;
+  overflow: hidden;
+
+  .split-btn-main {
+    border-radius: 0;
+    flex: 1;
+  }
+
+  .split-btn-arrow {
+    border-radius: 0;
+    padding: 0.5em 0.55em;
+    box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+  }
 }
 
 .remove-menu,
