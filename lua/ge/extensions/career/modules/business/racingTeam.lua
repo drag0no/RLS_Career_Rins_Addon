@@ -741,214 +741,214 @@ local function getRacingTeamLevelInfo(levelId)
   }
 
   local function normalizeRacingTeamLevelInfo(raw, lid)
-  local function setIfString(o, key, val)
-    if type(val) == "string" and val ~= "" then
-      o[key] = val
+    local function setIfString(o, key, val)
+      if type(val) == "string" and val ~= "" then
+        o[key] = val
+      end
     end
-  end
 
-  local o = {
-    sponsorFocusLabel = nil,
-    msgWelcomeToastTitle = nil,
-    msgRaceOffersLeague2 = nil,
-    msgProxyRaceScheduledToastTitle = nil,
-    msgNoSanctionedRaces = nil,
-    leagueDisplayNames = {},
-    extra = {},
-    splashPurchaseTitle = nil,
-    splashPurchaseBody = nil,
-    splashPurchaseContinueLabel = nil,
-    splashPurchaseImageUrl = nil,
-    splashCareerFinaleTitle = nil,
-    splashCareerFinaleBody = nil,
-    splashCareerFinaleContinueLabel = nil,
-    splashCareerFinaleImageUrl = nil,
-  }
-  for n = 2, 4 do
-    local d = LEAGUE_INVITE_DEFAULTS_BY_TARGET[n]
-    o[string.format("league%dInviteOrgName", n)] = d.orgName
-    o[string.format("league%dInviteAcronym", n)] = d.acronym
-    o[string.format("league%dInviteFeeEarly", n)] = d.feeEarly
-    o[string.format("league%dInviteFeeLate", n)] = d.feeLate
-    o[string.format("league%dInviteFeeEscalateMinutes", n)] = d.feeEscalateMinutes
-    o[string.format("league%dBankReasonShort", n)] = nil
-    o[string.format("splashLeague%dTitle", n)] = nil
-    o[string.format("splashLeague%dBody", n)] = nil
-    o[string.format("splashLeague%dAcceptLabel", n)] = nil
-    o[string.format("splashLeague%dLaterLabel", n)] = nil
-    o[string.format("splashLeague%dImageUrl", n)] = nil
-    o[string.format("splashLeague%dWelcomeTitle", n)] = nil
-    o[string.format("splashLeague%dWelcomeBody", n)] = nil
-    o[string.format("splashLeague%dWelcomeContinueLabel", n)] = nil
-    o[string.format("splashLeague%dWelcomeImageUrl", n)] = nil
-    o[string.format("msgWelcomeLeague%d", n)] = nil
-  end
-
-  if type(raw) == "table" then
+    local o = {
+      sponsorFocusLabel = nil,
+      msgWelcomeToastTitle = nil,
+      msgRaceOffersLeague2 = nil,
+      msgProxyRaceScheduledToastTitle = nil,
+      msgNoSanctionedRaces = nil,
+      leagueDisplayNames = {},
+      extra = {},
+      splashPurchaseTitle = nil,
+      splashPurchaseBody = nil,
+      splashPurchaseContinueLabel = nil,
+      splashPurchaseImageUrl = nil,
+      splashCareerFinaleTitle = nil,
+      splashCareerFinaleBody = nil,
+      splashCareerFinaleContinueLabel = nil,
+      splashCareerFinaleImageUrl = nil,
+    }
     for n = 2, 4 do
-      local inv = raw[string.format("league%dInvite", n)]
-      if type(inv) == "table" then
-        setIfString(o, string.format("league%dInviteOrgName", n), inv.orgName)
-        setIfString(o, string.format("league%dInviteAcronym", n), inv.acronym)
-        local fe = tonumber(inv.feeEarly)
-        if fe and fe > 0 then o[string.format("league%dInviteFeeEarly", n)] = math.floor(fe) end
-        local fl = tonumber(inv.feeLate)
-        if fl and fl > 0 then o[string.format("league%dInviteFeeLate", n)] = math.floor(fl) end
-        local em = tonumber(inv.feeEscalateMinutes)
-        if em and em > 0 then o[string.format("league%dInviteFeeEscalateMinutes", n)] = math.floor(em) end
-        setIfString(o, string.format("league%dBankReasonShort", n), inv.bankReasonShort)
-      end
+      local d = LEAGUE_INVITE_DEFAULTS_BY_TARGET[n]
+      o[string.format("league%dInviteOrgName", n)] = d.orgName
+      o[string.format("league%dInviteAcronym", n)] = d.acronym
+      o[string.format("league%dInviteFeeEarly", n)] = d.feeEarly
+      o[string.format("league%dInviteFeeLate", n)] = d.feeLate
+      o[string.format("league%dInviteFeeEscalateMinutes", n)] = d.feeEscalateMinutes
+      o[string.format("league%dBankReasonShort", n)] = nil
+      o[string.format("splashLeague%dTitle", n)] = nil
+      o[string.format("splashLeague%dBody", n)] = nil
+      o[string.format("splashLeague%dAcceptLabel", n)] = nil
+      o[string.format("splashLeague%dLaterLabel", n)] = nil
+      o[string.format("splashLeague%dImageUrl", n)] = nil
+      o[string.format("splashLeague%dWelcomeTitle", n)] = nil
+      o[string.format("splashLeague%dWelcomeBody", n)] = nil
+      o[string.format("splashLeague%dWelcomeContinueLabel", n)] = nil
+      o[string.format("splashLeague%dWelcomeImageUrl", n)] = nil
+      o[string.format("msgWelcomeLeague%d", n)] = nil
     end
-    local sp = raw.sponsorOffer
-    if type(sp) == "table" and type(sp.focusLabel) == "string" and sp.focusLabel ~= "" then
-      o.sponsorFocusLabel = sp.focusLabel
-    end
-    local msg = raw.messages
-    if type(msg) == "table" then
-      setIfString(o, "msgWelcomeLeague2", msg.welcomeLeague2)
-      setIfString(o, "msgWelcomeLeague3", msg.welcomeLeague3)
-      setIfString(o, "msgWelcomeLeague4", msg.welcomeLeague4)
-      setIfString(o, "msgWelcomeToastTitle", msg.welcomeToastTitle)
-      setIfString(o, "msgRaceOffersLeague2", msg.raceOffersLeague2)
-      setIfString(o, "msgProxyRaceScheduledToastTitle", msg.proxyRaceScheduledToastTitle)
-    end
-    local hints = raw.hints
-    if type(hints) == "table" and type(hints.noSanctionedRaces) == "string" and hints.noSanctionedRaces ~= "" then
-      o.msgNoSanctionedRaces = hints.noSanctionedRaces
-    end
-    if type(raw.leagueDisplayNames) == "table" then
-      o.leagueDisplayNames = shallowCopyTable(raw.leagueDisplayNames)
-    end
-    if type(raw.extra) == "table" then
-      o.extra = shallowCopyTable(raw.extra)
-    end
-    local sps = raw.splashes
-    if type(sps) == "table" then
-      local pu = sps.purchase
-      if type(pu) == "table" then
-        setIfString(o, "splashPurchaseTitle", pu.title)
-        setIfString(o, "splashPurchaseBody", pu.body)
-        setIfString(o, "splashPurchaseContinueLabel", pu.continueLabel)
-        setIfString(o, "splashPurchaseImageUrl", pu.imageUrl)
-      end
-      local cf = sps.careerFinale
-      if type(cf) == "table" then
-        setIfString(o, "splashCareerFinaleTitle", cf.title)
-        setIfString(o, "splashCareerFinaleBody", cf.body)
-        setIfString(o, "splashCareerFinaleContinueLabel", cf.continueLabel)
-        setIfString(o, "splashCareerFinaleImageUrl", cf.imageUrl)
-      end
+
+    if type(raw) == "table" then
       for n = 2, 4 do
-        local l = sps[string.format("league%d", n)]
-        if type(l) == "table" then
-          setIfString(o, string.format("splashLeague%dTitle", n), l.title)
-          setIfString(o, string.format("splashLeague%dBody", n), l.body)
-          setIfString(o, string.format("splashLeague%dAcceptLabel", n), l.acceptLabel)
-          setIfString(o, string.format("splashLeague%dLaterLabel", n), l.laterLabel)
-          setIfString(o, string.format("splashLeague%dImageUrl", n), l.imageUrl)
-        end
-        local lw = sps[string.format("league%dWelcome", n)]
-        if type(lw) == "table" then
-          setIfString(o, string.format("splashLeague%dWelcomeTitle", n), lw.title)
-          setIfString(o, string.format("splashLeague%dWelcomeBody", n), lw.body)
-          setIfString(o, string.format("splashLeague%dWelcomeContinueLabel", n), lw.continueLabel)
-          setIfString(o, string.format("splashLeague%dWelcomeImageUrl", n), lw.imageUrl)
+        local inv = raw[string.format("league%dInvite", n)]
+        if type(inv) == "table" then
+          setIfString(o, string.format("league%dInviteOrgName", n), inv.orgName)
+          setIfString(o, string.format("league%dInviteAcronym", n), inv.acronym)
+          local fe = tonumber(inv.feeEarly)
+          if fe and fe > 0 then o[string.format("league%dInviteFeeEarly", n)] = math.floor(fe) end
+          local fl = tonumber(inv.feeLate)
+          if fl and fl > 0 then o[string.format("league%dInviteFeeLate", n)] = math.floor(fl) end
+          local em = tonumber(inv.feeEscalateMinutes)
+          if em and em > 0 then o[string.format("league%dInviteFeeEscalateMinutes", n)] = math.floor(em) end
+          setIfString(o, string.format("league%dBankReasonShort", n), inv.bankReasonShort)
         end
       end
-    end
-  end
-
-  local ac2 = o.league2InviteAcronym
-  if not o.sponsorFocusLabel or o.sponsorFocusLabel == "" then
-    o.sponsorFocusLabel = ac2 .. " team racing"
-  end
-  if not o.msgRaceOffersLeague2 or o.msgRaceOffersLeague2 == "" then
-    o.msgRaceOffersLeague2 =
-      ac2 .. " management: assign proxy races from the Drivers tab (rolled events — no job board)."
-  end
-  if not o.msgWelcomeToastTitle or o.msgWelcomeToastTitle == "" then
-    o.msgWelcomeToastTitle = ac2
-  end
-  if not o.msgProxyRaceScheduledToastTitle or o.msgProxyRaceScheduledToastTitle == "" then
-    o.msgProxyRaceScheduledToastTitle = ac2
-  end
-  if not o.msgNoSanctionedRaces or o.msgNoSanctionedRaces == "" then
-    o.msgNoSanctionedRaces =
-      "No sanctioned race offers yet. Keep working through your team goals — circuit offers unlock as you progress."
-  end
-  if not o.splashPurchaseTitle or o.splashPurchaseTitle == "" then
-    o.splashPurchaseTitle = "Welcome"
-  end
-  if not o.splashPurchaseBody or o.splashPurchaseBody == "" then
-    o.splashPurchaseBody =
-      "You own the racing team. Open the business computer and work through goals to grow the program."
-  end
-  if not o.splashPurchaseContinueLabel or o.splashPurchaseContinueLabel == "" then
-    o.splashPurchaseContinueLabel = "Continue"
-  end
-  if not o.splashCareerFinaleTitle or o.splashCareerFinaleTitle == "" then
-    o.splashCareerFinaleTitle = "Well done indeed"
-  end
-  if not o.splashCareerFinaleBody or o.splashCareerFinaleBody == "" then
-    o.splashCareerFinaleBody =
-      "Look how far you've come..... what started as a few bucks and a dream has turned into a career. You know what they say, \"find something you love to do and you'll never work a day in your life\"\n\n"
-        .. "How does it feel? National recognition, dreams realized? You've made it. Enjoy this career you've built - keep pushing the envelope and competing - it doesn't get any easier, but, you know that by now.\n\n"
-        .. "Congratulations kid, well done indeed"
-  end
-  if not o.splashCareerFinaleContinueLabel or o.splashCareerFinaleContinueLabel == "" then
-    o.splashCareerFinaleContinueLabel = "Continue"
-  end
-
-  for n = 2, 4 do
-    local ac = o[string.format("league%dInviteAcronym", n)]
-    local titleKey = string.format("splashLeague%dTitle", n)
-    if not o[titleKey] or o[titleKey] == "" then
-      o[titleKey] = ac .. " invitation"
-    end
-    local bodyKey = string.format("splashLeague%dBody", n)
-    if not o[bodyKey] or o[bodyKey] == "" then
-      if n == 2 then
-        o[bodyKey] =
-          "Tier one is complete. You can register with " .. ac
-            .. " now (fee from your business account) or choose Later and decide from the Goals tab."
-      else
-        o[bodyKey] = string.format(
-          "Your league %d objectives are complete. Register with %s to advance into a higher league — tougher cars, tighter fields, bigger stakes. Fee posts to your team account when you accept, or choose Later and decide from the Goals tab.",
-          n - 1, ac
-        )
+      local sp = raw.sponsorOffer
+      if type(sp) == "table" and type(sp.focusLabel) == "string" and sp.focusLabel ~= "" then
+        o.sponsorFocusLabel = sp.focusLabel
+      end
+      local msg = raw.messages
+      if type(msg) == "table" then
+        setIfString(o, "msgWelcomeLeague2", msg.welcomeLeague2)
+        setIfString(o, "msgWelcomeLeague3", msg.welcomeLeague3)
+        setIfString(o, "msgWelcomeLeague4", msg.welcomeLeague4)
+        setIfString(o, "msgWelcomeToastTitle", msg.welcomeToastTitle)
+        setIfString(o, "msgRaceOffersLeague2", msg.raceOffersLeague2)
+        setIfString(o, "msgProxyRaceScheduledToastTitle", msg.proxyRaceScheduledToastTitle)
+      end
+      local hints = raw.hints
+      if type(hints) == "table" and type(hints.noSanctionedRaces) == "string" and hints.noSanctionedRaces ~= "" then
+        o.msgNoSanctionedRaces = hints.noSanctionedRaces
+      end
+      if type(raw.leagueDisplayNames) == "table" then
+        o.leagueDisplayNames = shallowCopyTable(raw.leagueDisplayNames)
+      end
+      if type(raw.extra) == "table" then
+        o.extra = shallowCopyTable(raw.extra)
+      end
+      local sps = raw.splashes
+      if type(sps) == "table" then
+        local pu = sps.purchase
+        if type(pu) == "table" then
+          setIfString(o, "splashPurchaseTitle", pu.title)
+          setIfString(o, "splashPurchaseBody", pu.body)
+          setIfString(o, "splashPurchaseContinueLabel", pu.continueLabel)
+          setIfString(o, "splashPurchaseImageUrl", pu.imageUrl)
+        end
+        local cf = sps.careerFinale
+        if type(cf) == "table" then
+          setIfString(o, "splashCareerFinaleTitle", cf.title)
+          setIfString(o, "splashCareerFinaleBody", cf.body)
+          setIfString(o, "splashCareerFinaleContinueLabel", cf.continueLabel)
+          setIfString(o, "splashCareerFinaleImageUrl", cf.imageUrl)
+        end
+        for n = 2, 4 do
+          local l = sps[string.format("league%d", n)]
+          if type(l) == "table" then
+            setIfString(o, string.format("splashLeague%dTitle", n), l.title)
+            setIfString(o, string.format("splashLeague%dBody", n), l.body)
+            setIfString(o, string.format("splashLeague%dAcceptLabel", n), l.acceptLabel)
+            setIfString(o, string.format("splashLeague%dLaterLabel", n), l.laterLabel)
+            setIfString(o, string.format("splashLeague%dImageUrl", n), l.imageUrl)
+          end
+          local lw = sps[string.format("league%dWelcome", n)]
+          if type(lw) == "table" then
+            setIfString(o, string.format("splashLeague%dWelcomeTitle", n), lw.title)
+            setIfString(o, string.format("splashLeague%dWelcomeBody", n), lw.body)
+            setIfString(o, string.format("splashLeague%dWelcomeContinueLabel", n), lw.continueLabel)
+            setIfString(o, string.format("splashLeague%dWelcomeImageUrl", n), lw.imageUrl)
+          end
+        end
       end
     end
-    local accKey = string.format("splashLeague%dAcceptLabel", n)
-    if not o[accKey] or o[accKey] == "" then o[accKey] = "Accept" end
-    local latKey = string.format("splashLeague%dLaterLabel", n)
-    if not o[latKey] or o[latKey] == "" then o[latKey] = "Later" end
 
-    local welTitleKey = string.format("splashLeague%dWelcomeTitle", n)
-    if not o[welTitleKey] or o[welTitleKey] == "" then
-      o[welTitleKey] = "You're in"
+    local ac2 = o.league2InviteAcronym
+    if not o.sponsorFocusLabel or o.sponsorFocusLabel == "" then
+      o.sponsorFocusLabel = ac2 .. " team racing"
     end
-    local welBodyKey = string.format("splashLeague%dWelcomeBody", n)
-    if not o[welBodyKey] or o[welBodyKey] == "" then
-      if n == 2 then
-        o[welBodyKey] =
-          "Registration fee posted to your team account. Welcome to the regional grid — hire drivers, keep the cars healthy, and use the Race tab when you are ready to run."
-      else
-        o[welBodyKey] = string.format(
-          "Registration fee posted. You are now competing in %s — keep the operation tight, hire drivers who can hold position, and use the Race tab when you are ready to run.",
-          ac
-        )
+    if not o.msgRaceOffersLeague2 or o.msgRaceOffersLeague2 == "" then
+      o.msgRaceOffersLeague2 =
+        ac2 .. " management: assign proxy races from the Drivers tab (rolled events — no job board)."
+    end
+    if not o.msgWelcomeToastTitle or o.msgWelcomeToastTitle == "" then
+      o.msgWelcomeToastTitle = ac2
+    end
+    if not o.msgProxyRaceScheduledToastTitle or o.msgProxyRaceScheduledToastTitle == "" then
+      o.msgProxyRaceScheduledToastTitle = ac2
+    end
+    if not o.msgNoSanctionedRaces or o.msgNoSanctionedRaces == "" then
+      o.msgNoSanctionedRaces =
+        "No sanctioned race offers yet. Keep working through your team goals — circuit offers unlock as you progress."
+    end
+    if not o.splashPurchaseTitle or o.splashPurchaseTitle == "" then
+      o.splashPurchaseTitle = "Welcome"
+    end
+    if not o.splashPurchaseBody or o.splashPurchaseBody == "" then
+      o.splashPurchaseBody =
+        "You own the racing team. Open the business computer and work through goals to grow the program."
+    end
+    if not o.splashPurchaseContinueLabel or o.splashPurchaseContinueLabel == "" then
+      o.splashPurchaseContinueLabel = "Continue"
+    end
+    if not o.splashCareerFinaleTitle or o.splashCareerFinaleTitle == "" then
+      o.splashCareerFinaleTitle = "Well done indeed"
+    end
+    if not o.splashCareerFinaleBody or o.splashCareerFinaleBody == "" then
+      o.splashCareerFinaleBody =
+        "Look how far you've come..... what started as a few bucks and a dream has turned into a career. You know what they say, \"find something you love to do and you'll never work a day in your life\"\n\n"
+          .. "How does it feel? National recognition, dreams realized? You've made it. Enjoy this career you've built - keep pushing the envelope and competing - it doesn't get any easier, but, you know that by now.\n\n"
+          .. "Congratulations kid, well done indeed"
+    end
+    if not o.splashCareerFinaleContinueLabel or o.splashCareerFinaleContinueLabel == "" then
+      o.splashCareerFinaleContinueLabel = "Continue"
+    end
+
+    for n = 2, 4 do
+      local ac = o[string.format("league%dInviteAcronym", n)]
+      local titleKey = string.format("splashLeague%dTitle", n)
+      if not o[titleKey] or o[titleKey] == "" then
+        o[titleKey] = ac .. " invitation"
+      end
+      local bodyKey = string.format("splashLeague%dBody", n)
+      if not o[bodyKey] or o[bodyKey] == "" then
+        if n == 2 then
+          o[bodyKey] =
+            "Tier one is complete. You can register with " .. ac
+              .. " now (fee from your business account) or choose Later and decide from the Goals tab."
+        else
+          o[bodyKey] = string.format(
+            "Your league %d objectives are complete. Register with %s to advance into a higher league — tougher cars, tighter fields, bigger stakes. Fee posts to your team account when you accept, or choose Later and decide from the Goals tab.",
+            n - 1, ac
+          )
+        end
+      end
+      local accKey = string.format("splashLeague%dAcceptLabel", n)
+      if not o[accKey] or o[accKey] == "" then o[accKey] = "Accept" end
+      local latKey = string.format("splashLeague%dLaterLabel", n)
+      if not o[latKey] or o[latKey] == "" then o[latKey] = "Later" end
+
+      local welTitleKey = string.format("splashLeague%dWelcomeTitle", n)
+      if not o[welTitleKey] or o[welTitleKey] == "" then
+        o[welTitleKey] = "You're in"
+      end
+      local welBodyKey = string.format("splashLeague%dWelcomeBody", n)
+      if not o[welBodyKey] or o[welBodyKey] == "" then
+        if n == 2 then
+          o[welBodyKey] =
+            "Registration fee posted to your team account. Welcome to the regional grid — hire drivers, keep the cars healthy, and use the Race tab when you are ready to run."
+        else
+          o[welBodyKey] = string.format(
+            "Registration fee posted. You are now competing in %s — keep the operation tight, hire drivers who can hold position, and use the Race tab when you are ready to run.",
+            ac
+          )
+        end
+      end
+      local welContKey = string.format("splashLeague%dWelcomeContinueLabel", n)
+      if not o[welContKey] or o[welContKey] == "" then o[welContKey] = "Let's Go!" end
+
+      local msgWelKey = string.format("msgWelcomeLeague%d", n)
+      if not o[msgWelKey] or o[msgWelKey] == "" then
+        o[msgWelKey] = "Welcome to " .. ac .. " — hire drivers and run sanctioned races."
       end
     end
-    local welContKey = string.format("splashLeague%dWelcomeContinueLabel", n)
-    if not o[welContKey] or o[welContKey] == "" then o[welContKey] = "Let's Go!" end
-
-    local msgWelKey = string.format("msgWelcomeLeague%d", n)
-    if not o[msgWelKey] or o[msgWelKey] == "" then
-      o[msgWelKey] = "Welcome to " .. ac .. " — hire drivers and run sanctioned races."
-    end
+    return o
   end
-  return o
-end
 
   local lid = ""
   if type(levelId) == "string" then
@@ -1156,56 +1156,66 @@ local function dropRacingTeamSponsorActive(businessId, offerId) return racingTea
 
 rtState.loadRacingTeamDrivers = function(businessId)
   businessId = normalizeBusinessId(businessId)
-  if not businessId then
-    return {}
-  end
+  if not businessId then return {} end
+  
   local function ensurePendingOfferWallDeadlineForTech(tech)
     local pr = tech and tech.pendingRaceOffer
-    if not pr or type(pr) ~= "table" then
-      return
-    end
+    if not pr or type(pr) ~= "table" then return end
     local simDue = tonumber(pr.scheduledRaceSimTime)
-    if not simDue then
-      return
-    end
-    if tonumber(pr.scheduledRaceReadyWallEpoch) then
-      return
-    end
+    if not simDue then return end
+    if tonumber(pr.scheduledRaceReadyWallEpoch) then return end
     local rem = math.max(0, math.ceil(simDue - getCareerSimTime()))
     pr.scheduledRaceReadyWallEpoch = os.time() + rem
   end
+  
   local function ensurePostRaceCooldownWallDeadlineForTech(tech)
-    if not tech or type(tech) ~= "table" then
-      return
-    end
+    if not tech or type(tech) ~= "table" then return end
+    
     local untilSim = tonumber(tech.racingCooldownUntilSimTime)
     if not untilSim then
       tech.postRaceCooldownReadyWallEpoch = nil
       return
     end
+    
     local wallEpoch = tonumber(tech.postRaceCooldownReadyWallEpoch)
     if wallEpoch and wallEpoch > 0 and os.time() >= wallEpoch then
       tech.racingCooldownUntilSimTime = nil
       tech.postRaceCooldownReadyWallEpoch = nil
       return
     end
+    
     local nowSim = getCareerSimTime()
     if nowSim >= untilSim then
       tech.racingCooldownUntilSimTime = nil
       tech.postRaceCooldownReadyWallEpoch = nil
       return
     end
+    
     if wallEpoch and wallEpoch > 0 then
       return
     end
     local remSim = math.max(0, math.ceil(untilSim - nowSim))
     tech.postRaceCooldownReadyWallEpoch = os.time() + remSim
   end
+  
+  local function ensureDriverSimulationState(businessId, tech)
+    if not tech or type(tech) ~= "table" then return end
+    local sim = racingTeamRaceSim and racingTeamRaceSim.getActiveSim and racingTeamRaceSim.getActiveSim(businessId)
+    local isThisDriverSimulating = sim and tonumber(sim.driverId) == tonumber(tech.id)
+    local isThisDriverStateInRace = tech.currentAction == racingTeamRaceSim.DRIVER_DRIVING_TO_RACE or tech.currentAction == racingTeamRaceSim.DRIVER_IN_RACE or tech.currentAction == racingTeamRaceSim.DRIVER_DRIVING_FROM_RACE
+    if not isThisDriverSimulating and isThisDriverStateInRace then
+      -- if driver is in state of background race, but race simulation is stale, then reset state
+      tech.currentAction = "idle"
+      tech.phase = "idle"
+    end
+  end
+  
   if rtState.businessDrivers[businessId] then
     ensureRacingTeamDriverSlots(businessId)
     for _, tech in ipairs(rtState.businessDrivers[businessId]) do
       ensurePendingOfferWallDeadlineForTech(tech)
       ensurePostRaceCooldownWallDeadlineForTech(tech)
+      ensureDriverSimulationState(businessId, tech)
     end
     return rtState.businessDrivers[businessId]
   end
@@ -1220,6 +1230,7 @@ rtState.loadRacingTeamDrivers = function(businessId)
           ensureRacingDriverIdentity(tech, tech.id or index)
           ensurePendingOfferWallDeadlineForTech(tech)
           ensurePostRaceCooldownWallDeadlineForTech(tech)
+          ensureDriverSimulationState(businessId, tech)
           table.insert(techs, tech)
         end
       end
@@ -1882,8 +1893,8 @@ local function acceptRacingTeamRaceOfferAsPlayer(businessId, offerId, fleetVehic
   topUpRaceOffers(businessId)
   notifyRacingTeamDriversUpdated(businessId)
   if career_saveSystem.saveCurrent then
-        career_saveSystem.saveCurrent()
-      end
+    career_saveSystem.saveCurrent()
+  end
   return true
 end
 
@@ -2538,8 +2549,9 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isS
   if hMax < hMin then
     hMin, hMax = hMax, hMin
   end
+
   -- Check class ceiling (underdogs pw <= hMax allowed).
-  if hMax > 0 and career_modules_competitiveRace_aiRacers
+  if not override and hMax > 0 and career_modules_competitiveRace_aiRacers
       and career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck then
     local pwLive = career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck()
     if type(pwLive) == "number" and pwLive > hMax then
@@ -2866,6 +2878,7 @@ notifyRacingTeamDriversUpdated = function(businessId)
       businessType = rtState.businessType,
       businessId = tostring(businessId),
       techs = techEntries,
+      activeBackgroundRace = racingTeamRaceSim.getActiveSim(businessId) ~= nil,
     })
   end
 end
@@ -3021,10 +3034,15 @@ local function cancelUnarmedScheduledRacingTeamProxyRace(businessId, driverId)
   if not driverId then
     return { ok = false, err = "missing_business_or_driver" }
   end
+  
   local tech = getRacingTeamDriverById(businessId, driverId)
-  if not tech or tech.fired or not tech.pendingRaceOffer then
-    return { ok = false, err = "no_pending_race_offer" }
+  if not tech or tech.fired then return { ok = false, err = "invalid_driver" } end
+  if not tech.pendingRaceOffer then
+    if tech.currentAction == "idle" then return { ok = true }
+    else  return { ok = false, err = "no_pending_race_offer" }
+    end
   end
+
   local pendingCopy = tech.pendingRaceOffer
   tech.pendingRaceOffer = nil
   tech.currentAction = "idle"
@@ -3469,10 +3487,10 @@ local function acceptJob(businessId, jobId)
   if job.vehicleConfig and career_modules_business_businessInventory
     and career_modules_business_businessInventory.storeVehicle then
     local okStore, storedVehicleId = career_modules_business_businessInventory.storeVehicle(businessId, {
-    vehicleConfig = job.vehicleConfig,
-    mileage = job.mileage or 0,
+      vehicleConfig = job.vehicleConfig,
+      mileage = job.mileage or 0,
       purchasePrice = vehicleCost,
-    storedTime = os.time()
+      storedTime = os.time()
     })
     if okStore and storedVehicleId ~= nil then
       job.storedVehicleId = storedVehicleId
@@ -3547,20 +3565,20 @@ local function abandonJob(businessId, jobId)
       break
     end
     if job.storedVehicleId == nil and jobIdsMatch(jobId, vehicle.jobId) then
-        vehicleToRemove = vehicle
-        break
-      end
+      vehicleToRemove = vehicle
+      break
     end
+  end
     
-    if not vehicleToRemove then
-      return false
-    end
+  if not vehicleToRemove then
+    return false
+  end
 
-    local saleFallback = tonumber(job.reward) or 0
-    local salePrice = getTeamVehicleSellValue(vehicleToRemove, saleFallback)
+  local saleFallback = tonumber(job.reward) or 0
+  local salePrice = getTeamVehicleSellValue(vehicleToRemove, saleFallback)
     
-    if salePrice > 0 then
-      if not career_modules_bank
+  if salePrice > 0 then
+    if not career_modules_bank
       or not career_modules_bank.getBusinessAccount
       or not career_modules_bank.rewardToAccount then
       return false
@@ -3692,14 +3710,14 @@ local function sellVehicle(businessId, vehicleId)
       end
     end
 
-  if career_saveSystem.saveCurrent then
-    career_saveSystem.saveCurrent()
-  end
+    if career_saveSystem.saveCurrent then
+      career_saveSystem.saveCurrent()
+    end
     if rtState.rtInternal.advanceRacingTeamGoalsIfReady then
       rtState.rtInternal.advanceRacingTeamGoalsIfReady(businessId)
     end
-  return true
-end
+    return true
+  end
 
   local scheduledPutAway = false
   if inv.getPulledOutVehicles then

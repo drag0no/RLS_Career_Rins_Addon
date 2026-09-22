@@ -436,9 +436,8 @@ function M.cancelBackgroundRace(businessId, driverId, reason)
         rt.saveRacingTeamPersistedState(businessId, savePath)
       end
     elseif reason == "drop_out" or reason == "dropped" then
-      if rt.cancelUnarmedScheduledRacingTeamProxyRace then
-        return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, sim.driverId)
-      end
+      tech.currentAction = "idle"
+      tech.phase = "idle"
     end
   end
 
@@ -682,5 +681,9 @@ function M.onCareerActivated()
   accumulator = 0
   activeSimByBusiness = {}
 end
+
+M.DRIVER_DRIVING_TO_RACE = PHASE_DRIVING_TO_RACE
+M.DRIVER_IN_RACE = PHASE_IN_RACE
+M.DRIVER_DRIVING_FROM_RACE = PHASE_DRIVING_FROM_RACE
 
 return M

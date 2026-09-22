@@ -2287,6 +2287,9 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     if (data?.techs && Array.isArray(data.techs)) {
       updateTechs(data.techs)
       syncRacingTeamSimPoll()
+      if (data.activeBackgroundRace !== undefined) {
+        businessData.value.activeBackgroundRace = data.activeBackgroundRace
+      }
     }
   }
 
