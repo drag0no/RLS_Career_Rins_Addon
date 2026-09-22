@@ -3378,7 +3378,8 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
   end
 
   local simRaceData = racingTeamRaceSim.getActiveSim(businessId)
-  local simRaceLocked = simRaceData ~= nil and tonumber(simRaceData.fleetVehicleId) == tonumber(vehicleId)
+  local simFleetVid = simRaceData and tonumber(simRaceData.fleetVehicleId)
+  local simRaceLocked = (simRaceData ~= nil) and (simFleetVid ~= nil) and (simFleetVid == vehicleId)
 
   if dynoStatus == 0 then
     fleetSanctionedClassLabel = "Assessing..."
@@ -4404,6 +4405,7 @@ local businessObject = {
   resetBusinessForSale = function(businessId) return resetBusinessForSale(businessId) end,
   getTechsForBusiness = function(businessId) return getRacingTeamDriversRawForUI(businessId) end,
   formatTechForUIEntry = function(businessId, tech) return formatRacingTeamDriverForUI(businessId, tech) end,
+  formatVehicleForUIEntry = function(vehicle, businessId) return rtState.formatVehicleForUI(vehicle, businessId) end,
 }
 
 local function onSaveCurrentProfile(currentSavePath)

@@ -3429,10 +3429,16 @@ local function getVehiclesOnly(businessId)
   end
   local vehicles = career_modules_business_businessInventory.getBusinessVehicles(businessId) or {}
   local pulledOutVehiclesRaw = getPulledOutVehiclesList(businessId)
+
+  local module, businessType = resolveBusinessModule(businessId)
+  local businessObj = businessType and career_modules_business_businessManager and career_modules_business_businessManager.getBusinessObject(businessType)
+  local formatterFunc = (businessObj and businessObj.formatVehicleForUIEntry) or (module and module.formatVehicleForUI) or formatVehicleForUI
+
   local formattedVehicles = {}
   for _, vehicle in ipairs(vehicles) do
-    table.insert(formattedVehicles, formatVehicleForUI(vehicle, businessId))
+    table.insert(formattedVehicles, formatterFunc(vehicle, businessId))
   end
+  
   local formattedPulledOut = {}
   for _, vehicle in ipairs(pulledOutVehiclesRaw) do
     local formatted = formatVehicleForUI(vehicle, businessId)
@@ -3447,7 +3453,7 @@ local function getVehiclesOnly(businessId)
       table.insert(formattedPulledOut, formatted)
     end
   end
-  local module, businessType = resolveBusinessModule(businessId)
+  
   local maxPulledOut = 1
   if module and module.getMaxPulledOutVehicles then
     maxPulledOut = module.getMaxPulledOutVehicles(businessId) or 1

@@ -525,13 +525,7 @@ function pullOutCooldownTitle(vehicle) {
   return `Vehicle cooling down (${formatCooldownMSS(fleetVehicleCooldownSec(vehicle))} remaining)`
 }
 
-function vehicleDisabledTitle(vehicle, fallback = "") {
-  if (isVehicleLockedForDelivery(vehicle)) {
-    return "Delivery in progress."
-  }
-  return fallback
-}
-
+const deliveryWarningText = "Delivery in progress."
 const dynoAssessWarningText = "Dyno assessment in progress."
 const simRaceWarningText = "Racing in progress."
 
@@ -545,10 +539,17 @@ const isVehicleDisabled = (vehicle) => {
     || isSimRaceInProgress(vehicle)
   )
 }
+function vehicleDisabledTitle(vehicle, fallback = "") {
+  if (isVehicleLockedForDelivery(vehicle)) {
+    return deliveryWarningText
+  }
+  return fallback
+}
+
 
 const actionDisabledStatus = (vehicle) => isVehicleDisabled(vehicle)
 function actionDisabledTitle(vehicle) {
-  if (isVehicleLockedForDelivery(vehicle)) return "Delivery in progress."
+  if (isVehicleLockedForDelivery(vehicle)) return deliveryWarningText
   if (isDynoAssessInProgress(vehicle)) return dynoAssessWarningText
   if (isSimRaceInProgress(vehicle)) return simRaceWarningText
   return ""
