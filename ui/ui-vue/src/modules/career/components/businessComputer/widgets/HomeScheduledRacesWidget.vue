@@ -160,7 +160,7 @@ const scheduledRows = computed(() => {
 
     let statusText = ""
     if (!isPlayer) {
-      statusText = inSim ? (t.simBadge || "") : (ready ? "" : formatWaitText(remaining ?? 0, useWallClock))
+      statusText = (inSim || ready) ? "" : formatWaitText(remaining ?? 0, useWallClock)
     }
 
     let managerTooltip = ""
