@@ -1568,6 +1568,16 @@ local function pullOutVehicle(businessId, vehicleId)
   end
 
   local normalizedVehicleId = normalizeVehicleIdValue(vehicleId)
+  local raceSimModule = rawget(_G, "career_modules_business_racingTeamRaceSim")
+  local raceSimData = raceSimModule and raceSimModule.getActiveSim(businessId)
+  if raceSimData and tonumber(raceSimData.fleetVehicleId) == tonumber(normalizedVehicleId) then
+    log('D', 'businessComputer.pullOut', string.format('vehicle currently in background sim race: businessId=%s, vehicleId=%s', tostring(businessId), tostring(vehicleId)))
+    return {
+      success = false,
+      errorCode = "simRacingLocked"
+    }
+  end
+
   local pulledOutVehiclesList = getPulledOutVehiclesList(businessId)
   for _, current in ipairs(pulledOutVehiclesList) do
     local currentId = normalizeVehicleIdValue(current.vehicleId)

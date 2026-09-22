@@ -3365,9 +3365,9 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
     fleetClassStatusMessage = "no weight found - pull out vehicle"
   end
   local dynoStatus = getVehicleDynoStatus(businessId, vehicleId)
-  local isAssessing = (dynoStatus == 0)
+  local dynoAssessLocked = (dynoStatus == 0)
   local assessmentRemainingSec = 0
-  if isAssessing then
+  if dynoAssessLocked then
     local idStr = tostring(normalizeBusinessId(businessId))
     local inProg = rtState.vehicleAssessmentInProgressByBusiness and rtState.vehicleAssessmentInProgressByBusiness[idStr]
     local it = inProg and inProg[tostring(vehicleId)]
@@ -3377,12 +3377,17 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
     end
   end
 
+  local simRaceData = racingTeamRaceSim.getActiveSim(businessId)
+  local simRaceLocked = simRaceData ~= nil and tonumber(simRaceData.fleetVehicleId) == tonumber(vehicleId)
+
   if dynoStatus == 0 then
     fleetSanctionedClassLabel = "Assessing..."
     fleetClassStatusMessage = string.format("Assessing in facility (%d min left)", math.ceil(assessmentRemainingSec / 60))
   elseif dynoStatus == -1 then
     fleetSanctionedClassLabel = "Unknown - Assessment Required"
     fleetClassStatusMessage = "Assessment Required"
+  elseif simRaceLocked then
+    fleetClassStatusMessage = "In Background Race"
   end
 
   local dynoLevel = rtState.rtInternal.getSkillTreeNodeLevel and rtState.rtInternal.getSkillTreeNodeLevel(businessId, "qol", "dyno") or 0
@@ -3406,9 +3411,10 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
     fleetEffectivePw = fleetEffectivePw,
     fleetSanctionedClassLabel = fleetSanctionedClassLabel,
     fleetClassStatusMessage = fleetClassStatusMessage,
+    dynoAssessLocked = dynoAssessLocked,
     dynoStatus = dynoStatus,
     dynoSkillLevel = dynoLevel,
-    isAssessing = isAssessing,
+    simRaceLocked = simRaceLocked,
     assessmentRemainingSec = assessmentRemainingSec,
     assessmentCost = rtState.K.RACING_TEAM_VEHICLE_ASSESSMENT_COST or 1200,
     cooldownSec = cooldownSec,

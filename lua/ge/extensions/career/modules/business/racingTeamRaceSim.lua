@@ -367,6 +367,11 @@ function M.startBackgroundRace(businessId, driverId)
     currentLeague = currentLeague,
   })
 
+  -- Put away vehicle before state is set
+  local bizComputer = rawget(_G, "career_modules_business_businessComputer")
+  if bizComputer then bizComputer.putAwayVehicle(businessId, fleetVehicleId) end
+
+  -- Set simulation state
   activeSimByBusiness[id] = {
     businessId = businessId,
     driverId = driverId,

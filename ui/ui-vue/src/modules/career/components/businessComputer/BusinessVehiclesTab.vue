@@ -95,6 +95,8 @@
               </div>
               <div class="vehicle-row__status">
                 <span v-if="isDeliveryPending(v)" class="vehicle-row__badge vehicle-row__badge--delivery">Delivering</span>
+                <span v-else-if="isDynoAssessInProgress(v)" class="vehicle-row__badge vehicle-row__badge--assessing">Assessing</span>
+                <span v-else-if="isSimRaceInProgress(v)" class="vehicle-row__badge vehicle-row__badge--racing">In Race</span>
                 <span v-else-if="isPulledOut(v)" class="vehicle-row__badge">Pulled Out</span>
                 <span v-else class="vehicle-row__badge vehicle-row__badge--idle">Stored</span>
                 <span v-if="isDeliveryPending(v)" class="vehicle-row__cooldown">
@@ -117,13 +119,25 @@
                 Vehicle is not selectable until delivery completes.
               </p>
               <p
-                v-if="showLiftSlotsWarning(v)"
+                v-else-if="pullOutBlockedByDynoAssess(v)"
+                class="vehicle-row__hint vehicle-row__hint--warning"
+              >
+                {{ dynoAssessWarningText }}
+              </p>
+              <p
+                v-else-if="pullOutBlockedBySimRacing(v)"
+                class="vehicle-row__hint vehicle-row__hint--warning"
+              >
+                {{ simRaceWarningText }}
+              </p>
+              <p
+                v-else-if="showLiftSlotsWarning(v)"
                 class="vehicle-row__hint vehicle-row__hint--warning"
               >
                 {{ liftSlotsWarningText }}
               </p>
               <p
-                v-else-if="!isDeliveryPending(v) && !isPulledOut(v)"
+                v-else-if="!isPulledOut(v)"
                 class="vehicle-row__hint"
               >
                 Pull out vehicle to work on it
@@ -137,7 +151,7 @@
                   v-if="!isPulledOut(v)"
                   class="btn btn-primary"
                   data-focusable
-                  :disabled="isVehicleLockedForDelivery(v) || pullOutBlockedByFleetCooldown(v) || pullOutBlockedByLiftsFull(v)"
+                  :disabled="pullOutDisabledStatus(v)"
                   :title="pullOutDisabledTitle(v)"
                   @click.stop="handlePullOut(v)"
                   @mousedown.stop
@@ -168,8 +182,8 @@
                 <button
                   class="btn btn-danger"
                   data-focusable
-                  :disabled="isVehicleLockedForDelivery(v)"
-                  :title="vehicleDisabledTitle(v)"
+                  :disabled="actionDisabledStatus(v)"
+                  :title="actionDisabledTitle(v)"
                   @click.stop="handleSell(v)"
                   @mousedown.stop
                 >
@@ -224,8 +238,8 @@
                   v-if="store.businessType === 'racingTeam' && v.fleetRepairNeeded"
                   class="btn btn-primary"
                   data-focusable
-                  :disabled="isVehicleLockedForDelivery(v)"
-                  :title="vehicleDisabledTitle(v)"
+                  :disabled="actionDisabledStatus(v)"
+                  :title="actionDisabledTitle(v)"
                   @click.stop="openRepairModal(v)"
                   @mousedown.stop
                 >
@@ -235,7 +249,8 @@
                   v-if="store.businessType === 'racingTeam' && v.dynoStatus === -1"
                   class="btn btn-secondary"
                   data-focusable
-                  :disabled="isVehicleLockedForDelivery(v)"
+                  :disabled="actionDisabledStatus(v) || isPulledOut(v)"
+                  :title="actionDisabledStatus(v) ? actionDisabledTitle(v) : isPulledOut(v) ? 'Put away vehicle to assess' : ''"
                   @click.stop="handleAssessVehicle(v)"
                   @mousedown.stop
                 >
@@ -517,6 +532,28 @@ function vehicleDisabledTitle(vehicle, fallback = "") {
   return fallback
 }
 
+const dynoAssessWarningText = "Dyno assessment in progress."
+const simRaceWarningText = "Racing in progress."
+
+const isDynoAssessInProgress = (vehicle) => store.businessType === "racingTeam" && vehicle?.dynoAssessLocked === true
+const isSimRaceInProgress = (vehicle) => store.businessType === "racingTeam" && vehicle?.simRaceLocked === true
+
+const isVehicleDisabled = (vehicle) => {
+  return (
+    isVehicleLockedForDelivery(vehicle)
+    || isDynoAssessInProgress(vehicle)
+    || isSimRaceInProgress(vehicle)
+  )
+}
+
+const actionDisabledStatus = (vehicle) => isVehicleDisabled(vehicle)
+function actionDisabledTitle(vehicle) {
+  if (isVehicleLockedForDelivery(vehicle)) return "Delivery in progress."
+  if (isDynoAssessInProgress(vehicle)) return dynoAssessWarningText
+  if (isSimRaceInProgress(vehicle)) return simRaceWarningText
+  return ""
+}
+
 function fleetCardName(v) {
   if (!v) return "Vehicle"
   return v.vehicleName || v.name || `Vehicle #${v.vehicleId ?? v.id ?? ""}`
@@ -605,28 +642,36 @@ const liftsFull = computed(() => {
 
 const canUpgradeGarageSlots = computed(() => garageSlotsSkillLevel.value < GARAGE_SLOTS_MAX_LEVEL)
 
-const liftSlotsWarningText =
-  "All garage slots are in use. Put away vehicle or upgrade skill tree"
-
-const showLiftSlotsWarning = (vehicle) => {
+const pullOutCheckRaceTeam = (vehicle) => {
   return (
     store.businessType === "racingTeam"
     && !isDeliveryPending(vehicle)
     && !isPulledOut(vehicle)
-    && liftsFull.value
   )
 }
 
+const liftSlotsWarningText = "All garage slots are in use. Put away vehicle or upgrade skill tree"
+const showLiftSlotsWarning = (vehicle) => pullOutCheckRaceTeam(vehicle) && liftsFull.value
 const pullOutBlockedByLiftsFull = (vehicle) => showLiftSlotsWarning(vehicle)
+const pullOutBlockedByDynoAssess = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle.dynoAssessLocked === true
+const pullOutBlockedBySimRacing = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle.simRaceLocked === true
+
+const pullOutDisabledStatus = (vehicle) => {
+  return (
+    isVehicleLockedForDelivery(vehicle)
+    || pullOutBlockedByFleetCooldown(vehicle)
+    || pullOutBlockedByLiftsFull(vehicle)
+    || pullOutBlockedByDynoAssess(vehicle)
+    || pullOutBlockedBySimRacing(vehicle)
+  )
+}
 
 const pullOutDisabledTitle = (vehicle) => {
-  if (pullOutBlockedByFleetCooldown(vehicle)) {
-    return vehicleDisabledTitle(vehicle, pullOutCooldownTitle(vehicle))
-  }
-  if (pullOutBlockedByLiftsFull(vehicle)) {
-    return liftSlotsWarningText
-  }
-  return vehicleDisabledTitle(vehicle, "")
+  if (pullOutBlockedByFleetCooldown(vehicle)) { return vehicleDisabledTitle(vehicle, pullOutCooldownTitle(vehicle)) }
+  else if (pullOutBlockedByDynoAssess(vehicle)) { return dynoAssessWarningText }
+  else if (pullOutBlockedBySimRacing(vehicle)) { return simRaceWarningText }
+  else if (pullOutBlockedByLiftsFull(vehicle)) { return liftSlotsWarningText }
+  else { return vehicleDisabledTitle(vehicle, "") }
 }
 
 const refreshGarageSlotsSkillLevel = async () => {
@@ -653,6 +698,7 @@ const goToGarageSlotsSkillTree = () => {
 const handleAssessVehicle = async (v) => {
   const vid = v?.vehicleId ?? v?.id
   if (vid === null || vid === undefined) return
+  if (isVehicleDisabled(v) || isPulledOut(v)) return
   await store.startRacingTeamVehicleAssessment(vid)
 }
 
@@ -678,7 +724,7 @@ const toggleExpanded = (vehicle) => {
 }
 
 const handlePullOut = async (vehicle) => {
-  if (pullOutBlockedByFleetCooldown(vehicle) || pullOutBlockedByLiftsFull(vehicle)) {
+  if (pullOutDisabledStatus(vehicle)) {
     return
   }
   await store.pullOutVehicle(vehicle.vehicleId)
@@ -713,7 +759,7 @@ const startVehiclePaint = async (vehicle) => {
 }
 
 const handleSell = (vehicle) => {
-  if (!vehicle) return
+  if (!vehicle || isVehicleDisabled(vehicle)) return
   vehicleToSell.value = vehicle
   showAbandonModal.value = true
 }
@@ -725,7 +771,7 @@ const openMaintenanceModal = (vehicle) => {
 }
 
 const openRepairModal = (vehicle) => {
-  if (!vehicle) return
+  if (!vehicle || isVehicleDisabled(vehicle)) return
   vehicleToRepair.value = vehicle
   showRepairModal.value = true
 }
@@ -1024,6 +1070,14 @@ onUnmounted(() => {
 
 .vehicle-row__badge--delivery {
   background: rgba(220, 130, 20, 0.92);
+}
+
+.vehicle-row__badge--racing {
+  background: rgba(56, 189, 248, 0.9);
+}
+
+.vehicle-row__badge--assessing {
+  background: rgba(234, 179, 8, 0.9);
 }
 
 .vehicle-row__bracket {
