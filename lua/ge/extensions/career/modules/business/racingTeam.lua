@@ -4535,7 +4535,7 @@ local function tickPostRaceCooldownDriverUiPushAccumulated(dtSim)
   local lastMap = rtState.rtInternal.lastPostRaceRemByTech or {}
   rtState.rtInternal.lastPostRaceRemByTech = lastMap
 
-  local nowSim = (career_career and career_career.getSimTime) and career_career.getSimTime() or os.time()
+  local nowSim = getCareerSimTime() or os.time()
   if rtState.vehicleAssessmentInProgressByBusiness then
     for bidStr, vMap in pairs(rtState.vehicleAssessmentInProgressByBusiness) do
       local completedAny = false

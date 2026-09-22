@@ -189,6 +189,17 @@
                 >
                   Sell
                 </button>
+                <button
+                  v-if="store.businessType === 'racingTeam' && v.dynoStatus === -1"
+                  class="btn btn-secondary"
+                  data-focusable
+                  :disabled="actionDisabledStatus(v) || isPulledOut(v)"
+                  :title="actionDisabledStatus(v) ? actionDisabledTitle(v) : isPulledOut(v) ? 'Put away vehicle to assess' : ''"
+                  @click.stop="handleAssessVehicle(v)"
+                  @mousedown.stop
+                >
+                  Assess (${{ v.assessmentCost || 1200 }})
+                </button>
               </div>
 
               <div class="vehicle-row__actions">
@@ -244,17 +255,6 @@
                   @mousedown.stop
                 >
                   Repair
-                </button>
-                <button
-                  v-if="store.businessType === 'racingTeam' && v.dynoStatus === -1"
-                  class="btn btn-secondary"
-                  data-focusable
-                  :disabled="actionDisabledStatus(v) || isPulledOut(v)"
-                  :title="actionDisabledStatus(v) ? actionDisabledTitle(v) : isPulledOut(v) ? 'Put away vehicle to assess' : ''"
-                  @click.stop="handleAssessVehicle(v)"
-                  @mousedown.stop
-                >
-                  Assess Car (${{ v.assessmentCost || 1200 }})
                 </button>
                 <button
                   v-else-if="store.businessType === 'racingTeam' && v.dynoStatus === 0"
