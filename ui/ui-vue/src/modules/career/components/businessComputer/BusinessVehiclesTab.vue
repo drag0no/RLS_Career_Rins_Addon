@@ -99,15 +99,9 @@
                 <span v-else-if="isSimRaceInProgress(v)" class="vehicle-row__badge vehicle-row__badge--racing">In Race</span>
                 <span v-else-if="isPulledOut(v)" class="vehicle-row__badge">Pulled Out</span>
                 <span v-else class="vehicle-row__badge vehicle-row__badge--idle">Stored</span>
-                <span v-if="isDeliveryPending(v)" class="vehicle-row__cooldown">
-                  {{ deliveryOverlayText(v) }}
-                </span>
-                <span
-                  v-else-if="store.businessType === 'racingTeam' && fleetVehicleCooldownSec(v) > 0"
-                  class="vehicle-row__cooldown"
-                >
-                  Cooling down {{ formatCooldownMSS(fleetVehicleCooldownSec(v)) }}
-                </span>
+                <span v-if="isDeliveryPending(v)" class="vehicle-row__cooldown">{{ deliveryOverlayText(v) }} </span>
+                <span v-else-if="isDynoAssessInProgress(v)" class="vehicle-row__cooldown">Assessing: {{ formatCooldownMSS(assessRemainingTime(v)) }}</span>
+                <span v-else-if="store.businessType === 'racingTeam' && fleetVehicleCooldownSec(v) > 0" class="vehicle-row__cooldown"> Cooling down: {{ formatCooldownMSS(fleetVehicleCooldownSec(v)) }} </span>
                 <svg class="vehicle-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline :points="isExpanded(v) ? '18 15 12 9 6 15' : '6 9 12 15 18 9'" />
                 </svg>
@@ -198,7 +192,7 @@
                   @click.stop="handleAssessVehicle(v)"
                   @mousedown.stop
                 >
-                  Assess (${{ v.assessmentCost || 1200 }})
+                  Assess (${{ v.assessCost || 1200 }})
                 </button>
               </div>
 
@@ -255,14 +249,6 @@
                   @mousedown.stop
                 >
                   Repair
-                </button>
-                <button
-                  v-else-if="store.businessType === 'racingTeam' && v.dynoStatus === 0"
-                  class="btn btn-secondary"
-                  data-focusable
-                  disabled
-                >
-                  Assessing... ({{ formatAssessmentTime(v.assessmentRemainingSec) }})
                 </button>
               </div>
             </div>
@@ -391,43 +377,9 @@ function mapLookupFleetCooldown(map, rawId) {
 
 function fleetAnchorKey(vehicle) {
   const raw = vehicle?.vehicleId
-  if (raw === undefined || raw === null || raw === "") {
-    return ""
-  }
-  const norm = normalizeId(raw)
-  return String(norm ?? raw)
+  if (raw === undefined || raw === null || raw === "") return ""
+  return String(normalizeId(raw) ?? raw)
 }
-
-function syncFleetCooldownAnchorsFromStore() {
-  const now = Date.now()
-  if (store.businessType !== "racingTeam") {
-    fleetCooldownAnchors.value = {}
-    return
-  }
-  const map = store.businessData?.racingTeamFleetCooldowns
-  const next = {}
-  for (const veh of fleetVehicles.value) {
-    const key = fleetAnchorKey(veh)
-    if (!key) {
-      continue
-    }
-    const sec = mapLookupFleetCooldown(map, veh?.vehicleId)
-    next[key] = { startSec: Math.max(0, Math.floor(sec || 0)), startMs: now }
-  }
-  fleetCooldownAnchors.value = next
-}
-
-watch(
-  [
-    () => store.businessType,
-    () => store.businessData?.racingTeamFleetCooldowns,
-    () => fleetVehicles.value,
-  ],
-  () => {
-    syncFleetCooldownAnchorsFromStore()
-  },
-  { deep: true, immediate: true }
-)
 
 function formatCooldownMSS(totalSec) {
   const s = Math.max(0, Math.floor(Number(totalSec) || 0))
@@ -440,19 +392,84 @@ function formatCooldownMSS(totalSec) {
   return `${m}:${String(r).padStart(2, "0")}`
 }
 
-function fleetVehicleCooldownSec(vehicle) {
-  void fleetCooldownTick.value
-  if (store.businessType !== "racingTeam") {
-    return 0
+function createAnchorTracker({ getInitial, shouldTrack, getFallback }) {
+  const anchors = ref({})
+
+  const sync = () => {
+    const now = Date.now()
+    const next = {}
+    for (const veh of fleetVehicles.value) {
+      if (shouldTrack && !shouldTrack(veh)) continue
+      const key = fleetAnchorKey(veh)
+      if (!key) continue
+      const initialSec = getInitial(veh)
+      if (initialSec > 0 || shouldTrack) {
+        next[key] = { startSec: Math.max(0, Math.floor(initialSec || 0)), startMs: now }
+      }
+    }
+    anchors.value = next
   }
-  const key = fleetAnchorKey(vehicle)
-  const anchor = key ? fleetCooldownAnchors.value[key] : null
-  if (anchor && anchor.startSec > 0) {
-    const elapsed = Math.floor((Date.now() - anchor.startMs) / 1000)
-    return Math.max(0, anchor.startSec - elapsed)
+
+  const getRemaining = (vehicle) => {
+    void fleetCooldownTick.value
+    const key = fleetAnchorKey(vehicle)
+    const anchor = key ? anchors.value[key] : null
+    if (anchor && anchor.startSec > 0) {
+      const elapsed = Math.floor((Date.now() - anchor.startMs) / 1000)
+      return Math.max(0, anchor.startSec - elapsed)
+    }
+    return getFallback ? getFallback(vehicle) : 0
   }
-  return Math.max(0, Number(vehicle?.cooldownSec) || 0)
+
+  return { anchors, sync, getRemaining }
 }
+
+const fleetCooldownTracker = createAnchorTracker({
+  shouldTrack: () => store.businessType === "racingTeam",
+  getInitial: (veh) => mapLookupFleetCooldown(store.businessData?.racingTeamFleetCooldowns, veh?.vehicleId),
+  getFallback: (veh) => Math.max(0, Number(veh?.cooldownSec) || 0),
+})
+const syncFleetCooldownAnchorsFromStore = fleetCooldownTracker.sync
+const fleetVehicleCooldownSec = (vehicle) => {
+  if (store.businessType !== "racingTeam") return 0
+  return fleetCooldownTracker.getRemaining(vehicle)
+}
+
+const handleAssessVehicle = async (v) => {
+  const vid = v?.vehicleId ?? v?.id
+  if (vid === null || vid === undefined) return
+  if (isVehicleDisabled(v) || isPulledOut(v)) return
+  await store.startRacingTeamVehicleAssessment(vid)
+}
+
+const assessmentTracker = createAnchorTracker({
+  shouldTrack: (veh) => veh?.dynoStatus === 0 || veh?.dynoAssessLocked === true,
+  getInitial: (veh) => {
+    const dur = Number(veh.assessDuration || 300)
+    const el = Number(veh.assessElapsed || 0)
+    return dur - el
+  },
+  getFallback: (veh) => {
+    const dur = Number(veh?.assessDuration || 0)
+    const el = Number(veh?.assessElapsed || 0)
+    return Math.max(0, dur - el)
+  },
+})
+const syncAssessAnchors = assessmentTracker.sync
+const assessRemainingTime = (vehicle) => assessmentTracker.getRemaining(vehicle)
+
+watch(
+  [
+    () => store.businessType,
+    () => store.businessData?.racingTeamFleetCooldowns,
+    () => fleetVehicles.value,
+  ],
+  () => {
+    syncFleetCooldownAnchorsFromStore()
+    syncAssessAnchors()
+  },
+  { deep: true, immediate: true }
+)
 
 function isDeliveryPending(vehicle) {
   return vehicle?.deliveryPending === true
@@ -694,20 +711,6 @@ const refreshGarageSlotsSkillLevel = async () => {
 
 const goToGarageSlotsSkillTree = () => {
   store.switchView("skill-tree")
-}
-
-const handleAssessVehicle = async (v) => {
-  const vid = v?.vehicleId ?? v?.id
-  if (vid === null || vid === undefined) return
-  if (isVehicleDisabled(v) || isPulledOut(v)) return
-  await store.startRacingTeamVehicleAssessment(vid)
-}
-
-const formatAssessmentTime = (sec) => {
-  const s = Number(sec) || 0
-  const m = Math.floor(s / 60)
-  const rem = s % 60
-  return `${m}:${rem.toString().padStart(2, "0")}`
 }
 
 const isPulledOut = (vehicle) => {

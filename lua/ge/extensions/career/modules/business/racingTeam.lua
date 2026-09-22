@@ -252,8 +252,8 @@ local function loadRacingTeamPersistedState(businessId, state)
     for vidKey, rec in pairs(data.vehicleAssessmentInProgress) do
       if type(rec) == "table" then
         rtState.vehicleAssessmentInProgressByBusiness[id][tostring(vidKey)] = {
-          dueSimTime = tonumber(rec.dueSimTime) or 0,
-          startSimTime = tonumber(rec.startSimTime) or 0,
+          duration = tonumber(rec.duration) or 0,
+          elapsed = tonumber(rec.elapsed) or 0,
           cost = tonumber(rec.cost) or 0,
         }
       end
@@ -1384,7 +1384,7 @@ local function startVehicleAssessment(businessId, vehicleId)
     return { ok = false, err = "already_assessing" }
   end
 
-  local cost = rtState.K.RACING_TEAM_VEHICLE_ASSESSMENT_COST or 1200
+  local cost = rtState.K.RACING_TEAM_VEHICLE_ASSESS_COST or 1200
   if not career_modules_bank or not career_modules_bank.getBusinessAccount or not career_modules_bank.removeFunds then
     return { ok = false, err = "bank_unavailable" }
   end
@@ -1401,12 +1401,10 @@ local function startVehicleAssessment(businessId, vehicleId)
     return { ok = false, err = "insufficient_funds" }
   end
 
-  local nowSim = getCareerSimTime() or os.time()
-  local dur = rtState.K.RACING_TEAM_VEHICLE_ASSESSMENT_DURATION_SIM or 300
   rtState.vehicleAssessmentInProgressByBusiness[idStr] = rtState.vehicleAssessmentInProgressByBusiness[idStr] or {}
   rtState.vehicleAssessmentInProgressByBusiness[idStr][vidStr] = {
-    dueSimTime = nowSim + dur,
-    startSimTime = nowSim,
+    duration = rtState.K.RACING_TEAM_VEHICLE_ASSESS_DURATION_SIM or 300,
+    elapsed = 0,
     cost = cost,
   }
 
@@ -3366,14 +3364,15 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
   end
   local dynoStatus = getVehicleDynoStatus(businessId, vehicleId)
   local dynoAssessLocked = (dynoStatus == 0)
-  local assessmentRemainingSec = 0
+  local assessDuration = 0
+  local assessElapsed = 0
   if dynoAssessLocked then
     local idStr = tostring(normalizeBusinessId(businessId))
     local inProg = rtState.vehicleAssessmentInProgressByBusiness and rtState.vehicleAssessmentInProgressByBusiness[idStr]
     local it = inProg and inProg[tostring(vehicleId)]
-    if it and it.dueSimTime then
-      local nowSim = getCareerSimTime() or os.time()
-      assessmentRemainingSec = math.max(0, math.floor(it.dueSimTime - nowSim))
+    if it then
+      assessDuration = math.max(0, it.duration)
+      assessElapsed = math.max(0, it.elapsed)
     end
   end
 
@@ -3383,7 +3382,7 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
 
   if dynoStatus == 0 then
     fleetSanctionedClassLabel = "Assessing..."
-    fleetClassStatusMessage = string.format("Assessing in facility (%d min left)", math.ceil(assessmentRemainingSec / 60))
+    fleetClassStatusMessage = string.format("Assessing in facility (%d min left)", math.ceil((assessDuration - assessElapsed) / 60))
   elseif dynoStatus == -1 then
     fleetSanctionedClassLabel = "Unknown - Assessment Required"
     fleetClassStatusMessage = "Assessment Required"
@@ -3416,8 +3415,9 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
     dynoStatus = dynoStatus,
     dynoSkillLevel = dynoLevel,
     simRaceLocked = simRaceLocked,
-    assessmentRemainingSec = assessmentRemainingSec,
-    assessmentCost = rtState.K.RACING_TEAM_VEHICLE_ASSESSMENT_COST or 1200,
+    assessDuration = assessDuration,
+    assessElapsed = assessElapsed,
+    assessCost = rtState.K.RACING_TEAM_VEHICLE_ASSESS_COST or 1200,
     cooldownSec = cooldownSec,
   }
 end
@@ -4439,6 +4439,7 @@ local function onSaveCurrentProfile(currentSavePath)
 end
 
 local function onCareerActivated()
+  rtState.racingTeamVehicleAssessAccumulator = 0
   rtState.scheduledRaceReadyToastAccumulator = 0
   rtState.offerStateByBusiness = {}
   rtState.goalCompletionByBusiness = {}
@@ -4535,25 +4536,6 @@ local function tickPostRaceCooldownDriverUiPushAccumulated(dtSim)
   local lastMap = rtState.rtInternal.lastPostRaceRemByTech or {}
   rtState.rtInternal.lastPostRaceRemByTech = lastMap
 
-  local nowSim = getCareerSimTime() or os.time()
-  if rtState.vehicleAssessmentInProgressByBusiness then
-    for bidStr, vMap in pairs(rtState.vehicleAssessmentInProgressByBusiness) do
-      local completedAny = false
-      for vidStr, entry in pairs(vMap) do
-        if type(entry) == "table" and entry.dueSimTime and nowSim >= entry.dueSimTime then
-          completeVehicleAssessment(bidStr, vidStr)
-          completedAny = true
-        end
-      end
-      if completedAny then
-        if rtState.rtInternal and rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer then
-          rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer(bidStr)
-        end
-        notifyRacingTeamDriversUpdated(bidStr)
-      end
-    end
-  end
-
   for bid, _ in pairs(purchased) do
     local nb = normalizeBusinessId(bid)
     if nb then
@@ -4627,6 +4609,40 @@ local function onCareerTuningApplied()
   end
 end
 
+local function tickRacingTeamVehicleAssessAccumulated(dtSim)
+  if not dtSim or dtSim <= 0 then return end
+  if not career_career or not career_career.isActive or not career_career.isActive() then return end
+  
+  rtState.racingTeamVehicleAssessAccumulator = rtState.racingTeamVehicleAssessAccumulator + dtSim
+  if rtState.racingTeamVehicleAssessAccumulator < rtState.K.RACING_TEAM_VEHICLE_ASSESS_TICK_INTERVAL then
+    return
+  end
+
+  if rtState.vehicleAssessmentInProgressByBusiness then
+    for bidStr, vMap in pairs(rtState.vehicleAssessmentInProgressByBusiness) do
+      local completedAny = false
+      for vidStr, entry in pairs(vMap) do
+        if type(entry) == "table" then
+          -- Tick elapsed time forward with simulation delta time
+          entry.elapsed = entry.elapsed + rtState.racingTeamVehicleAssessAccumulator
+          if entry.elapsed >= entry.duration then
+            completeVehicleAssessment(bidStr, vidStr)
+            completedAny = true
+          end
+        end
+      end
+      if completedAny then
+        if rtState.rtInternal and rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer then
+          rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer(bidStr)
+        end
+        notifyRacingTeamDriversUpdated(bidStr)
+      end
+    end
+  end
+
+  rtState.racingTeamVehicleAssessAccumulator = 0
+end
+
 local function tickScheduledRaceReadyToastsAccumulated(dtSim)
   if not dtSim or dtSim <= 0 then
     return
@@ -4682,6 +4698,7 @@ end
 
 M.hasManagerLevel1 = hasManagerLevel1
 M.hasManagerLevel2 = hasManagerLevel2
+M.tickRacingTeamVehicleAssessAccumulated = tickRacingTeamVehicleAssessAccumulated
 M.tickScheduledRaceReadyToastsAccumulated = tickScheduledRaceReadyToastsAccumulated
 M.tickHomeMechanicPwDeferredRechecks = racingTeamGoals.tickHomeMechanicPwDeferredRechecks
 M.tickPostRaceCooldownDriverUiPushAccumulated = tickPostRaceCooldownDriverUiPushAccumulated
