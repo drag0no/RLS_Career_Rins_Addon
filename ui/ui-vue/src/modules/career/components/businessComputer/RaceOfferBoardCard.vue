@@ -31,39 +31,49 @@
       </div>
     </div>
     <div class="race-offer-card__actions">
-      <button
-        v-if="!hidePrimary"
-        type="button"
-        class="btn btn-primary"
-        data-focusable
-        :disabled="declining || primaryDisabled"
-        @click.stop="$emit('accept')"
-        @mousedown.stop
-      >
-        {{ primaryLabel }}
-      </button>
-      <button
-        v-if="showSendWithManager"
-        type="button"
-        class="btn btn-secondary race-offer-card__btn-manager"
-        data-focusable
-        :disabled="declining || sendWithManagerDisabled"
-        :title="sendWithManagerTooltip || ''"
-        @click.stop="$emit('send-with-manager')"
-        @mousedown.stop
-      >
-        {{ sendWithManagerLabel }}
-      </button>
+      <div class="actions-dispatch-row">
+        <button
+          v-if="!hidePrimary"
+          type="button"
+          class="btn btn-primary btn-action"
+          data-focusable
+          :disabled="declining || primaryDisabled"
+          @click.stop="$emit('accept')"
+          @mousedown.stop
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>{{ primaryLabel }}</span>
+        </button>
+
+        <button
+          v-if="showSendWithManager"
+          type="button"
+          class="btn btn-manager btn-action"
+          data-focusable
+          :disabled="declining || sendWithManagerDisabled"
+          :title="sendWithManagerTooltip || ''"
+          @click.stop="$emit('send-with-manager')"
+          @mousedown.stop
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span>{{ sendWithManagerLabel }}</span>
+        </button>
+      </div>
+
       <button
         v-if="!hideSecondary"
         type="button"
-        class="btn btn-secondary"
+        class="btn-cancel-link"
         data-focusable
         :disabled="declining || secondaryDisabled"
         @click.stop="$emit('decline')"
         @mousedown.stop
       >
-        {{ secondaryLabel }}
+        <span>✕ {{ secondaryLabel }}</span>
       </button>
     </div>
   </article>
@@ -124,7 +134,7 @@ const props = defineProps({
   },
   sendWithManagerLabel: {
     type: String,
-    default: "Send with Manager"
+    default: "With Manager"
   },
   isInBackgroundSim: {
     type: Boolean,
@@ -346,54 +356,86 @@ function formatMoney(n) {
 
 .race-offer-card__actions {
   display: flex;
+  flex-direction: column;
   gap: 0.45em;
   width: 100%;
+  margin-top: 0.25em;
 }
 
-.race-offer-card__actions .btn {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 0.5em 0.75em;
-  border-radius: 999px;
-  font-size: 0.82em;
-  font-weight: 700;
-}
+.actions-dispatch-row {
+  display: flex;
+  gap: 0.45em;
+  width: 100%;
 
-.race-offer-card__btn-manager {
-  border-color: rgba(245, 120, 0, 0.45);
-  &:hover:not(:disabled) {
-    border-color: rgba(245, 140, 0, 0.7);
+  .btn-action {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    padding: 0.52em 0.65em;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s, opacity 0.15s;
+
+    svg {
+      flex-shrink: 0;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+  }
+
+  .btn-primary {
+    background: rgba(245, 73, 0, 0.9);
+    color: #fff;
+    border: 1px solid rgba(255, 120, 50, 0.3);
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 100, 30, 1);
+    }
+  }
+
+  .btn-manager {
+    background: rgba(24, 60, 100, 0.7);
+    color: #70c4ff;
+    border: 1px solid rgba(70, 160, 255, 0.4);
+
+    &:hover:not(:disabled) {
+      background: rgba(30, 85, 145, 0.9);
+      color: #fff;
+    }
   }
 }
 
-.btn {
-  cursor: pointer;
+.btn-cancel-link {
+  background: transparent;
   border: none;
-  transition: background 0.15s, opacity 0.15s;
-}
+  color: rgba(255, 110, 110, 0.65);
+  font-size: 0.74em;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.15em 0;
+  align-self: center;
+  transition: color 0.15s ease;
 
-.btn-primary {
-  background: rgba(245, 73, 0, 0.92);
-  color: #fff;
   &:hover:not(:disabled) {
-    background: rgba(255, 100, 30, 1);
+    color: rgba(255, 110, 110, 1);
+    text-decoration: underline;
   }
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
 
-.btn-secondary {
-  background: rgba(40, 52, 64, 0.95);
-  color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(245, 73, 0, 0.35);
-  &:hover:not(:disabled) {
-    border-color: rgba(245, 73, 0, 0.55);
-    background: rgba(50, 64, 78, 0.98);
-  }
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: default;
   }
 }

@@ -2586,6 +2586,7 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isS
   xpAmount = math.floor(xpAmount * (1 + bx) + 0.5)
 
   -- Podium Analytics applies strictly to podium finishes
+  local isPodium = place >= 1 and place <= 3
   local paLevel = getSkillTreeNodeLevel(businessId, "driver", "podium-analytics")
   if isPodium and paLevel > 0 then
     xpAmount = math.floor(xpAmount * (1 + 0.1 * paLevel) + 0.5)
@@ -2812,7 +2813,7 @@ local function formatRacingTeamDriverForUI(businessId, tech)
     elapsedSeconds = simState and simState.stateElapsed or 0,
     totalSeconds = simState and simState.stateDuration or 0,
     isInSim = isInSim,
-    canSpectate = simState and simState.canSpectate == true or false,
+    canSpectate = (simState == nil) or (simState.canSpectate == true),
     simBadge = simState and simState.badge or nil,
     simPhase = simState and simState.phase or nil,
     simProgress = simState and simState.progress or 0,
@@ -4653,11 +4654,8 @@ function M.setAutoStartBackgroundRaces(businessId, enabled)
   return true
 end
 
-M.tickRacingTeamRaceSimAccumulated = tickRacingTeamRaceSimAccumulated
 M.hasManagerLevel1 = hasManagerLevel1
 M.hasManagerLevel2 = hasManagerLevel2
-M.sendDriverWithManager = racingTeamRaceSim.startBackgroundRace
-M.cancelBackgroundRaceSim = racingTeamRaceSim.cancelBackgroundRace
 M.tickScheduledRaceReadyToastsAccumulated = tickScheduledRaceReadyToastsAccumulated
 M.tickHomeMechanicPwDeferredRechecks = racingTeamGoals.tickHomeMechanicPwDeferredRechecks
 M.tickPostRaceCooldownDriverUiPushAccumulated = tickPostRaceCooldownDriverUiPushAccumulated
@@ -4683,8 +4681,18 @@ M.acceptJob = acceptJob
 M.declineJob = declineJob
 M.abandonJob = abandonJob
 M.sellVehicle = sellVehicle
+M.getRacingTeamDriverById = getRacingTeamDriverById
+M.getBusinessVehicleRawByInventoryId = getBusinessVehicleRawByInventoryId
+M.getEffectiveTeamJobVehiclePw = getEffectiveTeamJobVehiclePw
+M.notifyRacingTeamDriversUpdated = notifyRacingTeamDriversUpdated
+M.saveRacingTeamPersistedState = saveRacingTeamPersistedState
+M.racingTeamPersistDrivers = racingTeamPersistDrivers
+M.loadRacingTeamDrivers = rtState.loadRacingTeamDrivers
 M.acceptRacingTeamRaceOffer = acceptRacingTeamRaceOffer
 M.acceptRacingTeamRaceOfferAsPlayer = acceptRacingTeamRaceOfferAsPlayer
+M.tickRacingTeamRaceSimAccumulated = tickRacingTeamRaceSimAccumulated
+M.sendDriverWithManager = racingTeamRaceSim.startBackgroundRace
+M.cancelBackgroundRaceSim = racingTeamRaceSim.cancelBackgroundRace
 M.listLeague1FleetVehiclesForSanctionedOffer = listLeague1FleetVehiclesForSanctionedOffer
 M.listLeague2FleetVehiclesForSanctionedOffer = listLeague2FleetVehiclesForSanctionedOffer
 M.acceptRacingTeamRaceOfferAsPlayerAlongsideProxy = acceptRacingTeamRaceOfferAsPlayerAlongsideProxy
