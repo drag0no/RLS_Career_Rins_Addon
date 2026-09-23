@@ -10,3 +10,10 @@
 
 # Package Files
 /*.zip
+
+# Graphify
+graphify-out/manifest.json
+graphify-out/cost.json
+graphify-out/.graphify_*
+graphify-out/cache/
+.graphify_chunk_*.json
