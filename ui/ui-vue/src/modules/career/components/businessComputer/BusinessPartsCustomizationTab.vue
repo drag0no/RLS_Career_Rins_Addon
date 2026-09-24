@@ -332,7 +332,7 @@
               :node="rootNode"
               :level="0"
               :expanded-slots="expandedSlots"
-              :selected-slot-id="activeSlotForParts?.id"
+              :selected-slot-id="lastSelectedSlotId"
               @toggle-expand="toggleSlotExpand"
               @select-slot="selectSlotForParts"
             />
@@ -429,16 +429,18 @@ const toggleSlotExpand = (nodeId) => {
 }
 
 const expandAll = () => {
+  const nextExpanded = {}
   const markAll = (nodes) => {
     if (!nodes || !Array.isArray(nodes)) return
     for (const node of nodes) {
       if (node.children && node.children.length > 0) {
-        expandedSlots.value[node.id] = true
+        nextExpanded[node.id] = true
         markAll(node.children)
       }
     }
   }
   markAll(partsTree.value)
+  expandedSlots.value = nextExpanded
 }
 
 const collapseAll = () => {

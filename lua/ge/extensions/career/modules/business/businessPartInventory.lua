@@ -185,13 +185,14 @@ local function updatePartCondition(partId, condition)
   return false
 end
 
-local function loadInventory()
+local function loadInventory(targetPath)
   local saveSlot, savePath = career_saveSystem.getCurrentProfile()
-  if not saveSlot or not savePath then
+  local activePath = targetPath or savePath
+  if not activePath then
     return
   end
 
-  local filePath = savePath .. "/career/" .. businessPartInventoryPath
+  local filePath = activePath .. "/career/" .. businessPartInventoryPath
   local data = jsonReadFile(filePath)
   inventory = {}
   pricePartIoCtxCache = {}
@@ -217,14 +218,14 @@ end
 
 saveInventory = function(targetSavePath)
   local saveSlot, savePath = career_saveSystem.getCurrentProfile()
-  local activeSavePath = targetSavePath or savePath
-  if not activeSavePath then
+  local activePath = targetSavePath or savePath
+  if not activePath then
     return
   end
 
   -- Guard: ensure we load existing data first if saving occurs before first load
   if not inventoryLoaded then
-    loadInventory(activeSavePath)
+    loadInventory(activePath)
   end
 
   local partsArray = {}
@@ -234,12 +235,12 @@ saveInventory = function(targetSavePath)
     end
   end
 
-  local dirPath = activeSavePath .. "/career/business"
+  local dirPath = activePath .. "/career/business"
   if not FS:directoryExists(dirPath) then
     FS:directoryCreate(dirPath)
   end
 
-  jsonWriteFile(activeSavePath .. "/career/" .. businessPartInventoryPath, partsArray, true)
+  jsonWriteFile(activePath .. "/career/" .. businessPartInventoryPath, partsArray, true)
   inventoryLoaded = true
 end
 

@@ -574,7 +574,9 @@ local function onExtensionLoaded()
   local outdated = not saveInfo or saveInfo.version < minimumVersion
 
   local jsonData = savePath and jsonReadFile(savePath .. "/career/partInventory.json")
-  if not jsonData or outdated then
+  if jsonData and not outdated then
+    partInventory = deserialize(jsonData[1]) or {}
+  else
     partInventory = {}
   end
   updatePartDescriptionsWithJBeamInfo()
