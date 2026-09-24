@@ -40,7 +40,7 @@
     <!-- Content - Only show when not loading -->
     <template v-else>
       <!-- Scrollable Content Area -->
-      <div class="scrollable-content">
+      <div ref="scrollContainer" class="scrollable-content">
         <!-- 1. Search Results View -->
         <div v-if="hasActiveSearch">
           <div v-if="searchResults.length === 0" class="empty-state">
@@ -348,7 +348,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount } from "vue"
+import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from "vue"
 import { useBusinessComputerStore } from "../../stores/businessComputerStore"
 import { lua } from "@/bridge"
 import { vBngTextInput } from "@/common/directives"
@@ -383,6 +383,9 @@ const removeMenuVisible = ref(null)
 const installMenuVisible = ref(null)
 
 // Hierarchical tree state
+const scrollContainer = ref(null)
+const savedTreeScrollTop = ref(0)
+const lastSelectedSlotId = ref(null)
 const expandedSlots = ref({})
 const activeSlotForParts = ref(null)
 const slotPartsSearchQuery = ref("")
@@ -443,17 +446,41 @@ const collapseAll = () => {
 }
 
 const selectSlotForParts = (node) => {
+  if (scrollContainer.value) {
+    savedTreeScrollTop.value = scrollContainer.value.scrollTop
+  }
+  lastSelectedSlotId.value = node?.id || node?.path || null
   activeSlotForParts.value = node
   slotPartsSearchQuery.value = ""
   removeMenuVisible.value = null
   installMenuVisible.value = null
+
+  nextTick(() => {
+    if (scrollContainer.value) {
+      scrollContainer.value.scrollTop = 0
+    }
+  })
 }
 
-const closeSlotParts = () => {
+const closeSlotParts = async () => {
   activeSlotForParts.value = null
   slotPartsSearchQuery.value = ""
   removeMenuVisible.value = null
   installMenuVisible.value = null
+
+  await nextTick()
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = savedTreeScrollTop.value
+    if (lastSelectedSlotId.value) {
+      try {
+        const escapedId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(lastSelectedSlotId.value) : lastSelectedSlotId.value
+        const el = scrollContainer.value.querySelector(`[data-slot-id="${escapedId}"]`)
+        if (el) {
+          el.scrollIntoView({ block: 'nearest' })
+        }
+      } catch (_) {}
+    }
+  }
 }
 
 const totalSlotsCount = computed(() => {
@@ -875,6 +902,8 @@ const buildHierarchy = (flatList, slotsNiceNameMap) => {
 }
 
 watch(() => store.pulledOutVehicle, (newVehicle, oldVehicle) => {
+  savedTreeScrollTop.value = 0
+  lastSelectedSlotId.value = null
   if (!newVehicle) {
     partsTree.value = []
     expandedSlots.value = {}

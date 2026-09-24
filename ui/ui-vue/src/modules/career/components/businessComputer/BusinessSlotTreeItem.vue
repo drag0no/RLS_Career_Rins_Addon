@@ -1,5 +1,5 @@
 <template>
-  <div class="tree-item-wrapper">
+  <div class="tree-item-wrapper" :data-slot-id="node.id">
     <div
       class="slot-row"
       :class="{
