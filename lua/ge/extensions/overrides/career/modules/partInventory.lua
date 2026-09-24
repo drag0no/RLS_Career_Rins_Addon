@@ -227,7 +227,7 @@ local function updateVehicleMaps()
     slotToPartIdMap[part.location] = slotToPartIdMap[part.location] or {}
     slotToPartIdMap[part.location][part.containingSlot] = partId
 
-    if part.location > 0 then
+    if (tonumber(part.location) or 0) > 0 then
       partPathToPartIdMap[part.location] = partPathToPartIdMap[part.location] or {}
       partPathToPartIdMap[part.location][part.partPath] = partId
     end
@@ -370,9 +370,10 @@ local function updatePartsToMatchSpawnedVehicle(inventoryId)
   end
 
   -- Anything that was in the vehicle but no longer exists in the tree was removed.
+  -- Move it to player's spare parts inventory (location = 0) so parts do not disappear.
   for slot, info in pairs(oldPartsBySlot) do
     if not matchedSlots[slot] then
-      partInventory[info.id] = nil
+      info.part.location = 0
       if vehicle and vehicle.partConditions then
         vehicle.partConditions[info.part.partPath] = nil
       end
@@ -573,29 +574,7 @@ local function onExtensionLoaded()
   local outdated = not saveInfo or saveInfo.version < minimumVersion
 
   local jsonData = savePath and jsonReadFile(savePath .. "/career/partInventory.json")
-  if jsonData and not outdated then
-    partInventory = deserialize(jsonData[1])
-
-    -- Not needed right now, because we sell all parts anyway
-    --[[ if saveInfo.version < 43 then
-      -- Update older versions to use "slotType" instead of "slot"
-      for partId, part in pairs(partInventory) do
-        part.slotType = part.slot
-        part.slot = nil
-      end
-    end ]]
-
-    if saveInfo.version < career_saveSystem.getSaveSystemVersion() then
-      -- Sell all parts that are not in a vehicle
-      local partsToSell = {}
-      for partId, part in pairs(partInventory) do
-        if part.location == 0 then
-          table.insert(partsToSell, partId)
-        end
-      end
-      sellParts(partsToSell)
-    end
-  else
+  if not jsonData or outdated then
     partInventory = {}
   end
   updatePartDescriptionsWithJBeamInfo()

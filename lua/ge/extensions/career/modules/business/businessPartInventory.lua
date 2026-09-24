@@ -65,49 +65,14 @@ local function appendQuarantineEntries(entries)
 end
 
 local function validateInventoryOwnershipAfterLoad()
-  local mgr = career_modules_business_businessManager
-  if not mgr or not mgr.isBusinessOwnershipReady or not mgr.isBusinessOwnershipReady() then
-    return
-  end
-  local toRemove = {}
-  local batch = {}
-  for partId, part in pairs(inventory) do
-    if part and not partOwnerIsPurchasedBusiness(part) then
-      table.insert(toRemove, partId)
-      local reason = "invalid_owner"
-      if not normalizeBusinessId(part.businessId) then
-        reason = "missing_owner"
-      end
-      table.insert(batch, {
-        quarantinedAt = os.time(),
-        reason = reason,
-        part = deepcopy(part),
-      })
-    end
-  end
-  if #toRemove == 0 then
-    return
-  end
-  appendQuarantineEntries(batch)
-  for _, partId in ipairs(toRemove) do
-    inventory[partId] = nil
-  end
-  saveInventory()
-  log(
-    "I",
-    "businessPartInventory",
-    string.format(
-      "Quarantined %d part inventory row(s) with missing or invalid business ownership (see career/business/partInventoryQuarantine.json).",
-      #toRemove
-    )
-  )
+  -- Non-destructive: business sale explicitly clears its parts via clearBusinessParts(businessId).
+  -- Do not quarantine or discard player inventory on load.
 end
 
 local function onPurchasedBusinessesOwnershipReady()
   if not inventoryLoaded then
-    return
+    loadInventory()
   end
-  validateInventoryOwnershipAfterLoad()
 end
 
 local function partBelongsToBusiness(part, businessId)
@@ -122,7 +87,15 @@ local function partBelongsToBusiness(part, businessId)
   if pid == nil or tostring(pid) == "" then
     return false
   end
-  return tostring(pid) == want
+  local pidStr, wantStr = tostring(pid), tostring(want)
+  if pidStr == wantStr then
+    return true
+  end
+  local pidNum, wantNum = tonumber(pid), tonumber(want)
+  if pidNum and wantNum and pidNum == wantNum then
+    return true
+  end
+  return false
 end
 
 local function getInventory()
@@ -242,10 +215,16 @@ local function loadInventory()
   inventoryLoaded = true
 end
 
-saveInventory = function()
+saveInventory = function(targetSavePath)
   local saveSlot, savePath = career_saveSystem.getCurrentProfile()
-  if not saveSlot or not savePath then
+  local activeSavePath = targetSavePath or savePath
+  if not activeSavePath then
     return
+  end
+
+  -- Guard: ensure we load existing data first if saving occurs before first load
+  if not inventoryLoaded then
+    loadInventory(activeSavePath)
   end
 
   local partsArray = {}
@@ -254,7 +233,13 @@ saveInventory = function()
       table.insert(partsArray, part)
     end
   end
-  jsonWriteFile(savePath .. "/career/" .. businessPartInventoryPath, partsArray, true)
+
+  local dirPath = activeSavePath .. "/career/business"
+  if not FS:directoryExists(dirPath) then
+    FS:directoryCreate(dirPath)
+  end
+
+  jsonWriteFile(activeSavePath .. "/career/" .. businessPartInventoryPath, partsArray, true)
   inventoryLoaded = true
 end
 
@@ -368,12 +353,12 @@ local function onExtensionLoaded()
   loadInventory()
 end
 
-local function onCareerActive(currentSavePath)
+local function onCareerActivated()
   loadInventory()
 end
 
 local function onSaveCurrentProfile(currentSavePath)
-  saveInventory()
+  saveInventory(currentSavePath)
 end
 
 local function pricePartForSale(part)
@@ -530,7 +515,7 @@ M.getLiquidationValue = getLiquidationValue
 M.clearBusinessParts = clearBusinessParts
 
 M.onExtensionLoaded = onExtensionLoaded
-M.onCareerActive = onCareerActive
+M.onCareerActivated = onCareerActivated
 M.onSaveCurrentProfile = onSaveCurrentProfile
 M.onPurchasedBusinessesOwnershipReady = onPurchasedBusinessesOwnershipReady
 
