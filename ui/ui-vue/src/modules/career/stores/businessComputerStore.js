@@ -160,6 +160,7 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     })
   })
   const techs = computed(() => businessData.value.techs || [])
+  const playerScheduledOffer = computed(() => businessData.value?.playerScheduledOffer || null)
   const vehicles = computed(() => {
     const v = businessData.value.vehicles
     if (!v) return []
@@ -816,14 +817,27 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
   const cancelRacingTeamProxyScheduledRace = async (driverId) => {
     const bid = luaBusinessId()
     if (bid === null || bid === undefined) return { ok: false, err: "no_business" }
-    const isPlayer = String(driverId) === "player"
     const tid = Number(driverId)
-    if (!isPlayer && !Number.isFinite(tid)) return { ok: false, err: "missing_business_or_driver" }
+    if (!Number.isFinite(tid)) return { ok: false, err: "missing_business_or_driver" }
     try {
       return await lua.career_modules_business_businessComputer.cancelRacingTeamProxyScheduledRace(
         String(bid),
-        isPlayer ? "player" : tid
+        tid
       )
+    } catch (error) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
+  const cancelRacingTeamPlayerScheduledRace = async () => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) return { ok: false, err: "no_business" }
+    try {
+      const res = await lua.career_modules_business_businessComputer.cancelRacingTeamPlayerRace(String(bid))
+      if (res && res.ok && businessData.value) {
+        businessData.value.playerScheduledOffer = null
+      }
+      return res
     } catch (error) {
       return { ok: false, err: "lua_error" }
     }
@@ -2287,9 +2301,10 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     if (data?.techs && Array.isArray(data.techs)) {
       updateTechs(data.techs)
       syncRacingTeamSimPoll()
-      if (data.activeBackgroundRace !== undefined) {
-        businessData.value.activeBackgroundRace = data.activeBackgroundRace
-      }
+    }
+    if (businessData.value) {
+      businessData.value.activeBackgroundRace = Boolean(data?.activeBackgroundRace)
+      businessData.value.playerScheduledOffer = data?.playerScheduledOffer || null
     }
   }
 
@@ -3562,6 +3577,8 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     isArmedProxyFleetOverpoweredForRequest,
     cancelRacingTeamProxySession,
     cancelRacingTeamProxyScheduledRace,
+    cancelRacingTeamPlayerScheduledRace,
+    playerScheduledOffer,
     startRacingTeamVehicleAssessment,
     declineJob,
     abandonJob,

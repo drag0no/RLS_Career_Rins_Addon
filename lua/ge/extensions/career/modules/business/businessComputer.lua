@@ -1374,6 +1374,18 @@ local function cancelRacingTeamProxyScheduledRace(businessId, driverId)
   return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, isPlayer and "player" or numDriverId)
 end
 
+local function cancelRacingTeamPlayerRace(businessId)
+  businessId = tonumber(businessId) or businessId
+  if not businessId then
+    return { ok = false, err = "missing_business" }
+  end
+  local rt = career_modules_business_racingTeam
+  if not rt or not rt.cancelUnarmedScheduledRacingTeamPlayerRace then
+    return { ok = false, err = "no_racing_team" }
+  end
+  return rt.cancelUnarmedScheduledRacingTeamPlayerRace(businessId)
+end
+
 local function startRacingTeamVehicleAssessment(businessId, vehicleId)
   businessId = tonumber(businessId) or businessId
   vehicleId = tonumber(vehicleId) or vehicleId
@@ -3566,6 +3578,7 @@ M.isProxyScheduledDriverFleetOverpowered = isProxyScheduledDriverFleetOverpowere
 M.isArmedProxyFleetOverpoweredForRequest = isArmedProxyFleetOverpoweredForRequest
 M.cancelRacingTeamProxySession = cancelRacingTeamProxySession
 M.cancelRacingTeamProxyScheduledRace = cancelRacingTeamProxyScheduledRace
+M.cancelRacingTeamPlayerRace = cancelRacingTeamPlayerRace
 M.startRacingTeamVehicleAssessment = startRacingTeamVehicleAssessment
 M.isScheduledRaceReadyForDriver = isScheduledRaceReadyForDriver
 M.getRacingTeamCareerSimTime = getRacingTeamCareerSimTime

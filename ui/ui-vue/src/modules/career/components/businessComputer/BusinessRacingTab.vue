@@ -406,6 +406,7 @@ import { lua, useBridge } from "@/bridge"
 import { useBusinessComputerStore } from "../../stores/businessComputerStore"
 import { formatSanctionedClassWithBucket } from "../../utils/sanctionedClassFormat"
 import RaceOfferBoardCard from "./RaceOfferBoardCard.vue"
+import { useScheduledRaces } from "../../composables/useScheduledRaces"
 
 defineProps({
   layout: {
@@ -417,9 +418,7 @@ defineProps({
 
 const store = useBusinessComputerStore()
 const { events } = useBridge()
-
-const scheduleUiSecondTick = ref(0)
-let scheduleUiTimer = null
+const { scheduledRows: driversWithScheduledRaces, scheduleUiSecondTick } = useScheduledRaces(store)
 
 const formatCooldownCounter = (totalSec) => {
   const s = Math.max(0, Math.floor(Number(totalSec) || 0))
@@ -461,31 +460,27 @@ const handleVehicleOnCooldown = (payload) => {
 
 const formatCooldown = (totalSec) => formatCooldownCounter(totalSec)
 
-onMounted(() => {
-  scheduleUiTimer = setInterval(() => {
-    scheduleUiSecondTick.value++
-    if (
-      managerAutoAssign.value
-      && managerIntervalCountdownSec.value === 0
-      && store.businessId
-      && store.businessType
-    ) {
-      const now = Date.now()
-      if (now - managerReloadThrottle > 4000) {
-        managerReloadThrottle = now
-        store.loadBusinessData(store.businessType, store.businessId)
-      }
+watch(scheduleUiSecondTick, () => {
+  if (
+    managerAutoAssign.value
+    && managerIntervalCountdownSec.value === 0
+    && store.businessId
+    && store.businessType
+  ) {
+    const now = Date.now()
+    if (now - managerReloadThrottle > 4000) {
+      managerReloadThrottle = now
+      store.loadBusinessData(store.businessType, store.businessId)
     }
-  }, 1000)
+  }
+})
+
+onMounted(() => {
   events.on("racingTeam:vehicleOutOfClass", handleVehicleOutOfClass)
   events.on("racingTeam:vehicleOnCooldown", handleVehicleOnCooldown)
   events.on("racingTeamManagerSettingsUpdated", onManagerSettingsUpdated)
 })
 onUnmounted(() => {
-  if (scheduleUiTimer) {
-    clearInterval(scheduleUiTimer)
-    scheduleUiTimer = null
-  }
   events.off("racingTeam:vehicleOutOfClass", handleVehicleOutOfClass)
   events.off("racingTeam:vehicleOnCooldown", handleVehicleOnCooldown)
   events.off("racingTeamManagerSettingsUpdated", onManagerSettingsUpdated)
@@ -536,25 +531,6 @@ const vehicleOutOfClassModalOpen = ref(false)
 const vehicleOnCooldownModalOpen = ref(false)
 const vehicleDynoRequiredModalOpen = ref(false)
 const vehicleOnCooldownSec = ref(0)
-
-const remainingSecondsForScheduledDriver = (t) => {
-  const pr = t?.pendingRaceOffer
-  const wallDue = Number(pr?.scheduledRaceReadyWallEpoch ?? t?.scheduledRaceReadyWallEpoch)
-  void scheduleUiSecondTick.value
-  if (Number.isFinite(wallDue)) {
-    return Math.max(0, wallDue - Math.floor(Date.now() / 1000))
-  }
-  const due = Number(t.scheduledRaceSimTime)
-  const now = Number(store.racingTeamCareerSimTime)
-  if (Number.isFinite(due) && Number.isFinite(now)) {
-    return Math.max(0, Math.floor(due - now))
-  }
-  const fallback = Number(t.secondsUntilScheduledRace)
-  if (Number.isFinite(fallback)) {
-    return Math.max(0, Math.floor(fallback))
-  }
-  return null
-}
 
 const racingTeamProxyArmed = computed(() => store.businessData?.racingTeamProxyArmed === true)
 
@@ -713,79 +689,6 @@ async function onManagerSettingsUpdated (data) {
   if (!store.businessType || !store.businessId) return
   await store.loadBusinessData(store.businessType, store.businessId)
 }
-
-const formatWaitText = (seconds, useWallClock) => {
-  if (!useWallClock && (store.racingTeamCareerSimTime === null || store.racingTeamCareerSimTime === undefined)) {
-    if (Number.isFinite(seconds) && seconds > 0) {
-      const s = Math.max(0, Math.floor(seconds))
-      const minutes = Math.floor(s / 60)
-      const secs = s % 60
-      return minutes > 0 ? `Ready in ~${minutes}m ${secs}s (syncing…)` : `Ready in ~${secs}s (syncing…)`
-    }
-    return "Syncing countdown…"
-  }
-  if (!Number.isFinite(seconds) || seconds <= 0) return "Not ready yet"
-  const s = Math.max(0, Math.floor(seconds))
-  const minutes = Math.floor(s / 60)
-  const secs = s % 60
-  return minutes > 0 ? `Ready in ${minutes}m ${secs}s` : `Ready in ${secs}s`
-}
-
-const driversWithScheduledRaces = computed(() => {
-  void store.racingTeamCareerSimTime
-  void scheduleUiSecondTick.value
-  const list = store.techs
-  if (!Array.isArray(list)) return []
-  const hasManager1 = managerSkillLevel.value >= 1
-  const simActive = !!store.businessData?.activeBackgroundRace
-  const rows = []
-  for (const t of list) {
-    if (!t || t.fired || !t.pendingRaceOffer) continue
-    const pr = t.pendingRaceOffer
-    const useWallClock = Number.isFinite(Number(pr.scheduledRaceReadyWallEpoch ?? t.scheduledRaceReadyWallEpoch))
-    const remaining = remainingSecondsForScheduledDriver(t)
-    const isPlayer = t.isPlayer === true || String(t.id) === "player"
-    const ready = remaining !== null ? remaining <= 0 : t.scheduledRaceReady === true
-    const inSim = t.isInSim === true
-    const canSpectate = t.canSpectate !== false
-
-    let statusText = ""
-    if (!isPlayer) {
-      statusText = (inSim || ready) ? "" : formatWaitText(remaining ?? 0, useWallClock)
-    }
-
-    let managerTooltip = ""
-    if (!hasManager1) managerTooltip = "Requires Manager Lv 1"
-    else if (simActive) managerTooltip = "Manager is already supervising a race"
-    else if (!ready) managerTooltip = "Race is not ready yet"
-    else managerTooltip = "Send driver to race in the background with team manager"
-
-    rows.push({
-      key: `sched-${t.id}-${pr.id ?? ""}`,
-      driverId: t.id,
-      driverName: t.name || `Driver #${t.id}`,
-      isPlayer,
-      offer: pr,
-      scheduledRaceReady: ready,
-      secondsUntilScheduledRace: remaining ?? 0,
-      useWallClock,
-      isInSim: inSim,
-      simPhase: t.simPhase || "",
-      simBadge: t.simBadge || "",
-      simProgress: Number(t.simProgress ?? 0),
-      canSpectate,
-      primaryDisabled: (!ready || !canSpectate) && !isPlayer,
-      primaryLabel: isPlayer ? "Drive to Track" : "Manage myself",
-      hidePrimary: inSim && !canSpectate,
-      hideSecondary: inSim && !canSpectate,
-      showSendWithManager: !inSim && !isPlayer,
-      sendWithManagerDisabled: !ready || !hasManager1 || simActive,
-      sendWithManagerTooltip: managerTooltip,
-      statusText,
-    })
-  }
-  return rows
-})
 
 const raceOffers = computed(() => {
   const list = store.businessData?.raceOffers
@@ -1125,7 +1028,9 @@ const dropScheduledRace = async (driverId) => {
     if (row && row.isInSim) {
       await store.cancelRacingTeamBackgroundRace(driverId, "dropped")
     }
-    const res = await store.cancelRacingTeamProxyScheduledRace(driverId)
+    const res = row?.isPlayer
+      ? await store.cancelRacingTeamPlayerScheduledRace()
+      : await store.cancelRacingTeamProxyScheduledRace(driverId)
     if (res && res.ok) {
       await store.loadBusinessData(store.businessType, store.businessId)
       try {
@@ -1159,19 +1064,6 @@ const onManageMyself = async (driverId) => {
     }
   }
   await startScheduledRaceSpectate(driverId)
-}
-
-const getSendWithManagerTooltip = (row) => {
-  if (managerSkillLevel.value < 1) {
-    return "Requires Manager Lv 1"
-  }
-  if (store.businessData?.activeBackgroundRace) {
-    return "Manager is already supervising a race"
-  }
-  if (!row?.scheduledRaceReady) {
-    return "Race is not ready yet"
-  }
-  return "Send driver to race in the background with team manager"
 }
 
 const onSendDriverWithManager = async (driverId) => {

@@ -1242,32 +1242,10 @@ rtState.loadRacingTeamDrivers = function(businessId)
 end
 
 local function getRacingTeamDriversRawForUI(businessId)
-  local drivers = {}
   if getRacingTeamDriverCapacity(businessId) >= 1 then
-    drivers = rtState.loadRacingTeamDrivers(businessId) or {}
+    return rtState.loadRacingTeamDrivers(businessId) or {}
   end
-  local idStr = tostring(normalizeBusinessId(businessId))
-  local playerOffer = rtState.playerScheduledOfferByBusiness and rtState.playerScheduledOfferByBusiness[idStr]
-  if playerOffer then
-    local list = {}
-    for _, d in ipairs(drivers) do table.insert(list, d) end
-    table.insert(list, {
-      id = "player",
-      name = "You (Owner)",
-      tier = 0,
-      fleetVehicleId = playerOffer.fleetVehicleId,
-      fleetVehicleName = playerOffer.fleetVehicleName,
-      pendingRaceOffer = playerOffer,
-      currentAction = "race_pending",
-      phase = "race_pending",
-      isPlayer = true,
-      readyToRace = true,
-      scheduledRaceReady = true,
-      secondsUntilScheduledRace = 0,
-    })
-    return list
-  end
-  return drivers
+  return {}
 end
 
 local function getRacingTeamDriverById(businessId, techId)
@@ -2872,11 +2850,14 @@ notifyRacingTeamDriversUpdated = function(businessId)
     end
   end
   if guihooks then
+    local bidStr = tostring(normalizeBusinessId(businessId))
+    local playerScheduledOffer = rtState.playerScheduledOfferByBusiness[bidStr] or nil
     guihooks.trigger("businessComputer:onTechsUpdated", {
       businessType = rtState.businessType,
       businessId = tostring(businessId),
       techs = techEntries,
       activeBackgroundRace = racingTeamRaceSim.getActiveSim(businessId) ~= nil,
+      playerScheduledOffer = playerScheduledOffer,
     })
   end
 end
@@ -4026,6 +4007,7 @@ local function buildRacingTeamUIDataCore(businessId)
       table.insert(techEntries, formattedTech)
     end
   end
+  local playerScheduledOffer = rtState.playerScheduledOfferByBusiness[id] or nil
   local raceBoard = ensureRaceOfferBoard(businessId)
   local raceOffersRaw = raceBoard.offers or {}
   local raceOffers = {}
@@ -4117,6 +4099,7 @@ local function buildRacingTeamUIDataCore(businessId)
       return {}
     end)(),
     techs = techEntries,
+    playerScheduledOffer = playerScheduledOffer,
     vehicleDamage = topVehicleDamage,
     vehicleDamageLocked = topVehicleDamageLocked,
     vehicleDamageThreshold = getDamageThreshold(businessId),
@@ -4793,6 +4776,7 @@ M.getMaxPulledOutVehicles = getMaxPulledOutVehicles
 M.getMaxActiveJobs = getMaxActiveJobs
 
 M.clearPlayerScheduledRace = clearPlayerScheduledRace
+M.cancelUnarmedScheduledRacingTeamPlayerRace = cancelUnarmedScheduledRacingTeamPlayerRace
 M.driverCutPercentFromRacingXp = racingTeamFinances.driverCutPercentFromRacingXp
 M.getCareerSimTime = getCareerSimTime
 M.isOfferBlockedByDyno = isOfferBlockedByDyno
