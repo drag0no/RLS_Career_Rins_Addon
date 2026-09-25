@@ -3,13 +3,14 @@ local M = {}
 
 local UPDATE_INTERVAL = 5
 local ASSIGN_RETRY_WALL_SEC = 30
-local DEFAULT_ASSIGN_INTERVAL_SEC = 1800
+local LEVEL1_DEFAULT_ASSIGN_INTERVAL_SEC = 1200
+local LEVEL2_DEFAULT_ASSIGN_INTERVAL_SEC = 300
 
 local ASSIGN_INTERVAL_OPTIONS = {
+  { sec = 300, label = "5 minutes" },
   { sec = 600, label = "10 minutes" },
   { sec = 1200, label = "20 minutes" },
   { sec = 1800, label = "30 minutes" },
-  { sec = 2700, label = "45 minutes" },
   { sec = 3600, label = "60 minutes" },
 }
 
@@ -38,7 +39,13 @@ local function getManagerTimerPath(businessId, currentSavePath)
   if not currentSavePath or not businessId then
     return nil
   end
-  return currentSavePath .. "/career/rls_career/businesses/" .. tostring(businessId) .. "/racingTeamManager.json"
+  local preferred = currentSavePath .. "/career/rls_racing_team_manager_" .. tostring(businessId) .. ".json"
+  if FS and FS:fileExists(preferred) then return preferred end
+  
+  local legacy = currentSavePath .. "/career/rls_career/businesses/" .. tostring(businessId) .. "/racingTeamManager.json"
+  if FS and FS:fileExists(legacy) then return legacy end
+  
+  return preferred
 end
 
 local function getManagerSkillLevel(businessId)
@@ -60,7 +67,7 @@ end
 local function loadManagerTimer(businessId)
   businessId = normalizeBusinessId(businessId)
   if not businessId then
-    return { elapsed = 0, autoAssignEnabled = false, assignIntervalSec = DEFAULT_ASSIGN_INTERVAL_SEC, nextAssignWallEpoch = nil }
+    return { elapsed = 0, autoAssignEnabled = false, assignIntervalSec = LEVEL1_DEFAULT_ASSIGN_INTERVAL_SEC, nextAssignWallEpoch = nil }
   end
   if timersByBusiness[businessId] then
     return timersByBusiness[businessId]
@@ -78,7 +85,8 @@ local function loadManagerTimer(businessId)
   else
     autoAssignEnabled = false
   end
-  local assignIntervalSec = DEFAULT_ASSIGN_INTERVAL_SEC
+  local defaultInterval = (getManagerSkillLevel(businessId) >= 2) and LEVEL2_DEFAULT_ASSIGN_INTERVAL_SEC or LEVEL1_DEFAULT_ASSIGN_INTERVAL_SEC
+  local assignIntervalSec = defaultInterval
   local okInterval, normalized = isAllowedAssignIntervalSec(data.assignIntervalSec)
   if okInterval then
     assignIntervalSec = normalized
@@ -109,10 +117,7 @@ local function saveManagerTimer(businessId, currentSavePath)
   if not businessId or not timersByBusiness[businessId] or not currentSavePath then
     return
   end
-  local path = getManagerTimerPath(businessId, currentSavePath)
-  if not path then
-    return
-  end
+  local path = currentSavePath .. "/career/rls_racing_team_manager_" .. tostring(businessId) .. ".json"
   local dirPath = string.match(path, "^(.*)/[^/]+$")
   if dirPath and FS and not FS:directoryExists(dirPath) then
     FS:directoryCreate(dirPath)
@@ -121,12 +126,12 @@ local function saveManagerTimer(businessId, currentSavePath)
   writeManagerTimerFile(path, {
     elapsed = st.elapsed or 0,
     autoAssignEnabled = st.autoAssignEnabled == true,
-    assignIntervalSec = st.assignIntervalSec or DEFAULT_ASSIGN_INTERVAL_SEC,
+    assignIntervalSec = st.assignIntervalSec or LEVEL1_DEFAULT_ASSIGN_INTERVAL_SEC,
     nextAssignWallEpoch = st.nextAssignWallEpoch,
   })
 end
 
-local function persistManagerTimer(businessId, triggerCareerSave)
+local function persistManagerTimer(businessId)
   businessId = normalizeBusinessId(businessId)
   if not businessId then
     return false
@@ -144,23 +149,20 @@ local function persistManagerTimer(businessId, triggerCareerSave)
     return false
   end
   saveManagerTimer(businessId, savePath)
-  if triggerCareerSave and career_saveSystem.saveCurrent then
-    career_saveSystem.saveCurrent()
-  end
   return true
 end
 
 local function getManagerAssignmentInterval(businessId)
   businessId = normalizeBusinessId(businessId)
   if getManagerSkillLevel(businessId) < 2 then
-    return DEFAULT_ASSIGN_INTERVAL_SEC
+    return LEVEL1_DEFAULT_ASSIGN_INTERVAL_SEC
   end
   local st = loadManagerTimer(businessId)
   local ok, sec = isAllowedAssignIntervalSec(st.assignIntervalSec)
   if ok then
     return sec
   end
-  return DEFAULT_ASSIGN_INTERVAL_SEC
+  return LEVEL2_DEFAULT_ASSIGN_INTERVAL_SEC
 end
 
 local function scheduleNextAssignWall(businessId, delaySec)
@@ -264,7 +266,7 @@ function M.setManagerAssignIntervalSec(businessId, intervalSec)
     scheduleNextAssignWall(businessId, normalized)
   end
   timersByBusiness[businessId] = st
-  persistManagerTimer(businessId, true)
+  persistManagerTimer(businessId)
   triggerManagerSettingsUpdated(businessId)
   return true, normalized
 end
@@ -290,7 +292,7 @@ function M.setManagerAutoAssignEnabled(businessId, enabled)
     st.nextAssignWallEpoch = nil
   end
   timersByBusiness[businessId] = st
-  persistManagerTimer(businessId, true)
+  persistManagerTimer(businessId)
   triggerManagerSettingsUpdated(businessId)
   return true, st.autoAssignEnabled
 end
@@ -317,18 +319,15 @@ local function driverEligibleForAutoRace(businessId, tech)
   return true
 end
 
-local function offerMatchesDriverFleet(businessId, rt, tech, offer, requireBracketMatch)
-  if not requireBracketMatch then
-    return true
+local function offerMatchesDriverFleet(businessId, rt, tech, offer)
+  if not tech or not tech.fleetVehicleId or not offer then
+    return false
   end
-  if rt.fleetVehicleEligibleForOffer and rt.fleetVehicleOverpoweredForOffer then
-    if not rt.fleetVehicleEligibleForOffer(businessId, tech.fleetVehicleId, offer) then
-      return false
-    end
-    if rt.fleetVehicleOverpoweredForOffer(businessId, tech.fleetVehicleId, offer) then
-      return false
-    end
-    return true
+  if rt.fleetVehicleEligibleForOffer then
+    return rt.fleetVehicleEligibleForOffer(businessId, tech.fleetVehicleId, offer, true) == true
+  end
+  if rt.fleetVehicleMatchesBracketStrict then
+    return rt.fleetVehicleMatchesBracketStrict(businessId, tech.fleetVehicleId, offer) == true
   end
   if rt.sanctionedOfferMatchesFleetVehicle then
     return rt.sanctionedOfferMatchesFleetVehicle(businessId, tech.fleetVehicleId, offer) == true
@@ -365,13 +364,12 @@ local function tryManagerAssignOnce(businessId)
   end
 
   local techs = obj.getTechsForBusiness(businessId) or {}
-  local requireDriverBracketMatch = getManagerSkillLevel(businessId) >= 2
 
   for _, tech in ipairs(techs) do
     if driverEligibleForAutoRace(businessId, tech) then
       for _, offer in ipairs(offers) do
         if type(offer) == "table" and offer.id ~= nil then
-          if offerMatchesDriverFleet(businessId, rt, tech, offer, requireDriverBracketMatch) then
+          if offerMatchesDriverFleet(businessId, rt, tech, offer) then
             if rt.acceptRacingTeamRaceOffer(businessId, offer.id, tech.id) == true then
               return true
             end

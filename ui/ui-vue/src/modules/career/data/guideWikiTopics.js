@@ -704,7 +704,7 @@ export const GUIDE_TOPICS = [
           'Background simulation runs in three phases: Traveling to Track (2.5m grace period), In Race, and Returning to Garage (2.5m). During the transit grace period, you can intercept at any time by tapping "Manage myself" to take over and watch in 3D.',
           'Background races resolve using a stochastic 5-car simulation model balancing vehicle power-to-weight, driver skill, track characteristics, and incident wear risk. Successful finishes award prize purses, driver cuts, team & driver XP, and log vehicle mileage.',
           'Fleet cars and drivers both need recovery cooldowns between races — the "Reduced Cooldown" skill shortens them.',
-          '"Manager" Level 1 unlocks manual "Send with Manager". Manager Level 2 enables configurable booking intervals (10–60 min), bracket matching, and autonomous "Auto-start background races".',
+          '"Manager" Level 1 auto-books idle drivers every 20 minutes with strict bracket matching, and unlocks manual "Send with Manager". Manager Level 2 enables configurable booking intervals (5–60 min, default 5m) and autonomous "Auto-start background races".',
           '"Shop App" enables phone alerts when a booked race is ready or concludes.',
         ],
       },

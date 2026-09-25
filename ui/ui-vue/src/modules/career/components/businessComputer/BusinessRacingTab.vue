@@ -4,12 +4,6 @@
       <div class="header-content">
         <div>
           <h2>{{ raceOffersScreenTitle }}</h2>
-          <p
-            v-if="layout !== 'phone' && managerBookingTimerText"
-            class="racing-tab__manager-booking-timer"
-          >
-            {{ managerBookingTimerText }}
-          </p>
         </div>
       </div>
     </div>
@@ -497,13 +491,13 @@ const managerSkillLevel = computed(() => Number(store.businessData?.racingTeamMa
 const managerAutoAssign = computed(() => store.businessData?.racingTeamManagerAutoAssign === true)
 const managerAutoStartBackgroundRaces = computed(() => store.businessData?.racingTeamManagerAutoStartRaces !== false)
 
-const DEFAULT_MANAGER_INTERVAL_SEC = 1800
+const DEFAULT_MANAGER_INTERVAL_SEC = 300
 
 const MANAGER_INTERVAL_SHORT = {
+  300: "5m",
   600: "10m",
   1200: "20m",
   1800: "30m",
-  2700: "45m",
   3600: "60m",
 }
 
@@ -520,10 +514,10 @@ const managerIntervalOptions = computed(() => {
   const list = Array.isArray(opts) && opts.length
     ? opts
     : [
+        { sec: 300, label: "5 minutes" },
         { sec: 600, label: "10 minutes" },
         { sec: 1200, label: "20 minutes" },
         { sec: 1800, label: "30 minutes" },
-        { sec: 2700, label: "45 minutes" },
         { sec: 3600, label: "60 minutes" },
       ]
   return list.map((o) => {

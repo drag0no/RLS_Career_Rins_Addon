@@ -401,9 +401,9 @@ local function saveRacingTeamPersistedState(businessId, currentSavePath)
   local bid = normalizeBusinessId(businessId)
   local id = tostring(bid)
   local state = rtState.offerStateByBusiness[id]
-  if not state then
-    return
-  end
+  if not state and getOfferState then state = getOfferState(bid) end
+  if not state then return end
+  
   rtState.tuningMilestoneByGoalByBusiness[id] = rtState.tuningMilestoneByGoalByBusiness[id] or {}
   local filePath = getRacingTeamSavePath(bid, currentSavePath)
   if not filePath then
@@ -1415,7 +1415,7 @@ local function fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, offer
   return pw > hi
 end
 
-local function fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer)
+local function fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer, forceStrict)
   if type(offer) ~= "table" or fleetVehicleId == nil then
     return false
   end
@@ -1432,7 +1432,14 @@ local function fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer)
   if hi < lo then
     lo, hi = hi, lo
   end
+  if forceStrict and pw < lo then
+    return false
+  end
   return pw <= hi
+end
+
+local function fleetVehicleMatchesBracketStrict(businessId, fleetVehicleId, offer)
+  return fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer, true)
 end
 
 local function acceptRacingTeamRaceOffer(businessId, offerId, techId)
@@ -1549,9 +1556,9 @@ local function acceptRacingTeamRaceOffer(businessId, offerId, techId)
   tech.postRaceCooldownReadyWallEpoch = nil
   racingTeamPersistDrivers(businessId)
   topUpRaceOffers(businessId)
-  if career_saveSystem.saveCurrent then
-    career_saveSystem.saveCurrent()
-  end
+  
+  local _, savePath = career_saveSystem and career_saveSystem.getCurrentProfile and career_saveSystem.getCurrentProfile()
+  if savePath then saveRacingTeamPersistedState(businessId, savePath) end
   if ui_message then
     ui_message(
       string.format(
@@ -4655,6 +4662,9 @@ end
 
 function M.getAutoStartBackgroundRaces(businessId)
   local id = tostring(normalizeBusinessId(businessId))
+  if not rtState.persistLoaded[id] and getOfferState then
+    getOfferState(businessId)
+  end
   local val = rtState.autoStartBackgroundRacesByBusiness[id]
   if val == nil then return true end
   return val == true
@@ -4689,6 +4699,7 @@ M.tickRacingTeamManagerAccumulated = tickRacingTeamManagerAccumulated
 M.sanctionedOfferMatchesFleetVehicle = sanctionedOfferMatchesFleetVehicle
 M.fleetVehicleOverpoweredForOffer = fleetVehicleOverpoweredForOffer
 M.fleetVehicleEligibleForOffer = fleetVehicleEligibleForOffer
+M.fleetVehicleMatchesBracketStrict = fleetVehicleMatchesBracketStrict
 M.getRacingTeamPostRaceCooldownSeconds = getRacingTeamPostRaceCooldownSeconds
 M.getRacingTeamDriverPostRaceCooldownRemainingSec = getRacingTeamDriverPostRaceCooldownRemainingSec
 M.ensureSanctionedRaceOffersBoard = ensureRaceOfferBoard
