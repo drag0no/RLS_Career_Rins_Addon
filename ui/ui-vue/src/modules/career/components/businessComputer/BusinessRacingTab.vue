@@ -183,18 +183,7 @@
       </ul>
       <div class="offer-detail__actions">
         <button
-          v-if="isLeague1"
-          type="button"
-          class="btn btn-primary"
-          data-focusable
-          :disabled="league1FleetLoading"
-          @click.stop="openLeague1FleetPicker"
-          @mousedown.stop
-        >
-          Choose fleet car
-        </button>
-        <button
-          v-else
+          v-if="!isLeague1"
           type="button"
           class="btn btn-primary"
           data-focusable
@@ -204,63 +193,25 @@
           Assign driver
         </button>
         <button
-          v-if="!isLeague1"
           type="button"
-          class="btn btn-secondary"
+          :class="isLeague1 ? 'btn btn-primary' : 'btn btn-secondary'"
           data-focusable
-          :disabled="league2FleetLoading"
-          @click.stop="openLeague2FleetPicker"
+          :disabled="fleetPickerLoading"
+          @click.stop="openFleetPicker"
           @mousedown.stop
-          title="Drive yourself: 85% payout (15% crew share) · 15m cooldown."
+          :title="isLeague1 ? 'Drive yourself in this race' : 'Drive yourself: 85% payout (15% crew share) · 15m cooldown.'"
         >
           Race myself
         </button>
       </div>
 
-      <div v-if="isLeague1 && league1FleetPickerOpen" class="offer-detail__driver-picker">
-        <p class="driver-picker-title">Choose a team car</p>
-        <p class="driver-picker-hint">Match the car’s class to this offer.</p>
-        <p v-if="league1FleetLoading" class="driver-picker-empty">Loading fleet…</p>
-        <p v-else-if="!league1FleetOptions.length" class="driver-picker-empty">No fleet vehicle matches this sanctioned class.</p>
+      <div v-if="fleetPickerOpen" class="offer-detail__driver-picker">
+        <p class="driver-picker-title">{{ isLeague1 ? "Choose a team car" : "Race this offer yourself" }}</p>
+        <p class="driver-picker-hint">{{ isLeague1 ? "Match the car’s class to this offer." : "85% payout (15% crew share) · 15m cooldown" }}</p>
+        <p v-if="fleetPickerLoading" class="driver-picker-empty">Loading fleet…</p>
+        <p v-else-if="!fleetPickerOptions.length" class="driver-picker-empty">No fleet vehicle matches this sanctioned class.</p>
         <ul v-else class="driver-picker-list">
-          <li v-for="fv in league1FleetOptions" :key="String(fv.vehicleId)" class="driver-picker-item">
-            <div class="driver-picker-row-head">
-              <div class="driver-picker-row-titles">
-                <span class="driver-picker-name">{{ fv.vehicleName || ("Vehicle #" + fv.vehicleId) }}</span>
-                <span
-                  v-if="formatClassLabel(fv.fleetSanctionedClassLabel, fv.fleetEffectivePw) || fv.fleetClassStatusMessage"
-                  class="driver-picker-class"
-                >
-                  {{ formatClassLabel(fv.fleetSanctionedClassLabel, fv.fleetEffectivePw) || fv.fleetClassStatusMessage }}
-                </span>
-              </div>
-              <span v-if="fv.overpowered" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Over class</span>
-              <span v-if="fv.onCooldown" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Cooling down {{ formatCooldown(fv.cooldownSec) }}</span>
-              <span v-if="fv.dynoStatus === -1" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(234,179,8,0.2)', color: '#facc15', border: '1px solid rgba(234,179,8,0.5)' }">Dyno Required</span>
-            </div>
-            <div class="driver-picker-actions">
-              <button
-                type="button"
-                class="btn btn-primary"
-                data-focusable
-                :disabled="raceLeague1BusyVehicleId !== null || isFleetVehicleDynoRequired(fv)"
-                @click.stop="confirmLeague1RaceWithFleet(fv)"
-                @mousedown.stop
-              >
-                Race
-              </button>
-            </div>
-          </li>
-        </ul>
-      </div>
-
-      <div v-if="!isLeague1 && league2FleetPickerOpen" class="offer-detail__driver-picker">
-        <p class="driver-picker-title">Race this offer yourself</p>
-        <p class="driver-picker-hint">85% payout (15% crew share) · 15m cooldown</p>
-        <p v-if="league2FleetLoading" class="driver-picker-empty">Loading fleet…</p>
-        <p v-else-if="!league2FleetOptions.length" class="driver-picker-empty">No fleet vehicle matches this sanctioned class.</p>
-        <ul v-else class="driver-picker-list">
-          <li v-for="fv in league2FleetOptions" :key="String(fv.vehicleId)" class="driver-picker-item">
+          <li v-for="fv in fleetPickerOptions" :key="String(fv.vehicleId)" class="driver-picker-item">
             <div class="driver-picker-row-head">
               <div class="driver-picker-row-titles">
                 <span class="driver-picker-name">{{ fv.vehicleName || ("Vehicle #" + fv.vehicleId) }}</span>
@@ -281,8 +232,8 @@
                 type="button"
                 class="btn btn-primary"
                 data-focusable
-                :disabled="raceLeague2BusyVehicleId !== null || fv.onCooldown || fv.playerOnCooldown || fv.overpowered || isFleetVehicleDynoRequired(fv)"
-                @click.stop="confirmLeague2RaceWithFleet(fv)"
+                :disabled="raceBusyVehicleId !== null || fv.onCooldown || fv.playerOnCooldown || fv.overpowered || isFleetVehicleDynoRequired(fv)"
+                @click.stop="confirmRaceWithFleet(fv)"
                 @mousedown.stop
               >
                 Race
@@ -290,6 +241,9 @@
             </div>
           </li>
         </ul>
+        <button type="button" class="btn btn-secondary offer-detail__back" data-focusable @click.stop="cancelFleetPicker" @mousedown.stop>
+          Cancel
+        </button>
       </div>
 
       <div v-if="driverPickerOpen && !isLeague1" class="offer-detail__driver-picker">
@@ -507,15 +461,10 @@ const selectedOffer = ref(null)
 
 const driverPickerOpen = ref(false)
 
-const league1FleetPickerOpen = ref(false)
-const league1FleetOptions = ref([])
-const league1FleetLoading = ref(false)
-const raceLeague1BusyVehicleId = ref(null)
-
-const league2FleetPickerOpen = ref(false)
-const league2FleetOptions = ref([])
-const league2FleetLoading = ref(false)
-const raceLeague2BusyVehicleId = ref(null)
+const fleetPickerOpen = ref(false)
+const fleetPickerOptions = ref([])
+const fleetPickerLoading = ref(false)
+const raceBusyVehicleId = ref(null)
 
 const raceFromGarageBusy = ref(false)
 
@@ -777,12 +726,12 @@ const onDeclineRaceOffer = async (offer) => {
 }
 
 const onOfferDetailBack = () => {
-  if (league1FleetPickerOpen.value) {
-    cancelLeague1FleetPicker()
+  if (fleetPickerOpen.value) {
+    cancelFleetPicker()
     return
   }
-  if (league2FleetPickerOpen.value) {
-    cancelLeague2FleetPicker()
+  if (driverPickerOpen.value) {
+    cancelDriverPicker()
     return
   }
   clearSelectedOffer()
@@ -790,14 +739,10 @@ const onOfferDetailBack = () => {
 
 const clearSelectedOffer = () => {
   driverPickerOpen.value = false
-  league1FleetPickerOpen.value = false
-  league1FleetOptions.value = []
-  league1FleetLoading.value = false
-  raceLeague1BusyVehicleId.value = null
-  league2FleetPickerOpen.value = false
-  league2FleetOptions.value = []
-  league2FleetLoading.value = false
-  raceLeague2BusyVehicleId.value = null
+  fleetPickerOpen.value = false
+  fleetPickerOptions.value = []
+  fleetPickerLoading.value = false
+  raceBusyVehicleId.value = null
   selectedOffer.value = null
 }
 
@@ -806,23 +751,25 @@ const onAssignDriver = () => {
   driverPickerOpen.value = true
 }
 
-const cancelLeague1FleetPicker = () => {
-  league1FleetPickerOpen.value = false
-  league1FleetOptions.value = []
-  league1FleetLoading.value = false
-  raceLeague1BusyVehicleId.value = null
+const cancelFleetPicker = () => {
+  fleetPickerOpen.value = false
+  fleetPickerOptions.value = []
+  fleetPickerLoading.value = false
+  raceBusyVehicleId.value = null
 }
 
-const openLeague1FleetPicker = async () => {
+const openFleetPicker = async () => {
   const offer = selectedOffer.value
   if (!offer || offer.id === undefined || offer.id === null) return
-  league1FleetPickerOpen.value = true
-  league1FleetLoading.value = true
-  league1FleetOptions.value = []
+  fleetPickerOpen.value = true
+  fleetPickerLoading.value = true
+  fleetPickerOptions.value = []
   try {
-    const opts = await store.listLeague1FleetVehiclesForSanctionedOffer(offer.id)
-    league1FleetOptions.value = Array.isArray(opts) ? opts : []
-    if (!league1FleetOptions.value.length) {
+    const opts = isLeague1.value
+      ? await store.listLeague1FleetVehiclesForSanctionedOffer(offer.id)
+      : await store.listLeague2FleetVehiclesForSanctionedOffer(offer.id)
+    fleetPickerOptions.value = Array.isArray(opts) ? opts : []
+    if (!fleetPickerOptions.value.length) {
       try {
         lua.ui_message(
           "No fleet vehicle matches this race HP class. Buy or tune a car in the bracket shown on the offer.",
@@ -832,49 +779,13 @@ const openLeague1FleetPicker = async () => {
         )
       } catch (e) {
       }
-      league1FleetPickerOpen.value = false
+      fleetPickerOpen.value = false
     }
   } catch (e) {
-    console.error("[BusinessRacingTab] openLeague1FleetPicker", e)
-    league1FleetPickerOpen.value = false
+    console.error("[BusinessRacingTab] openFleetPicker", e)
+    fleetPickerOpen.value = false
   } finally {
-    league1FleetLoading.value = false
-  }
-}
-
-const cancelLeague2FleetPicker = () => {
-  league2FleetPickerOpen.value = false
-  league2FleetOptions.value = []
-  league2FleetLoading.value = false
-  raceLeague2BusyVehicleId.value = null
-}
-
-const openLeague2FleetPicker = async () => {
-  const offer = selectedOffer.value
-  if (!offer || offer.id === undefined || offer.id === null) return
-  league2FleetPickerOpen.value = true
-  league2FleetLoading.value = true
-  league2FleetOptions.value = []
-  try {
-    const opts = await store.listLeague2FleetVehiclesForSanctionedOffer(offer.id)
-    league2FleetOptions.value = Array.isArray(opts) ? opts : []
-    if (!league2FleetOptions.value.length) {
-      try {
-        lua.ui_message(
-          "No fleet vehicle matches this race power-to-weight class. Tune or assign a car in the bracket shown.",
-          9,
-          "Racing Team",
-          "warning"
-        )
-      } catch (e) {
-      }
-      league2FleetPickerOpen.value = false
-    }
-  } catch (e) {
-    console.error("[BusinessRacingTab] openLeague2FleetPicker", e)
-    league2FleetPickerOpen.value = false
-  } finally {
-    league2FleetLoading.value = false
+    fleetPickerLoading.value = false
   }
 }
 
@@ -891,14 +802,16 @@ const handleRaceAcceptResult = (res) => {
   return true
 }
 
-const confirmLeague2RaceWithFleet = async (fv) => {
+const confirmRaceWithFleet = async (fv) => {
   const offer = selectedOffer.value
   if (!offer || offer.id === undefined || offer.id === null || !fv) return
   const vid = fv.vehicleId
   if (vid === undefined || vid === null || vid === "") return
-  raceLeague2BusyVehicleId.value = vid
+  raceBusyVehicleId.value = vid
   try {
-    const res = await store.acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(offer.id, vid)
+    const res = isLeague1.value
+      ? await store.acceptRacingTeamRaceOfferAsPlayer(offer.id, vid)
+      : await store.acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(offer.id, vid)
     if (!handleRaceAcceptResult(res)) return
     await store.loadBusinessData(store.businessType, store.businessId)
     clearSelectedOffer()
@@ -907,27 +820,7 @@ const confirmLeague2RaceWithFleet = async (fv) => {
     } catch (e) {}
     store.exitBusinessComputerToPlay()
   } finally {
-    raceLeague2BusyVehicleId.value = null
-  }
-}
-
-const confirmLeague1RaceWithFleet = async (fv) => {
-  const offer = selectedOffer.value
-  if (!offer || offer.id === undefined || offer.id === null || !fv) return
-  const vid = fv.vehicleId
-  if (vid === undefined || vid === null || vid === "") return
-  raceLeague1BusyVehicleId.value = vid
-  try {
-    const res = await store.acceptRacingTeamRaceOfferAsPlayer(offer.id, vid)
-    if (!handleRaceAcceptResult(res)) return
-    await store.loadBusinessData(store.businessType, store.businessId)
-    clearSelectedOffer()
-    try {
-      lua.ui_message("Go to race set. Drive to staging to begin.", 6, "Racing Team", "info")
-    } catch (e) {}
-    store.exitBusinessComputerToPlay()
-  } finally {
-    raceLeague1BusyVehicleId.value = null
+    raceBusyVehicleId.value = null
   }
 }
 
