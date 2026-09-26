@@ -106,7 +106,9 @@ local function runMathematicalRaceSimulation(opts)
   if pwMax > pwMin then
     sCar = math.max(0.05, math.min(1.0, (pw - pwMin) / (pwMax - pwMin)))
   elseif pwMin > 0 then
-    sCar = math.max(0.05, math.min(1.0, (pw - pwMin) / 250))
+    -- When bracket bounds are equal, score based on ratio relative to bracket power
+    local ratio = pw / pwMin
+    sCar = math.max(0.05, math.min(1.0, 0.5 + (ratio - 1.0) * 2.0))
   end
 
   -- 2. Driver Skill Score

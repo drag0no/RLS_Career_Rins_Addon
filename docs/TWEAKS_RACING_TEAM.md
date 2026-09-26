@@ -122,11 +122,11 @@ Hired driver cut percentages now scale realistically across 5 experience tiers:
 
 | Driver Tier | Racing XP Range | Driver Cut (% of Prize) | Net to Team Account |
 | :---: | :---: | :---: | :---: |
-| **Tier 1 (Rookie)** | 0 – 1,499 XP | **15%** | **85%** |
-| **Tier 2 (Club)** | 1,500 – 3,499 XP | **20%** | **80%** |
-| **Tier 3 (Pro)** | 3,500 – 6,499 XP | **25%** | **75%** |
-| **Tier 4 (Master)** | 6,500 – 9,999 XP | **30%** | **70%** |
-| **Tier 5 (Legend)** | 10,000+ XP | **35%** | **65%** |
+| **Tier 1 (Rookie)** | 0 – 399 XP | **15%** | **85%** |
+| **Tier 2 (Club)** | 400 – 1,499 XP | **20%** | **80%** |
+| **Tier 3 (Pro)** | 1,500 – 3,999 XP | **25%** | **75%** |
+| **Tier 4 (Master)** | 4,000 – 7,999 XP | **30%** | **70%** |
+| **Tier 5 (Legend)** | 8,000+ XP | **35%** | **65%** |
 
 Rookies take minimal earnings while they learn; elite champions take higher cuts but deliver consistent podiums and championship points.
 

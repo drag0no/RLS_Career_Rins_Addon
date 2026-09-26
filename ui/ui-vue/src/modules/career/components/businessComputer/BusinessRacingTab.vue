@@ -863,6 +863,8 @@ const armScheduledErrMessage = (err) => {
     fleet_hp_over_class_max: "Fleet car is too powerful for this race class.",
     fleet_hp_under_class_min: "Fleet car is below the minimum HP for this race class.",
     fleet_hp_bracket_mismatch: "Fleet car does not match the race HP class.",
+    requires_manager_level_1: "Requires Manager Lv 1.",
+    manager_already_running_race: "Manager is already supervising a race.",
     lua_error: "Something went wrong. Check the log.",
     no_proxy_flow: "Race flow extension is not ready. Restart the game or verify the mod install.",
     no_staging_spot: "No track staging spot (player_stage_track) on this map.",
@@ -870,7 +872,7 @@ const armScheduledErrMessage = (err) => {
     teleport_failed: "Could not place the team car at staging.",
     enter_vehicle_failed: "Could not switch you into the team car.",
     begin_failed: "Staging did not complete. Check the log.",
-    unknown_error: "Could not start spectate (no error detail from the game).",
+    unknown_error: "Could not start race simulation (no error detail from game).",
   }
   return m[err] || (err ? String(err) : "Could not start the race.")
 }

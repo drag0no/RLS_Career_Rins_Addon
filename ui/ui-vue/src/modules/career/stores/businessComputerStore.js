@@ -1831,7 +1831,8 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
   }
 
   const driveToTrack = async (offerOrVehicleId) => {
-    await ensureAssignedVehiclePulledOut(offerOrVehicleId)
+    const success = await ensureAssignedVehiclePulledOut(offerOrVehicleId)
+    if (!success) return
     exitBusinessComputerToPlay()
   }
 

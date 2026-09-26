@@ -1362,6 +1362,11 @@ local function startVehicleAssessment(businessId, vehicleId)
     return { ok = false, err = "already_assessing" }
   end
 
+  local activeSim = racingTeamRaceSim.getActiveSim(businessId)
+  if activeSim and tonumber(activeSim.fleetVehicleId) == tonumber(vehicleId) then
+    return { ok = false, err = "vehicle_in_race" }
+  end
+
   local cost = rtState.K.RACING_TEAM_VEHICLE_ASSESS_COST or 1200
   if not career_modules_bank or not career_modules_bank.getBusinessAccount or not career_modules_bank.removeFunds then
     return { ok = false, err = "bank_unavailable" }
@@ -3667,6 +3672,21 @@ local function sellVehicle(businessId, vehicleId)
     and career_modules_business_businessInventory.getVehicleById(businessId, removeId)
     or nil
   if not vehicleToRemove then
+    return false
+  end
+
+  -- Guard against selling vehicles currently engaged in background race simulation
+  local activeSim = racingTeamRaceSim.getActiveSim(businessId)
+  if activeSim and tonumber(activeSim.fleetVehicleId) == removeId then
+    log("W", "racingTeam", string.format("Cannot sell vehicle %s: actively competing in background race", tostring(removeId)))
+    return false
+  end
+
+  -- Guard against selling vehicles currently undergoing third-party dyno assessment
+  local bidStr = tostring(normalizeBusinessId(businessId))
+  local vidStr = tostring(removeId)
+  if rtState.vehicleAssessmentInProgressByBusiness[bidStr] and rtState.vehicleAssessmentInProgressByBusiness[bidStr][vidStr] then
+    log("W", "racingTeam", string.format("Cannot sell vehicle %s: third-party assessment in progress", tostring(removeId)))
     return false
   end
 
