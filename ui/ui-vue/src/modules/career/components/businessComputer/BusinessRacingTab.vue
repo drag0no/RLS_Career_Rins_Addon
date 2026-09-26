@@ -939,7 +939,7 @@ const onManageMyself = async (driverId) => {
   if (driverId === undefined || driverId === null) return
   const row = driversWithScheduledRaces.value.find((r) => r.driverId === driverId)
   if (row?.isPlayer) {
-    store.exitBusinessComputerToPlay()
+    await store.driveToTrack(row.offer)
     return
   }
   if (row && row.isInSim) {

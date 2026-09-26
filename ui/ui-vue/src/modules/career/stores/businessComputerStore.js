@@ -1797,6 +1797,35 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     }
   }
 
+  const ensureAssignedVehiclePulledOut = async (offerOrVehicleId) => {
+    const fvId = offerOrVehicleId?.fleetVehicleId
+      ?? offerOrVehicleId?.requiredFleetVehicleId
+      ?? (typeof offerOrVehicleId === "number" || typeof offerOrVehicleId === "string" ? offerOrVehicleId : null)
+      ?? playerScheduledOffer.value?.fleetVehicleId
+      ?? playerScheduledOffer.value?.requiredFleetVehicleId
+    if (fvId === undefined || fvId === null || fvId === "") return false
+
+    const list = Array.isArray(pulledOutVehicles.value) ? pulledOutVehicles.value : []
+    const isAlreadyOut = list.some((v) => {
+      const vid = v?.vehicleId ?? v?.id
+      return String(vid) === String(fvId)
+    })
+    if (!isAlreadyOut) {
+      try {
+        return await pullOutVehicle(fvId)
+      } catch (e) {
+        console.error("[businessComputerStore] pullOutVehicle on Drive to Track failed", e)
+        return false
+      }
+    }
+    return true
+  }
+
+  const driveToTrack = async (offerOrVehicleId) => {
+    await ensureAssignedVehiclePulledOut(offerOrVehicleId)
+    exitBusinessComputerToPlay()
+  }
+
   const requestVehiclePartsTree = async (vehicleId) => {
     if (!businessId.value || !vehicleId) return null
 
@@ -3601,6 +3630,8 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     closeVehicleView,
     onMenuClosed,
     exitBusinessComputerToPlay,
+    driveToTrack,
+    ensureAssignedVehiclePulledOut,
     requestVehiclePartsTree,
     requestVehicleTuningData,
     requestPartInventory,

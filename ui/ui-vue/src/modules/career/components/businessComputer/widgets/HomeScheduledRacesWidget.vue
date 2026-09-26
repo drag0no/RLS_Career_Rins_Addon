@@ -171,11 +171,7 @@ const onSpectate = async (driverId) => {
   if (driverId === undefined || driverId === null) return
   const row = scheduledRows.value.find((r) => r.driverId === driverId)
   if (row?.isPlayer) {
-    if (store.exitBusinessComputerToPlay) {
-      store.exitBusinessComputerToPlay()
-    } else if (lua.career_career && lua.career_career.closeAllMenus) {
-      lua.career_career.closeAllMenus()
-    }
+    await store.driveToTrack(row.offer)
     return
   }
 
