@@ -1150,6 +1150,7 @@ function M.prepareFreeroamAiForTrack(poolReferenceHpOverride, deferCountdown)
             end
         end
         spawnCtx.racingTeamProxyBracketOnlyAi = true
+        spawnCtx.racingTeamBusinessOffer = true
         spawnCtx.classPwMin = refHpMin
         spawnCtx.classPwMax = refHp
         spawnCtx.classHpMin = refHpMin
