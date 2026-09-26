@@ -7,8 +7,11 @@ local function collectPartConditionKeysFromPartsTree(partsTree, out)
   if not partsTree then
     return out
   end
-  if partsTree.chosenPartName and partsTree.path then
-    out[partsTree.path .. partsTree.chosenPartName] = true
+  if partsTree.chosenPartName then
+    out[partsTree.chosenPartName] = true
+    if partsTree.path then
+      out[partsTree.path .. partsTree.chosenPartName] = true
+    end
   end
   if partsTree.children then
     for _, childNode in pairs(partsTree.children) do

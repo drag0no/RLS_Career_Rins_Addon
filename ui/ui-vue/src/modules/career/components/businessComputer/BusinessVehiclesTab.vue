@@ -97,6 +97,7 @@
                 <span v-if="isDeliveryPending(v)" class="vehicle-row__badge vehicle-row__badge--delivery">Delivering</span>
                 <span v-else-if="isDynoAssessInProgress(v)" class="vehicle-row__badge vehicle-row__badge--assessing">Assessing</span>
                 <span v-else-if="isSimRaceInProgress(v)" class="vehicle-row__badge vehicle-row__badge--racing">In Race</span>
+                <span v-else-if="isRepairRequired(v)" class="vehicle-row__badge vehicle-row__badge--repair">Damaged</span>
                 <span v-else-if="isPulledOut(v)" class="vehicle-row__badge">Pulled Out</span>
                 <span v-else class="vehicle-row__badge vehicle-row__badge--idle">Stored</span>
                 <span v-if="isDeliveryPending(v)" class="vehicle-row__cooldown">{{ deliveryOverlayText(v) }} </span>
@@ -123,6 +124,12 @@
                 class="vehicle-row__hint vehicle-row__hint--warning"
               >
                 {{ simRaceWarningText }}
+              </p>
+              <p
+                v-else-if="pullOutBlockedByRepair(v)"
+                class="vehicle-row__hint vehicle-row__hint--warning"
+              >
+                {{ repairWarningText }}
               </p>
               <p
                 v-else-if="showLiftSlotsWarning(v)"
@@ -545,9 +552,11 @@ function pullOutCooldownTitle(vehicle) {
 const deliveryWarningText = "Delivery in progress."
 const dynoAssessWarningText = "Dyno assessment in progress."
 const simRaceWarningText = "Racing in progress."
+const repairWarningText = "Vehicle is damaged. Repair before pulling out."
 
 const isDynoAssessInProgress = (vehicle) => store.businessType === "racingTeam" && vehicle?.dynoAssessLocked === true
 const isSimRaceInProgress = (vehicle) => store.businessType === "racingTeam" && vehicle?.simRaceLocked === true
+const isRepairRequired = (vehicle) => store.businessType === 'racingTeam' && vehicle?.fleetRepairNeeded === true
 
 const isVehicleDisabled = (vehicle) => {
   return (
@@ -673,6 +682,7 @@ const showLiftSlotsWarning = (vehicle) => pullOutCheckRaceTeam(vehicle) && lifts
 const pullOutBlockedByLiftsFull = (vehicle) => showLiftSlotsWarning(vehicle)
 const pullOutBlockedByDynoAssess = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle.dynoAssessLocked === true
 const pullOutBlockedBySimRacing = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle.simRaceLocked === true
+const pullOutBlockedByRepair = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle?.fleetRepairNeeded === true
 
 const pullOutDisabledStatus = (vehicle) => {
   return (
@@ -681,6 +691,7 @@ const pullOutDisabledStatus = (vehicle) => {
     || pullOutBlockedByLiftsFull(vehicle)
     || pullOutBlockedByDynoAssess(vehicle)
     || pullOutBlockedBySimRacing(vehicle)
+    || pullOutBlockedByRepair(vehicle)
   )
 }
 
@@ -688,6 +699,7 @@ const pullOutDisabledTitle = (vehicle) => {
   if (pullOutBlockedByFleetCooldown(vehicle)) { return vehicleDisabledTitle(vehicle, pullOutCooldownTitle(vehicle)) }
   else if (pullOutBlockedByDynoAssess(vehicle)) { return dynoAssessWarningText }
   else if (pullOutBlockedBySimRacing(vehicle)) { return simRaceWarningText }
+  else if (pullOutBlockedByRepair(vehicle)) { return repairWarningText }
   else if (pullOutBlockedByLiftsFull(vehicle)) { return liftSlotsWarningText }
   else { return vehicleDisabledTitle(vehicle, "") }
 }
@@ -1082,6 +1094,10 @@ onUnmounted(() => {
 
 .vehicle-row__badge--assessing {
   background: rgba(234, 179, 8, 0.9);
+}
+
+.vehicle-row__badge--repair {
+  background: rgba(239, 68, 68, 0.92);
 }
 
 .vehicle-row__bracket {

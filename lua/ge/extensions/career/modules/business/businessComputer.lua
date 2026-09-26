@@ -1636,6 +1636,19 @@ local function pullOutVehicle(businessId, vehicleId)
     end
   end
 
+  if isRacingTeamBusinessId(businessId) then
+    local fq = career_modules_business_businessInventory.getFleetInsuranceRepairQuote(businessId, normalizedVehicleId)
+    if fq and fq.needsRepair then
+      log('D', 'businessComputer.pullOut',
+        string.format('return repairRequired businessId=%s vehicleId=%s', tostring(businessId), tostring(normalizedVehicleId)))
+      return {
+        success = false,
+        errorCode = "repairRequired",
+        message = "Vehicle must be repaired before pulling out."
+      }
+    end
+  end
+
   if #pulledOutVehiclesList >= maxPulledOut then
     local message = string.format("All %d lift slots are in use. Put away a vehicle first.", maxPulledOut)
     log('D', 'businessComputer.pullOut',

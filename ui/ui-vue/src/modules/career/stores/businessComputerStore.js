@@ -98,6 +98,13 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     } catch (error) {
     }
   }
+  const showRepairLockWarning= (message) => {
+    const uiMsg = message || "Vehicle must be repaired before pulling out."
+    try {
+      lua.ui_message(uiMsg, 6, "Racing Team", "warning")
+    } catch (error) {
+    }
+  }
   const showErrorMessage = (message) => {
     if (!message) return
     try {
@@ -109,6 +116,8 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     if (result && typeof result === "object" && result.success === false) {
       if (result.errorCode === "damageLocked") {
         showDamageLockWarning()
+      } else if (result.errorCode === "repairRequired") {
+        showRepairLockWarning(result.message)
       } else if (result.message) {
         showErrorMessage(result.message)
       }
