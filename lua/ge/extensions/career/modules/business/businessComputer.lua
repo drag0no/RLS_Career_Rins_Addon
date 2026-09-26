@@ -2995,7 +2995,12 @@ local function purchaseCartItems(businessId, accountId, cartData)
 
       local partsApplied = applyCartPartsToVehicle(businessId, vehicle.vehicleId, parts, function(ok)
         if ok then
-          if not isPersonalVehicle then
+          if isPersonalVehicle then
+            local personalInvId = getInventoryIdFromPersonalVehicleId(vehicleIdStr, businessId)
+            if personalInvId and career_modules_partInventory then
+              career_modules_partInventory.updatePartsToMatchSpawnedVehicle(personalInvId)
+            end
+          else
             invalidateTuningShopJobCompletionIfNeeded(businessId, vehicle.vehicleId)
           end
           commitPurchasedPartsInventory()
