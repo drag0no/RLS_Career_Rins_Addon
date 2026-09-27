@@ -35,6 +35,7 @@
             :status-text="row.statusText"
             :primary-label="row.primaryLabel"
             secondary-label="Drop out"
+            compact
             @accept="onSpectate(row.driverId)"
             @send-with-manager="onSendDriverWithManager(row.driverId)"
             @decline="onDropScheduled(row.driverId)"
@@ -279,9 +280,9 @@ const onSpectate = async (driverId) => {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65em;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.75em;
 }
 
 .scheduled-offers-list__item {

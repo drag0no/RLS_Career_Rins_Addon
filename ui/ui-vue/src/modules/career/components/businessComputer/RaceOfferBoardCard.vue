@@ -1,5 +1,10 @@
 <template>
-  <article class="race-offer-card" @click.stop @mousedown.stop>
+  <article
+    class="race-offer-card"
+    :class="{ 'race-offer-card--compact': compact }"
+    @click.stop
+    @mousedown.stop
+  >
     <div class="race-offer-card__header">
       <span class="race-offer-card__title">{{ title }}</span>
       <span
@@ -84,6 +89,10 @@ import { computed } from "vue"
 import { formatSanctionedClassCompact, pwBucketX1000 } from "../../utils/sanctionedClassFormat"
 
 const props = defineProps({
+  compact: {
+    type: Boolean,
+    default: false
+  },
   offer: {
     type: Object,
     required: true
@@ -437,6 +446,47 @@ function formatMoney(n) {
   &:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+}
+
+.race-offer-card--compact {
+  font-size: 0.88em;
+  padding: 0.6em 0.8em;
+  gap: 0.4em;
+
+  .race-offer-card__podium {
+    gap: 0.35em;
+  }
+
+  .race-offer-place {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25em 0.5em;
+    gap: 0.3em;
+
+    .race-offer-place__xp {
+      display: none;
+    }
+  }
+
+  .race-offer-card__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4em;
+    margin-top: 0.15em;
+
+    .actions-dispatch-row {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .btn-cancel-link {
+      padding: 0.2em 0.4em;
+      white-space: nowrap;
+    }
   }
 }
 </style>
