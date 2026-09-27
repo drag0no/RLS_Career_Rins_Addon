@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-27
+
 ### Added
 - **Business / Parts Menu Tree View**: The vehicle parts menu now uses an expandable folder tree like the main garage, instead of opening each category in a separate window.
 - **Racing Team / Background Races**: Hired drivers can now run scheduled races in the background while you do other things. They earn prize money, gain driver XP, put real miles on the car, and trigger normal cooldowns.
