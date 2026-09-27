@@ -2,6 +2,7 @@ local M = {}
 
 local rtState = require('ge/extensions/career/modules/business/racingTeamRuntimeState')
 local racingTeamRaceOffers = require('ge/extensions/career/modules/business/racingTeamRaceOffers')
+local racingTeamBuildClass = require('ge/extensions/career/modules/business/racingTeamBuildClass')
 
 local function normalizeBusinessId(v)
   return tonumber(v) or v
@@ -460,35 +461,41 @@ local function fleetHasVehicleNearSanctionedBracketTop(businessId, bracketId)
   return false
 end
 
+local function getModelBaselinePw(businessId, modelKey)
+  if not modelKey or not racingTeamBuildClass.pickFactoryBaselineConfigKey then return nil end
+  local baseKey = racingTeamBuildClass.pickFactoryBaselineConfigKey(modelKey)
+  if not baseKey or not rtState.rtInternal.getEffectiveTeamJobVehiclePw then return nil end
+  local vehConf = { vehicleConfig = { model_key = modelKey, key = baseKey } }
+  return rtState.rtInternal.getEffectiveTeamJobVehiclePw(businessId, vehConf)
+end
+
 local function maybeCompleteHomeMechanicFromFleetPw(businessId)
   local bid = normalizeBusinessId(businessId)
-  if not bid then
-    return
-  end
-  local id = tostring(bid)
-  if M.tuningMilestonePreDoneForGoal(bid, HOME_MECHANIC_GOAL_ID) then
-    return
-  end
-  if M.idCompleted(bid, HOME_MECHANIC_GOAL_ID) then
-    return
-  end
-  if not hasBusinessVehicle(bid) then
-    return
-  end
+  if not bid then return end
+  if M.tuningMilestonePreDoneForGoal(bid, HOME_MECHANIC_GOAL_ID) then return end
+  if M.idCompleted(bid, HOME_MECHANIC_GOAL_ID) then return end
+  if not hasBusinessVehicle(bid) then return end
+  
   local cur = rtState.rtInternal.getBestTeamJobVehiclePw(bid)
-  if not cur or cur <= 0 then
-    return
+  if not cur or cur <= 0 then return end
+
+  local id = tostring(bid)
+  local curBase = rtState.homeMechanicBaselinePwByBusiness[id]
+  local modelBase = nil
+  for _, v in ipairs(career_modules_business_businessInventory.getBusinessVehicles(bid) or {}) do
+    local modelKey = v and v.vehicleConfig and v.vehicleConfig.model_key
+    modelBase = modelKey and getModelBaselinePw(bid, modelKey)
+    if modelBase ~= nil and modelBase > 0 then break end
   end
-  local base = rtState.homeMechanicBaselinePwByBusiness[id]
-  if base == nil then
-    rtState.homeMechanicBaselinePwByBusiness[id] = cur
+
+  if curBase == nil or (curBase and modelBase and modelBase < curBase) then
+    curBase = modelBase or cur
+    rtState.homeMechanicBaselinePwByBusiness[id] = curBase
     local _, savePath = career_saveSystem.getCurrentProfile()
-    if savePath then
-      rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath)
-    end
-    return
+    if savePath then rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath) end
   end
-  if cur > base + 1e-5 then
+
+  if curBase and cur > curBase + 1e-5 then
     M.setTuningMilestoneGoalPreDone(bid, HOME_MECHANIC_GOAL_ID)
   end
 end
@@ -865,11 +872,14 @@ function M.evaluateGoalProgress(businessId, g)
       return true, g.progressDone or (g.targetLabel or "Complete")
     end
     if gid == HOME_MECHANIC_GOAL_ID then
+      local cur = rtState.rtInternal.getBestTeamJobVehiclePw(businessId)
       local base = rtState.homeMechanicBaselinePwByBusiness[id]
-      if base and base > 0 then
-        return false, "Install upgrades or run the dyno to raise your car's power class"
+      local label = g.progressLabel or "Install parts or dyno a team car to start"
+      if cur and cur > 0 and base and base > 0 then
+        label = string.format("Current power: %.2f hp/kg <> Baseline to beat: %.2f hp/kg", cur, base)
       end
-      return false, g.progressLabel or "Install parts or dyno a team car to start"
+      scheduleHomeMechanicPwRecheckAfterParts(id)
+      return false, label
     end
     if gid == RT_T2_G4_TUNING_GOAL_ID then
       if fleetHasVehicleNearSanctionedBracketTop(businessId, "modified_club_low") then
@@ -943,35 +953,41 @@ function M.notifyBusinessVehiclePartsPurchased(businessId, parts)
   scheduleHomeMechanicPwRecheckAfterParts(bid)
 end
 
+-- BeamNG powertrain engine.maxPower is measured in Watts (e.g. 150,000 W = ~201 mechanical HP).
+-- 1 Mechanical Horsepower = 745.699872 Watts.
+local WATTS_PER_HP = 745.699872
+local function ensureHorsepower(power)
+  local p = tonumber(power)
+  if not p or p <= 0 then return 0 end
+  -- BeamNG engine reports maxPower in Watts. Heuristic: values > 10 kW (≈13.4 HP) are assumed Watts. 
+  -- No production or mod vehicle exceeds 10,000 mechanical HP.
+  if p > 10000 then return p / WATTS_PER_HP end
+  return p
+end
+
 function M.notifyTeamVehicleDynoPeakHp(businessId, vehicleId, powerHp, weightKgOpt)
   local bid = normalizeBusinessId(businessId)
-  if not bid or vehicleId == nil then
-    return
-  end
-  local p = tonumber(powerHp)
-  if not p or p <= 0 then
-    return
-  end
+  if not bid or vehicleId == nil then return end
+  
+  local p = ensureHorsepower(powerHp)
+  if p <= 0 then return end
+  
   if career_modules_business_businessManager and career_modules_business_businessManager.getPurchasedBusinesses then
     local pb = career_modules_business_businessManager.getPurchasedBusinesses(rtState.businessType) or {}
-    if not pb[bid] and not pb[tostring(bid)] then
-      return
-    end
+    if not pb[bid] and not pb[tostring(bid)] then return end
   end
-  if not career_modules_business_businessInventory or not career_modules_business_businessInventory.getBusinessVehicles then
-    return
-  end
+  
+  if not career_modules_business_businessInventory or not career_modules_business_businessInventory.getBusinessVehicles then return end
   local vehicles = career_modules_business_businessInventory.getBusinessVehicles(bid) or {}
-  local ok = false
+  local vehicleFound = false
   for _, v in ipairs(vehicles) do
     if tostring(v.vehicleId) == tostring(vehicleId) then
-      ok = true
+      vehicleFound = true
       break
     end
   end
-  if not ok then
-    return
-  end
+  if not vehicleFound then return end
+
   rtState.rtInternal.getOfferState(bid)
   local id = tostring(bid)
   rtState.classOptimizationPeakHpByBusiness[id] = rtState.classOptimizationPeakHpByBusiness[id] or {}
@@ -985,32 +1001,44 @@ function M.notifyTeamVehicleDynoPeakHp(businessId, vehicleId, powerHp, weightKgO
     curHp = tonumber(cur)
   end
   local wIn = tonumber(weightKgOpt)
-  local newW = wIn
-  if (not newW or newW <= 0) and curW and curW > 0 then
-    newW = curW
-  end
-  local newEntry
-  if newW and newW > 0 then
-    newEntry = { hp = p, weightKg = newW }
-  else
-    newEntry = p
-  end
+  local newW = (wIn and wIn > 0) and wIn or curW
+  local newEntry = (newW and newW > 0) and { hp = p, weightKg = newW } or p
   local hpChanged = (curHp == nil or math.abs(p - curHp) > 0.05)
-  local wChanged = false
-  if newW and newW > 0 then
-    wChanged = (curW == nil or math.abs(newW - curW) > 0.5)
-  end
-  if hpChanged or wChanged then
-    rtState.classOptimizationPeakHpByBusiness[id][vidStr] = newEntry
+  local wChanged = (newW and newW > 0) and (curW == nil or math.abs(newW - curW) > 0.5) or false
+
+  local dynoLevel = rtState.rtInternal.getSkillTreeNodeLevel and rtState.rtInternal.getSkillTreeNodeLevel(bid, "qol", "dyno") or 0
+  if dynoLevel > 0 then
+    -- Workshop Dyno is unlocked: automatically certify vehicle power and clear dyno-required flag
+    local wasRequired = rtState.dynoRequiredByBusiness[id] and rtState.dynoRequiredByBusiness[id][vidStr] == true
+    if wasRequired then rtState.dynoRequiredByBusiness[id][vidStr] = nil end
+    if hpChanged or wChanged or wasRequired then
+      rtState.classOptimizationPeakHpByBusiness[id][vidStr] = newEntry
+      local _, savePath = career_saveSystem.getCurrentProfile()
+      if savePath then rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath) end
+      racingTeamRaceOffers.bumpRefresh(bid)
+      if rtState.rtInternal.advanceRacingTeamGoalsIfReady then
+        rtState.rtInternal.advanceRacingTeamGoalsIfReady(bid)
+      end
+      maybeCompleteHomeMechanicFromFleetPw(bid)
+    end
+  else
+    -- Without Workshop Dyno: any modification drops certification back to -1 (Unknown - Assessment Required)
+    rtState.dynoRequiredByBusiness[id] = rtState.dynoRequiredByBusiness[id] or {}
+    rtState.dynoRequiredByBusiness[id][vidStr] = true
+    
+    rtState.classOptimizationPeakHpByBusiness[id][vidStr] = nil
+
+    rtState.pendingVehicleMeasurementByBusiness = rtState.pendingVehicleMeasurementByBusiness or {}
+    rtState.pendingVehicleMeasurementByBusiness[id] = rtState.pendingVehicleMeasurementByBusiness[id] or {}
+    rtState.pendingVehicleMeasurementByBusiness[id][vidStr] = newEntry
+
     local _, savePath = career_saveSystem.getCurrentProfile()
-    if savePath then
-      rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath)
-    end
+    if savePath then rtState.rtInternal.saveRacingTeamPersistedState(bid, savePath) end
+
     racingTeamRaceOffers.bumpRefresh(bid)
-    if rtState.rtInternal.advanceRacingTeamGoalsIfReady then
-      rtState.rtInternal.advanceRacingTeamGoalsIfReady(bid)
-    end
-    maybeCompleteHomeMechanicFromFleetPw(bid)
+
+    rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer(bid)
+    rtState.rtInternal.notifyRacingTeamDriversUpdated(bid)
   end
 end
 

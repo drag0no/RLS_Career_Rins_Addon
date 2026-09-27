@@ -14,7 +14,8 @@ export default {
   defaultPosition: 9,
   showInStoreWhenLocked: true,
   notifications: [
-    { key: 'racingTeam.raceReady', label: 'Race Ready', default: true, description: 'Scheduled team race ready' },
+    { key: 'racingTeam.raceReady', label: 'Race Ready', default: true, description: 'Scheduled team race ready', order: 0 },
+    { key: 'racingTeam.raceFinished', label: 'Race Finished', default: true, description: 'Background race completed by driver', order: 1 },
   ],
   unlockCondition: async (luaBridge) => {
     try {

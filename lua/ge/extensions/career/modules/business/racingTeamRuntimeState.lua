@@ -13,7 +13,12 @@ M.offerJobIdCounters = {}
 M.staminaShortTrackStreakByBusiness = {}
 M.sanctionedOfficialFirstPlaceWinsByBusiness = {}
 M.classOptimizationPeakHpByBusiness = {}
+M.dynoRequiredByBusiness = {}
+M.vehicleAssessmentInProgressByBusiness = {}
+M.playerScheduledOfferByBusiness = {}
+M.pendingVehicleMeasurementByBusiness = {}
 M.persistLoaded = {}
+M.autoStartBackgroundRacesByBusiness = {}
 
 M.vehicleCooldownByBusiness = {}
 M.playerCooldownByBusiness = {}
@@ -70,9 +75,12 @@ M.K = {
   -- Independent of the per-vehicle and per-driver cooldowns. Tunable during beta.
   RACING_TEAM_PLAYER_POST_RACE_COOLDOWN_BASE_SEC = 15 * 60,
   -- Fraction of normal team-race gross payout the team receives when the
-  -- PLAYER drove the race instead of a hired driver. AI/proxy races are
-  -- unaffected (they still apply driver-cut on gross). Tunable during beta.
-  RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER = 0.25,
+  -- PLAYER drove the race instead of a hired driver (85% net; 15% trackside crew share).
+  -- AI/proxy races are unaffected (they still apply driver-cut on gross).
+  RACING_TEAM_PLAYER_RACE_PAYOUT_MULTIPLIER = 0.85,
+  RACING_TEAM_VEHICLE_ASSESS_DURATION_SIM = 300,
+  RACING_TEAM_VEHICLE_ASSESS_COST = 1200,
+  RACING_TEAM_VEHICLE_ASSESS_TICK_INTERVAL = 1,
   POST_RACE_COOLDOWN_UI_POLL_INTERVAL_SIM = 1,
   RACING_TEAM_COOLDOWN_REDUCTION_PER_LEVEL = 0.05,
   SCHEDULED_RACE_READY_TOAST_INTERVAL = 2.5,
@@ -82,7 +90,7 @@ M.K = {
   RACING_TEAM_LEVEL_INFO_FILE_BY_LEVEL = {
     west_coast_usa = "wcusa_racingTeam_info.json",
   },
-  MAX_LEAGUE2_PULLED_OUT = 5,
+  MAX_LEAGUE2_PULLED_OUT = 2,
   RACING_TEAM_GARAGE_PARKING_CAP = 4,
   RACING_TEAM_SPONSOR_MAX_ACTIVE = 2,
   RACING_TEAM_SPONSOR_MAX_AVAILABLE = 2,
@@ -138,6 +146,7 @@ M.rtInternal = {
 
 M.scheduledRaceReadyToastAccumulator = 0
 M.postRaceCooldownUiPollAccumulator = 0
+M.racingTeamVehicleAssessAccumulator = 0
 
 M.formatVehicleForUI = nil
 

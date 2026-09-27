@@ -645,13 +645,12 @@ local function spawnBusinessVehicle(businessId, vehicleId)
 
   vehObj:queueLuaCommand("extensions.load('individualRepair')")
 
-  if vehicle.partConditions and career_modules_business_businessPartConditions then
-    career_modules_business_businessPartConditions.applyInitPartConditions(
-      vehObj, vehicle.partConditions, 0, 1, 1, getPartConditionApplyOpts(vehicle))
-  elseif core_vehicleBridge and core_vehicleBridge.requestValue then
+  if core_vehicleBridge and core_vehicleBridge.requestValue then
     core_vehicleBridge.requestValue(vehObj, function()
       applyPartConditionsForVehicle(vehicle, vehObj)
     end, 'ping')
+  else
+    applyPartConditionsForVehicle(vehicle, vehObj)
   end
 
   if not spawnedBusinessVehicles[businessId] then

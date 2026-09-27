@@ -1228,6 +1228,51 @@ local function simulateRacingTeamProxyRace(opts)
   return beginRes
 end
 
+local function sendRacingTeamDriverWithManager(opts)
+  if type(opts) ~= "table" then
+    return { ok = false, err = "invalid_opts" }
+  end
+  local businessId = opts.businessId
+  local module, businessType = resolveBusinessModule(businessId)
+  if businessType ~= "racingTeam" or not module then
+    return { ok = false, err = "not_racing_team" }
+  end
+  if module.sendDriverWithManager then
+    return module.sendDriverWithManager(businessId, opts.driverId)
+  end
+  return { ok = false, err = "not_supported" }
+end
+
+local function setRacingTeamAutoStartBackgroundRaces(opts)
+  if type(opts) ~= "table" then
+    return false
+  end
+  local businessId = opts.businessId
+  local module, businessType = resolveBusinessModule(businessId)
+  if businessType ~= "racingTeam" or not module then
+    return false
+  end
+  if module.setAutoStartBackgroundRaces then
+    return module.setAutoStartBackgroundRaces(businessId, opts.enabled)
+  end
+  return false
+end
+
+local function cancelRacingTeamBackgroundRace(opts)
+  if type(opts) ~= "table" then
+    return { ok = false, err = "invalid_opts" }
+  end
+  local businessId = opts.businessId
+  local module, businessType = resolveBusinessModule(businessId)
+  if businessType ~= "racingTeam" or not module then
+    return { ok = false, err = "not_racing_team" }
+  end
+  if module.cancelBackgroundRaceSim then
+    return module.cancelBackgroundRaceSim(businessId, opts.driverId, opts.reason)
+  end
+  return { ok = false, err = "not_supported" }
+end
+
 local function isProxyScheduledDriverFleetOverpowered(businessId, driverId)
   if not businessId or driverId == nil then
     return { overpowered = false }
@@ -1313,19 +1358,45 @@ end
 
 local function cancelRacingTeamProxyScheduledRace(businessId, driverId)
   businessId = tonumber(businessId) or businessId
-  driverId = tonumber(driverId)
-  if not businessId or not driverId then
+  local isPlayer = tostring(driverId) == "player"
+  local numDriverId = tonumber(driverId)
+  if not businessId or (not isPlayer and not numDriverId) then
     return { ok = false, err = "missing_business_or_driver" }
   end
   local req = getProxyDriverRaceRequest(businessId)
-  if req and req.racingTeamProxyRace == true and tonumber(req.driverId) == driverId then
+  if not isPlayer and req and req.racingTeamProxyRace == true and tonumber(req.driverId) == numDriverId then
     return cancelRacingTeamProxySession(businessId)
   end
   local rt = career_modules_business_racingTeam
   if not rt or not rt.cancelUnarmedScheduledRacingTeamProxyRace then
     return { ok = false, err = "no_racing_team" }
   end
-  return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, driverId)
+  return rt.cancelUnarmedScheduledRacingTeamProxyRace(businessId, isPlayer and "player" or numDriverId)
+end
+
+local function cancelRacingTeamPlayerRace(businessId)
+  businessId = tonumber(businessId) or businessId
+  if not businessId then
+    return { ok = false, err = "missing_business" }
+  end
+  local rt = career_modules_business_racingTeam
+  if not rt or not rt.cancelUnarmedScheduledRacingTeamPlayerRace then
+    return { ok = false, err = "no_racing_team" }
+  end
+  return rt.cancelUnarmedScheduledRacingTeamPlayerRace(businessId)
+end
+
+local function startRacingTeamVehicleAssessment(businessId, vehicleId)
+  businessId = tonumber(businessId) or businessId
+  vehicleId = tonumber(vehicleId) or vehicleId
+  if not businessId or vehicleId == nil then
+    return { ok = false, err = "missing_business_or_vehicle" }
+  end
+  local rt = career_modules_business_racingTeam
+  if not rt or not rt.startVehicleAssessment then
+    return { ok = false, err = "no_racing_team_assess" }
+  end
+  return rt.startVehicleAssessment(businessId, vehicleId)
 end
 
 local function isScheduledRaceReadyForDriver(businessId, techId)
@@ -1338,8 +1409,8 @@ end
 
 local function getRacingTeamCareerSimTime()
   local rt = rawget(_G, "career_modules_business_racingTeam")
-  if rt and rt.getCareerSimTimeForUI then
-    return rt.getCareerSimTimeForUI()
+  if rt and rt.getCareerSimTime then
+    return rt.getCareerSimTime()
   end
   return nil
 end
@@ -1509,6 +1580,16 @@ local function pullOutVehicle(businessId, vehicleId, jobId)
   end
 
   local normalizedVehicleId = normalizeVehicleIdValue(vehicleId)
+  local raceSimModule = rawget(_G, "career_modules_business_racingTeamRaceSim")
+  local raceSimData = raceSimModule and raceSimModule.getActiveSim(businessId)
+  if raceSimData and tonumber(raceSimData.fleetVehicleId) == tonumber(normalizedVehicleId) then
+    log('D', 'businessComputer.pullOut', string.format('vehicle currently in background sim race: businessId=%s, vehicleId=%s', tostring(businessId), tostring(vehicleId)))
+    return {
+      success = false,
+      errorCode = "simRacingLocked"
+    }
+  end
+
   local pulledOutVehiclesList = getPulledOutVehiclesList(businessId)
   for _, current in ipairs(pulledOutVehiclesList) do
     local currentId = normalizeVehicleIdValue(current.vehicleId)
@@ -1551,6 +1632,19 @@ local function pullOutVehicle(businessId, vehicleId, jobId)
         success = false,
         errorCode = "kitInstallLocked",
         timeRemaining = remaining
+      }
+    end
+  end
+
+  if isRacingTeamBusinessId(businessId) then
+    local fq = career_modules_business_businessInventory.getFleetInsuranceRepairQuote(businessId, normalizedVehicleId)
+    if fq and fq.needsRepair then
+      log('D', 'businessComputer.pullOut',
+        string.format('return repairRequired businessId=%s vehicleId=%s', tostring(businessId), tostring(normalizedVehicleId)))
+      return {
+        success = false,
+        errorCode = "repairRequired",
+        message = "Vehicle must be repaired before pulling out."
       }
     end
   end
@@ -3371,10 +3465,16 @@ local function getVehiclesOnly(businessId)
   end
   local vehicles = career_modules_business_businessInventory.getBusinessVehicles(businessId) or {}
   local pulledOutVehiclesRaw = getPulledOutVehiclesList(businessId)
+
+  local module, businessType = resolveBusinessModule(businessId)
+  local businessObj = businessType and career_modules_business_businessManager and career_modules_business_businessManager.getBusinessObject(businessType)
+  local formatterFunc = (businessObj and businessObj.formatVehicleForUIEntry) or (module and module.formatVehicleForUI) or formatVehicleForUI
+
   local formattedVehicles = {}
   for _, vehicle in ipairs(vehicles) do
-    table.insert(formattedVehicles, formatVehicleForUI(vehicle, businessId))
+    table.insert(formattedVehicles, formatterFunc(vehicle, businessId))
   end
+  
   local formattedPulledOut = {}
   for _, vehicle in ipairs(pulledOutVehiclesRaw) do
     local formatted = formatVehicleForUI(vehicle, businessId)
@@ -3389,7 +3489,7 @@ local function getVehiclesOnly(businessId)
       table.insert(formattedPulledOut, formatted)
     end
   end
-  local module, businessType = resolveBusinessModule(businessId)
+  
   local maxPulledOut = 1
   if module and module.getMaxPulledOutVehicles then
     maxPulledOut = module.getMaxPulledOutVehicles(businessId) or 1
@@ -3495,10 +3595,15 @@ M.enterRacingTeamProxyStagingLoadingEarly = enterRacingTeamProxyStagingLoadingEa
 M.preflightRacingTeamProxySpectateUi = preflightRacingTeamProxySpectateUi
 M.refreshRacingTeamProxySpectatorUiMinimal = refreshRacingTeamProxySpectatorUiMinimal
 M.simulateRacingTeamProxyRace = simulateRacingTeamProxyRace
+M.sendRacingTeamDriverWithManager = sendRacingTeamDriverWithManager
+M.setRacingTeamAutoStartBackgroundRaces = setRacingTeamAutoStartBackgroundRaces
+M.cancelRacingTeamBackgroundRace = cancelRacingTeamBackgroundRace
 M.isProxyScheduledDriverFleetOverpowered = isProxyScheduledDriverFleetOverpowered
 M.isArmedProxyFleetOverpoweredForRequest = isArmedProxyFleetOverpoweredForRequest
 M.cancelRacingTeamProxySession = cancelRacingTeamProxySession
 M.cancelRacingTeamProxyScheduledRace = cancelRacingTeamProxyScheduledRace
+M.cancelRacingTeamPlayerRace = cancelRacingTeamPlayerRace
+M.startRacingTeamVehicleAssessment = startRacingTeamVehicleAssessment
 M.isScheduledRaceReadyForDriver = isScheduledRaceReadyForDriver
 M.getRacingTeamCareerSimTime = getRacingTeamCareerSimTime
 M.tickRacingTeamScheduledRaceToasts = tickRacingTeamScheduledRaceToasts

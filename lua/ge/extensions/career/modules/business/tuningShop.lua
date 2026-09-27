@@ -3812,6 +3812,12 @@ local function getOperatingCosts(businessId)
     total = 0
   end
 
+  local costItems = { { label = "Base Lift", cost = baseLift } }
+  if additionalLifts > 0 and additionalLiftsCost > 0 then table.insert(costItems, { label = string.format("Additional Lifts (%d)", additionalLifts), cost = additionalLiftsCost }) end
+  if techCount > 0 and techsCost > 0 then table.insert(costItems, { label = string.format("Techs (%d)", techCount), cost = techsCost }) end
+  if managerCost > 0 then table.insert(costItems, { label = "Manager", cost = managerCost }) end
+  if generalManagerCost > 0 then table.insert(costItems, { label = "General Manager", cost = generalManagerCost }) end
+
   return {
     baseLift = baseLift,
     additionalLifts = additionalLifts,
@@ -3824,6 +3830,7 @@ local function getOperatingCosts(businessId)
     generalManagerCost = generalManagerCost,
     total = total,
     maxCost = maxCost,
+    costItems = costItems,
     solarPowerActive = solarPowerActive
   }
 end

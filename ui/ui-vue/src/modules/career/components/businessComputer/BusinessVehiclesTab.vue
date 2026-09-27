@@ -62,7 +62,7 @@
                 <div class="vehicle-row__copy">
                   <h4>{{ fleetCardName(v) }}</h4>
                   <p v-if="store.businessType === 'racingTeam' && fleetSanctionedClassDisplay(v)" class="vehicle-row__meta vehicle-row__meta--class">
-                    {{ fleetSanctionedClassDisplay(v) }}
+                    <span class="vehicle-row__bracket">{{ fleetSanctionedClassDisplay(v) }}</span>
                   </p>
                   <p
                     v-if="store.businessType === 'racingTeam' && (fleetEffectiveHpDisplay(v) != null || fleetEffectivePwDisplay(v) != null)"
@@ -71,6 +71,7 @@
                     <template v-if="fleetEffectiveHpDisplay(v) != null">{{ fleetEffectiveHpDisplay(v) }} HP</template>
                     <template v-if="fleetEffectiveHpDisplay(v) != null && fleetEffectivePwDisplay(v) != null"> · </template>
                     <template v-if="fleetEffectivePwDisplay(v) != null">{{ fleetEffectivePwDisplay(v) }} hp/kg</template>
+                    <span :class="dynoBadgeDisplay(v).class">{{ dynoBadgeDisplay(v).label }}</span>
                   </p>
                   <p v-if="v.vehicleYear && v.vehicleYear !== 'Unknown'" class="vehicle-row__meta">
                     {{ v.vehicleYear }}
@@ -94,17 +95,14 @@
               </div>
               <div class="vehicle-row__status">
                 <span v-if="isDeliveryPending(v)" class="vehicle-row__badge vehicle-row__badge--delivery">Delivering</span>
+                <span v-else-if="isDynoAssessInProgress(v)" class="vehicle-row__badge vehicle-row__badge--assessing">Assessing</span>
+                <span v-else-if="isSimRaceInProgress(v)" class="vehicle-row__badge vehicle-row__badge--racing">In Race</span>
+                <span v-else-if="isRepairRequired(v)" class="vehicle-row__badge vehicle-row__badge--repair">Damaged</span>
                 <span v-else-if="isPulledOut(v)" class="vehicle-row__badge">Pulled Out</span>
                 <span v-else class="vehicle-row__badge vehicle-row__badge--idle">Stored</span>
-                <span v-if="isDeliveryPending(v)" class="vehicle-row__cooldown">
-                  {{ deliveryOverlayText(v) }}
-                </span>
-                <span
-                  v-else-if="store.businessType === 'racingTeam' && fleetVehicleCooldownSec(v) > 0"
-                  class="vehicle-row__cooldown"
-                >
-                  Cooling down {{ formatCooldownMSS(fleetVehicleCooldownSec(v)) }}
-                </span>
+                <span v-if="isDeliveryPending(v)" class="vehicle-row__cooldown">{{ deliveryOverlayText(v) }} </span>
+                <span v-else-if="isDynoAssessInProgress(v)" class="vehicle-row__cooldown">Assessing: {{ formatCooldownMSS(assessRemainingTime(v)) }}</span>
+                <span v-else-if="store.businessType === 'racingTeam' && fleetVehicleCooldownSec(v) > 0" class="vehicle-row__cooldown"> Cooling down: {{ formatCooldownMSS(fleetVehicleCooldownSec(v)) }} </span>
                 <svg class="vehicle-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline :points="isExpanded(v) ? '18 15 12 9 6 15' : '6 9 12 15 18 9'" />
                 </svg>
@@ -116,13 +114,31 @@
                 Vehicle is not selectable until delivery completes.
               </p>
               <p
-                v-if="showLiftSlotsWarning(v)"
+                v-else-if="pullOutBlockedByDynoAssess(v)"
+                class="vehicle-row__hint vehicle-row__hint--warning"
+              >
+                {{ dynoAssessWarningText }}
+              </p>
+              <p
+                v-else-if="pullOutBlockedBySimRacing(v)"
+                class="vehicle-row__hint vehicle-row__hint--warning"
+              >
+                {{ simRaceWarningText }}
+              </p>
+              <p
+                v-else-if="pullOutBlockedByRepair(v)"
+                class="vehicle-row__hint vehicle-row__hint--warning"
+              >
+                {{ repairWarningText }}
+              </p>
+              <p
+                v-else-if="showLiftSlotsWarning(v)"
                 class="vehicle-row__hint vehicle-row__hint--warning"
               >
                 {{ liftSlotsWarningText }}
               </p>
               <p
-                v-else-if="!isDeliveryPending(v) && !isPulledOut(v)"
+                v-else-if="!isPulledOut(v)"
                 class="vehicle-row__hint"
               >
                 Pull out vehicle to work on it
@@ -136,7 +152,7 @@
                   v-if="!isPulledOut(v)"
                   class="btn btn-primary"
                   data-focusable
-                  :disabled="isVehicleLockedForDelivery(v) || pullOutBlockedByFleetCooldown(v) || pullOutBlockedByLiftsFull(v)"
+                  :disabled="pullOutDisabledStatus(v)"
                   :title="pullOutDisabledTitle(v)"
                   @click.stop="handlePullOut(v)"
                   @mousedown.stop
@@ -167,12 +183,23 @@
                 <button
                   class="btn btn-danger"
                   data-focusable
-                  :disabled="isVehicleLockedForDelivery(v)"
-                  :title="vehicleDisabledTitle(v)"
+                  :disabled="actionDisabledStatus(v)"
+                  :title="actionDisabledTitle(v)"
                   @click.stop="handleSell(v)"
                   @mousedown.stop
                 >
                   Sell
+                </button>
+                <button
+                  v-if="store.businessType === 'racingTeam' && v.dynoStatus === -1"
+                  class="btn btn-secondary"
+                  data-focusable
+                  :disabled="actionDisabledStatus(v) || isPulledOut(v)"
+                  :title="actionDisabledStatus(v) ? actionDisabledTitle(v) : isPulledOut(v) ? 'Put away vehicle to assess' : ''"
+                  @click.stop="handleAssessVehicle(v)"
+                  @mousedown.stop
+                >
+                  Assess (${{ v.assessCost || 1200 }})
                 </button>
               </div>
 
@@ -223,8 +250,8 @@
                   v-if="store.businessType === 'racingTeam' && v.fleetRepairNeeded"
                   class="btn btn-primary"
                   data-focusable
-                  :disabled="isVehicleLockedForDelivery(v)"
-                  :title="vehicleDisabledTitle(v)"
+                  :disabled="actionDisabledStatus(v)"
+                  :title="actionDisabledTitle(v)"
                   @click.stop="openRepairModal(v)"
                   @mousedown.stop
                 >
@@ -302,7 +329,7 @@
 <script setup>
 import { ref, computed, Teleport, watch, inject, nextTick, onMounted, onUnmounted } from "vue"
 import { useBusinessComputerStore } from "../../stores/businessComputerStore"
-import { normalizeId } from "../../utils/businessUtils"
+import { normalizeId, getDynoStatusBadge } from "../../utils/businessUtils"
 import { formatSanctionedClassWithBucket } from "../../utils/sanctionedClassFormat"
 import { vBngTooltip } from "@/common/directives"
 import { lua, useBridge } from "@/bridge"
@@ -312,6 +339,16 @@ const store = useBusinessComputerStore()
 const bridge = useBridge()
 const GARAGE_SLOTS_MAX_LEVEL = 2
 const moneyFormat = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
+
+const DYNO_CLASS_MAP = {
+  "dyno-tag--certified": "vehicle-row__dyno",
+  "dyno-tag--assessing": "vehicle-row__dyno-progress",
+  "dyno-tag--required": "vehicle-row__dyno-required",
+}
+const dynoBadgeDisplay = (v) => {
+  const badge = getDynoStatusBadge(v?.dynoStatus)
+  return { label: badge.label, class: DYNO_CLASS_MAP[badge.badgeClass] || "vehicle-row__dyno" }
+}
 
 const fleetVehicles = computed(() => {
   const v = store.vehicles
@@ -347,43 +384,9 @@ function mapLookupFleetCooldown(map, rawId) {
 
 function fleetAnchorKey(vehicle) {
   const raw = vehicle?.vehicleId
-  if (raw === undefined || raw === null || raw === "") {
-    return ""
-  }
-  const norm = normalizeId(raw)
-  return String(norm ?? raw)
+  if (raw === undefined || raw === null || raw === "") return ""
+  return String(normalizeId(raw) ?? raw)
 }
-
-function syncFleetCooldownAnchorsFromStore() {
-  const now = Date.now()
-  if (store.businessType !== "racingTeam") {
-    fleetCooldownAnchors.value = {}
-    return
-  }
-  const map = store.businessData?.racingTeamFleetCooldowns
-  const next = {}
-  for (const veh of fleetVehicles.value) {
-    const key = fleetAnchorKey(veh)
-    if (!key) {
-      continue
-    }
-    const sec = mapLookupFleetCooldown(map, veh?.vehicleId)
-    next[key] = { startSec: Math.max(0, Math.floor(sec || 0)), startMs: now }
-  }
-  fleetCooldownAnchors.value = next
-}
-
-watch(
-  [
-    () => store.businessType,
-    () => store.businessData?.racingTeamFleetCooldowns,
-    () => fleetVehicles.value,
-  ],
-  () => {
-    syncFleetCooldownAnchorsFromStore()
-  },
-  { deep: true, immediate: true }
-)
 
 function formatCooldownMSS(totalSec) {
   const s = Math.max(0, Math.floor(Number(totalSec) || 0))
@@ -396,22 +399,84 @@ function formatCooldownMSS(totalSec) {
   return `${m}:${String(r).padStart(2, "0")}`
 }
 
-function fleetVehicleCooldownSec(vehicle) {
-  void fleetCooldownTick.value
-  if (store.businessType !== "racingTeam") {
-    return 0
+function createAnchorTracker({ getInitial, shouldTrack, getFallback }) {
+  const anchors = ref({})
+
+  const sync = () => {
+    const now = Date.now()
+    const next = {}
+    for (const veh of fleetVehicles.value) {
+      if (shouldTrack && !shouldTrack(veh)) continue
+      const key = fleetAnchorKey(veh)
+      if (!key) continue
+      const initialSec = getInitial(veh)
+      if (initialSec > 0 || shouldTrack) {
+        next[key] = { startSec: Math.max(0, Math.floor(initialSec || 0)), startMs: now }
+      }
+    }
+    anchors.value = next
   }
-  const key = fleetAnchorKey(vehicle)
-  if (!key) {
-    return 0
+
+  const getRemaining = (vehicle) => {
+    void fleetCooldownTick.value
+    const key = fleetAnchorKey(vehicle)
+    const anchor = key ? anchors.value[key] : null
+    if (anchor && anchor.startSec > 0) {
+      const elapsed = Math.floor((Date.now() - anchor.startMs) / 1000)
+      return Math.max(0, anchor.startSec - elapsed)
+    }
+    return getFallback ? getFallback(vehicle) : 0
   }
-  const anchor = fleetCooldownAnchors.value[key]
-  if (!anchor || anchor.startSec <= 0) {
-    return 0
-  }
-  const elapsed = Math.floor((Date.now() - anchor.startMs) / 1000)
-  return Math.max(0, anchor.startSec - elapsed)
+
+  return { anchors, sync, getRemaining }
 }
+
+const fleetCooldownTracker = createAnchorTracker({
+  shouldTrack: () => store.businessType === "racingTeam",
+  getInitial: (veh) => mapLookupFleetCooldown(store.businessData?.racingTeamFleetCooldowns, veh?.vehicleId),
+  getFallback: (veh) => Math.max(0, Number(veh?.cooldownSec) || 0),
+})
+const syncFleetCooldownAnchorsFromStore = fleetCooldownTracker.sync
+const fleetVehicleCooldownSec = (vehicle) => {
+  if (store.businessType !== "racingTeam") return 0
+  return fleetCooldownTracker.getRemaining(vehicle)
+}
+
+const handleAssessVehicle = async (v) => {
+  const vid = v?.vehicleId ?? v?.id
+  if (vid === null || vid === undefined) return
+  if (isVehicleDisabled(v) || isPulledOut(v)) return
+  await store.startRacingTeamVehicleAssessment(vid)
+}
+
+const assessmentTracker = createAnchorTracker({
+  shouldTrack: (veh) => veh?.dynoStatus === 0 || veh?.dynoAssessLocked === true,
+  getInitial: (veh) => {
+    const dur = Number(veh.assessDuration || 300)
+    const el = Number(veh.assessElapsed || 0)
+    return dur - el
+  },
+  getFallback: (veh) => {
+    const dur = Number(veh?.assessDuration || 0)
+    const el = Number(veh?.assessElapsed || 0)
+    return Math.max(0, dur - el)
+  },
+})
+const syncAssessAnchors = assessmentTracker.sync
+const assessRemainingTime = (vehicle) => assessmentTracker.getRemaining(vehicle)
+
+watch(
+  [
+    () => store.businessType,
+    () => store.businessData?.racingTeamFleetCooldowns,
+    () => fleetVehicles.value,
+  ],
+  () => {
+    syncFleetCooldownAnchorsFromStore()
+    syncAssessAnchors()
+  },
+  { deep: true, immediate: true }
+)
 
 function isDeliveryPending(vehicle) {
   return vehicle?.deliveryPending === true
@@ -484,11 +549,36 @@ function pullOutCooldownTitle(vehicle) {
   return `Vehicle cooling down (${formatCooldownMSS(fleetVehicleCooldownSec(vehicle))} remaining)`
 }
 
+const deliveryWarningText = "Delivery in progress."
+const dynoAssessWarningText = "Dyno assessment in progress."
+const simRaceWarningText = "Racing in progress."
+const repairWarningText = "Vehicle is damaged. Repair before pulling out."
+
+const isDynoAssessInProgress = (vehicle) => store.businessType === "racingTeam" && vehicle?.dynoAssessLocked === true
+const isSimRaceInProgress = (vehicle) => store.businessType === "racingTeam" && vehicle?.simRaceLocked === true
+const isRepairRequired = (vehicle) => store.businessType === 'racingTeam' && vehicle?.fleetRepairNeeded === true
+
+const isVehicleDisabled = (vehicle) => {
+  return (
+    isVehicleLockedForDelivery(vehicle)
+    || isDynoAssessInProgress(vehicle)
+    || isSimRaceInProgress(vehicle)
+  )
+}
 function vehicleDisabledTitle(vehicle, fallback = "") {
   if (isVehicleLockedForDelivery(vehicle)) {
-    return "Delivery in progress."
+    return deliveryWarningText
   }
   return fallback
+}
+
+
+const actionDisabledStatus = (vehicle) => isVehicleDisabled(vehicle)
+function actionDisabledTitle(vehicle) {
+  if (isVehicleLockedForDelivery(vehicle)) return deliveryWarningText
+  if (isDynoAssessInProgress(vehicle)) return dynoAssessWarningText
+  if (isSimRaceInProgress(vehicle)) return simRaceWarningText
+  return ""
 }
 
 function fleetCardName(v) {
@@ -579,28 +669,39 @@ const liftsFull = computed(() => {
 
 const canUpgradeGarageSlots = computed(() => garageSlotsSkillLevel.value < GARAGE_SLOTS_MAX_LEVEL)
 
-const liftSlotsWarningText =
-  "All garage slots are in use. Put away vehicle or upgrade skill tree"
-
-const showLiftSlotsWarning = (vehicle) => {
+const pullOutCheckRaceTeam = (vehicle) => {
   return (
     store.businessType === "racingTeam"
     && !isDeliveryPending(vehicle)
     && !isPulledOut(vehicle)
-    && liftsFull.value
   )
 }
 
+const liftSlotsWarningText = "All garage slots are in use. Put away vehicle or upgrade skill tree"
+const showLiftSlotsWarning = (vehicle) => pullOutCheckRaceTeam(vehicle) && liftsFull.value
 const pullOutBlockedByLiftsFull = (vehicle) => showLiftSlotsWarning(vehicle)
+const pullOutBlockedByDynoAssess = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle.dynoAssessLocked === true
+const pullOutBlockedBySimRacing = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle.simRaceLocked === true
+const pullOutBlockedByRepair = (vehicle) => pullOutCheckRaceTeam(vehicle) && vehicle?.fleetRepairNeeded === true
+
+const pullOutDisabledStatus = (vehicle) => {
+  return (
+    isVehicleLockedForDelivery(vehicle)
+    || pullOutBlockedByFleetCooldown(vehicle)
+    || pullOutBlockedByLiftsFull(vehicle)
+    || pullOutBlockedByDynoAssess(vehicle)
+    || pullOutBlockedBySimRacing(vehicle)
+    || pullOutBlockedByRepair(vehicle)
+  )
+}
 
 const pullOutDisabledTitle = (vehicle) => {
-  if (pullOutBlockedByFleetCooldown(vehicle)) {
-    return vehicleDisabledTitle(vehicle, pullOutCooldownTitle(vehicle))
-  }
-  if (pullOutBlockedByLiftsFull(vehicle)) {
-    return liftSlotsWarningText
-  }
-  return vehicleDisabledTitle(vehicle, "")
+  if (pullOutBlockedByFleetCooldown(vehicle)) { return vehicleDisabledTitle(vehicle, pullOutCooldownTitle(vehicle)) }
+  else if (pullOutBlockedByDynoAssess(vehicle)) { return dynoAssessWarningText }
+  else if (pullOutBlockedBySimRacing(vehicle)) { return simRaceWarningText }
+  else if (pullOutBlockedByRepair(vehicle)) { return repairWarningText }
+  else if (pullOutBlockedByLiftsFull(vehicle)) { return liftSlotsWarningText }
+  else { return vehicleDisabledTitle(vehicle, "") }
 }
 
 const refreshGarageSlotsSkillLevel = async () => {
@@ -639,7 +740,7 @@ const toggleExpanded = (vehicle) => {
 }
 
 const handlePullOut = async (vehicle) => {
-  if (pullOutBlockedByFleetCooldown(vehicle) || pullOutBlockedByLiftsFull(vehicle)) {
+  if (pullOutDisabledStatus(vehicle)) {
     return
   }
   await store.pullOutVehicle(vehicle.vehicleId)
@@ -674,7 +775,7 @@ const startVehiclePaint = async (vehicle) => {
 }
 
 const handleSell = (vehicle) => {
-  if (!vehicle) return
+  if (!vehicle || isVehicleDisabled(vehicle)) return
   vehicleToSell.value = vehicle
   showAbandonModal.value = true
 }
@@ -686,7 +787,7 @@ const openMaintenanceModal = (vehicle) => {
 }
 
 const openRepairModal = (vehicle) => {
-  if (!vehicle) return
+  if (!vehicle || isVehicleDisabled(vehicle)) return
   vehicleToRepair.value = vehicle
   showRepairModal.value = true
 }
@@ -985,6 +1086,53 @@ onUnmounted(() => {
 
 .vehicle-row__badge--delivery {
   background: rgba(220, 130, 20, 0.92);
+}
+
+.vehicle-row__badge--racing {
+  background: rgba(56, 189, 248, 0.9);
+}
+
+.vehicle-row__badge--assessing {
+  background: rgba(234, 179, 8, 0.9);
+}
+
+.vehicle-row__badge--repair {
+  background: rgba(239, 68, 68, 0.92);
+}
+
+.vehicle-row__bracket {
+  font-weight: 600;
+  color: rgba(255, 220, 180, 0.95);
+}
+
+.vehicle-row__dyno {
+  font-size: 0.8em;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  margin-left: 0.5em;
+}
+
+.vehicle-row__dyno-required {
+  font-size: 0.8em;
+  color: #facc15;
+  background: rgba(234, 179, 8, 0.18);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  margin-left: 0.5em;
+}
+
+.vehicle-row__dyno-progress {
+  font-size: 0.8em;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  margin-left: 0.5em;
 }
 
 .vehicle-row__cooldown {

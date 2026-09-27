@@ -10,11 +10,16 @@ local racingTeamLeagueInvite = require('ge/extensions/career/modules/business/ra
 local racingTeamRaceOffers = require('ge/extensions/career/modules/business/racingTeamRaceOffers')
 local racingTeamFleet = require('ge/extensions/career/modules/business/racingTeamFleet')
 local racingTeamGoals = require('ge/extensions/career/modules/business/racingTeamGoals')
+local racingTeamRaceSim = require('ge/extensions/career/modules/business/racingTeamRaceSim')
 require('ge/extensions/career/modules/business/racingTeamDevLog')
 
 local rtState = require('ge/extensions/career/modules/business/racingTeamRuntimeState')
 local getOfferState, syncRacingTeamDriverUnlock
 
+-- functions with lazy definitions
+local clearPlayerScheduledRace
+local notifyRacingTeamDriversUpdated
+local racingTeamPersistDrivers
 
 local function proxyPodiumXpFromMoney(m)
   return math.max(0, math.floor((tonumber(m) or 0) * rtState.K.PROXY_PODIUM_XP_OF_MONEY + 1e-9))
@@ -24,6 +29,48 @@ local function normalizeBusinessId(businessId)
   return tonumber(businessId) or businessId
 end
 
+local function getSkillTreeNodeLevel(businessId, treeId, nodeId)
+  if not businessId or not treeId or not nodeId then return 0 end
+  local mod = career_modules_business_businessSkillTree
+  if not mod or not mod.getNodeProgress then return 0 end
+  local ok, lv = pcall(mod.getNodeProgress, normalizeBusinessId(businessId), treeId, nodeId)
+  return (ok and math.max(0, math.floor(tonumber(lv) or 0))) or 0
+end
+
+local function getVehicleDynoStatus(businessId, vehicleId)
+  if not businessId or vehicleId == nil then return -1 end
+  local idStr = tostring(normalizeBusinessId(businessId))
+  local vidStr = tostring(vehicleId)
+  
+  local assessments = rtState.vehicleAssessmentInProgressByBusiness[idStr]
+  if assessments and assessments[vidStr] then return 0 end
+  
+  local dynoReq = rtState.dynoRequiredByBusiness[idStr]
+  if dynoReq and dynoReq[vidStr] then return -1 end
+  
+  local peaks = rtState.classOptimizationPeakHpByBusiness[idStr]
+  if peaks and peaks[vidStr] ~= nil then return 1 end
+  if getSkillTreeNodeLevel(businessId, "qol", "dyno") > 0 then return 1 end
+  
+  return -1
+end
+
+local function isOfferBlockedByDyno(businessId, vehicleId)
+  return getVehicleDynoStatus(businessId, vehicleId) ~= 1
+end
+
+local function showDynoRequiredMessageIfBlocked(businessId, vehicleId)
+  local status = getVehicleDynoStatus(businessId, vehicleId)
+  if status == 0 then
+    if ui_message then ui_message("Assessment In Progress: Vehicle is being assessed at third-party facility.", 6, "Racing Team", "warning") end
+    return true
+  elseif status ~= 1 then
+    if ui_message then ui_message("Assessment Required: Vehicle must be assessed to enter sanctioned races.", 6, "Racing Team", "warning") end
+    return true
+  end
+  return false
+end
+
 local function rtDevLog(businessId, level, message, source, context)
   local dl = rtState.rtInternal.devLog
   if dl and dl.append then
@@ -31,12 +78,12 @@ local function rtDevLog(businessId, level, message, source, context)
   end
 end
 
-local function getSkillTreeNodeLevel(businessId, treeId, nodeId)
-  if not businessId or not treeId or not nodeId then return 0 end
-  local mod = career_modules_business_businessSkillTree
-  if not mod or not mod.getNodeProgress then return 0 end
-  local ok, lv = pcall(mod.getNodeProgress, normalizeBusinessId(businessId), treeId, nodeId)
-  return (ok and math.max(0, math.floor(tonumber(lv) or 0))) or 0
+local function hasManagerLevel1(businessId)
+  return getSkillTreeNodeLevel(businessId, "team-operations", "manager") >= 1
+end
+
+local function hasManagerLevel2(businessId)
+  return getSkillTreeNodeLevel(businessId, "team-operations", "manager") >= 2
 end
 
 local function getRacingTeamGarageSlotsSkillLevel(businessId)
@@ -55,48 +102,6 @@ end
 
 local function league2InvitePromoKey(businessId)
   return tostring(normalizeBusinessId(businessId))
-end
-
-local function buildOfferFromFactoryConfig(cfg, jobId)
-  local name, vehicleYear, vehicleType, vehicleImage =
-    career_modules_business_businessHelpers.extractDisplayInfo(cfg)
-  local vehicleName = name or cfg.model_key or "Unknown"
-
-  local reward = math.random(8000, 28000)
-
-  local mileageMiles = math.random (20000, 120000)
-  return {
-    id = jobId,
-    jobId = jobId,
-    vehicleName = vehicleName,
-    vehicleYear = vehicleYear,
-    vehicleType = vehicleType,
-    vehicleImage = vehicleImage,
-    reward = reward,
-    goal = "Purchase Price",
-    status = "new",
-    businessType = rtState.businessType,
-    vehicleConfig = {
-      model_key = cfg.model_key,
-      key = cfg.key
-    },
-    mileage = mileageMiles * 1609.34
-  }
-end
-
-local function generateVehicleOffer(businessId)
-  local configs = rtState.getFactoryConfigs()
-  if not configs or #configs == 0 then
-    return nil
-  end
-  local cfg = configs[math.random(#configs)]
-  if not cfg or not cfg.model_key or not cfg.key then
-    return nil
-  end
-  local id = tostring(normalizeBusinessId(businessId))
-  local nextId = (rtState.offerJobIdCounters[id] or 0) + 1
-  rtState.offerJobIdCounters[id] = nextId
-  return buildOfferFromFactoryConfig(cfg, nextId)
 end
 
 local function getRacingTeamSavePath(businessId, currentSavePath)
@@ -233,6 +238,45 @@ local function loadRacingTeamPersistedState(businessId, state)
       end
     end
   end
+  rtState.dynoRequiredByBusiness[id] = {}
+  if data.dynoRequired and type(data.dynoRequired) == "table" then
+    for k, v in pairs(data.dynoRequired) do
+      if v == true then
+        rtState.dynoRequiredByBusiness[id][tostring(k)] = true
+      end
+    end
+  end
+  rtState.vehicleAssessmentInProgressByBusiness = rtState.vehicleAssessmentInProgressByBusiness or {}
+  rtState.vehicleAssessmentInProgressByBusiness[id] = {}
+  if data.vehicleAssessmentInProgress and type(data.vehicleAssessmentInProgress) == "table" then
+    for vidKey, rec in pairs(data.vehicleAssessmentInProgress) do
+      if type(rec) == "table" then
+        rtState.vehicleAssessmentInProgressByBusiness[id][tostring(vidKey)] = {
+          duration = tonumber(rec.duration) or 0,
+          elapsed = tonumber(rec.elapsed) or 0,
+          cost = tonumber(rec.cost) or 0,
+        }
+      end
+    end
+  end
+  rtState.pendingVehicleMeasurementByBusiness = rtState.pendingVehicleMeasurementByBusiness or {}
+  rtState.pendingVehicleMeasurementByBusiness[id] = {}
+  if data.pendingVehicleMeasurement and type(data.pendingVehicleMeasurement) == "table" then
+    for vidKey, rec in pairs(data.pendingVehicleMeasurement) do
+      if type(rec) == "table" then
+        rtState.pendingVehicleMeasurementByBusiness[id][tostring(vidKey)] = {
+          hp = tonumber(rec.hp),
+          weightKg = tonumber(rec.weightKg),
+        }
+      end
+    end
+  end
+  rtState.playerScheduledOfferByBusiness = rtState.playerScheduledOfferByBusiness or {}
+  if data.playerScheduledOffer and type(data.playerScheduledOffer) == "table" then
+    rtState.playerScheduledOfferByBusiness[id] = data.playerScheduledOffer
+  else
+    rtState.playerScheduledOfferByBusiness[id] = nil
+  end
   local l2Offered = tonumber(data.league2InviteOfferedAt) or tonumber(data.wcaraInviteOfferedAt)
   local l2Declined = (data.league2InviteDeclined == true) or (data.wcaraInviteDeclined == true)
   local invTarget = data.league2InviteTargetLeague
@@ -342,6 +386,12 @@ local function loadRacingTeamPersistedState(businessId, state)
       end
     end
   end
+  if data.autoStartBackgroundRaces ~= nil then
+    rtState.autoStartBackgroundRacesByBusiness[id] = data.autoStartBackgroundRaces == true
+  else
+    rtState.autoStartBackgroundRacesByBusiness[id] = true
+  end
+  racingTeamRaceSim.loadPersistedState(businessId, data.activeBackgroundRaceSim)
 end
 
 local function saveRacingTeamPersistedState(businessId, currentSavePath)
@@ -351,9 +401,9 @@ local function saveRacingTeamPersistedState(businessId, currentSavePath)
   local bid = normalizeBusinessId(businessId)
   local id = tostring(bid)
   local state = rtState.offerStateByBusiness[id]
-  if not state then
-    return
-  end
+  if not state and getOfferState then state = getOfferState(bid) end
+  if not state then return end
+  
   rtState.tuningMilestoneByGoalByBusiness[id] = rtState.tuningMilestoneByGoalByBusiness[id] or {}
   local filePath = getRacingTeamSavePath(bid, currentSavePath)
   if not filePath then
@@ -410,6 +460,10 @@ local function saveRacingTeamPersistedState(businessId, currentSavePath)
     shortTrackCleanStreak = rtState.staminaShortTrackStreakByBusiness[id] or 0,
     sanctionedOfficialFirstPlaceWins = rtState.sanctionedOfficialFirstPlaceWinsByBusiness[id] or 0,
     classOptimizationPeakHp = rtState.classOptimizationPeakHpByBusiness[id] or {},
+    dynoRequired = rtState.dynoRequiredByBusiness[id] or {},
+    vehicleAssessmentInProgress = rtState.vehicleAssessmentInProgressByBusiness[id] or nil,
+    pendingVehicleMeasurement = rtState.pendingVehicleMeasurementByBusiness[id] or nil,
+    playerScheduledOffer = rtState.playerScheduledOfferByBusiness[id] or nil,
     league2InviteOfferedAt = (rtState.league2InviteByBusiness[id] or {}).offeredAt,
     league2InviteDeclined = (rtState.league2InviteByBusiness[id] or {}).declined == true,
     league2InviteTargetLeague = (rtState.league2InviteByBusiness[id] or {}).targetLeague,
@@ -420,6 +474,8 @@ local function saveRacingTeamPersistedState(businessId, currentSavePath)
     raceUnlockSplashShown = rtState.raceUnlockSplashShownByBusiness[id] == true,
     careerFinaleSplashPending = rtState.careerFinaleSplashPendingByBusiness[id] == true,
     careerFinaleSplashShown = rtState.careerFinaleSplashShownByBusiness[id] == true,
+    autoStartBackgroundRaces = rtState.autoStartBackgroundRacesByBusiness[id] ~= false,
+    activeBackgroundRaceSim = racingTeamRaceSim.getPersistedStateForSave(id),
     vehicleCooldowns = (function()
       local out = {}
       local now = os.time()
@@ -602,6 +658,9 @@ local function armPlayerPostRaceCooldown(businessId) return racingTeamFleet.armP
 local function getRacingTeamDriverPostRaceCooldownRemainingSec(businessId, tech) return racingTeamFleet.getRacingTeamDriverPostRaceCooldownRemainingSec(businessId, tech) end
 
 function M.armFleetVehicleCooldownAfterSanctionedRaceSettled(offer)
+  if type(offer) == "table" and offer.businessId and clearPlayerScheduledRace then
+    clearPlayerScheduledRace(offer.businessId)
+  end
   return racingTeamFleet.armFleetVehicleCooldownAfterSanctionedRaceSettled(offer)
 end
 
@@ -682,214 +741,214 @@ local function getRacingTeamLevelInfo(levelId)
   }
 
   local function normalizeRacingTeamLevelInfo(raw, lid)
-  local function setIfString(o, key, val)
-    if type(val) == "string" and val ~= "" then
-      o[key] = val
+    local function setIfString(o, key, val)
+      if type(val) == "string" and val ~= "" then
+        o[key] = val
+      end
     end
-  end
 
-  local o = {
-    sponsorFocusLabel = nil,
-    msgWelcomeToastTitle = nil,
-    msgRaceOffersLeague2 = nil,
-    msgProxyRaceScheduledToastTitle = nil,
-    msgNoSanctionedRaces = nil,
-    leagueDisplayNames = {},
-    extra = {},
-    splashPurchaseTitle = nil,
-    splashPurchaseBody = nil,
-    splashPurchaseContinueLabel = nil,
-    splashPurchaseImageUrl = nil,
-    splashCareerFinaleTitle = nil,
-    splashCareerFinaleBody = nil,
-    splashCareerFinaleContinueLabel = nil,
-    splashCareerFinaleImageUrl = nil,
-  }
-  for n = 2, 4 do
-    local d = LEAGUE_INVITE_DEFAULTS_BY_TARGET[n]
-    o[string.format("league%dInviteOrgName", n)] = d.orgName
-    o[string.format("league%dInviteAcronym", n)] = d.acronym
-    o[string.format("league%dInviteFeeEarly", n)] = d.feeEarly
-    o[string.format("league%dInviteFeeLate", n)] = d.feeLate
-    o[string.format("league%dInviteFeeEscalateMinutes", n)] = d.feeEscalateMinutes
-    o[string.format("league%dBankReasonShort", n)] = nil
-    o[string.format("splashLeague%dTitle", n)] = nil
-    o[string.format("splashLeague%dBody", n)] = nil
-    o[string.format("splashLeague%dAcceptLabel", n)] = nil
-    o[string.format("splashLeague%dLaterLabel", n)] = nil
-    o[string.format("splashLeague%dImageUrl", n)] = nil
-    o[string.format("splashLeague%dWelcomeTitle", n)] = nil
-    o[string.format("splashLeague%dWelcomeBody", n)] = nil
-    o[string.format("splashLeague%dWelcomeContinueLabel", n)] = nil
-    o[string.format("splashLeague%dWelcomeImageUrl", n)] = nil
-    o[string.format("msgWelcomeLeague%d", n)] = nil
-  end
-
-  if type(raw) == "table" then
+    local o = {
+      sponsorFocusLabel = nil,
+      msgWelcomeToastTitle = nil,
+      msgRaceOffersLeague2 = nil,
+      msgProxyRaceScheduledToastTitle = nil,
+      msgNoSanctionedRaces = nil,
+      leagueDisplayNames = {},
+      extra = {},
+      splashPurchaseTitle = nil,
+      splashPurchaseBody = nil,
+      splashPurchaseContinueLabel = nil,
+      splashPurchaseImageUrl = nil,
+      splashCareerFinaleTitle = nil,
+      splashCareerFinaleBody = nil,
+      splashCareerFinaleContinueLabel = nil,
+      splashCareerFinaleImageUrl = nil,
+    }
     for n = 2, 4 do
-      local inv = raw[string.format("league%dInvite", n)]
-      if type(inv) == "table" then
-        setIfString(o, string.format("league%dInviteOrgName", n), inv.orgName)
-        setIfString(o, string.format("league%dInviteAcronym", n), inv.acronym)
-        local fe = tonumber(inv.feeEarly)
-        if fe and fe > 0 then o[string.format("league%dInviteFeeEarly", n)] = math.floor(fe) end
-        local fl = tonumber(inv.feeLate)
-        if fl and fl > 0 then o[string.format("league%dInviteFeeLate", n)] = math.floor(fl) end
-        local em = tonumber(inv.feeEscalateMinutes)
-        if em and em > 0 then o[string.format("league%dInviteFeeEscalateMinutes", n)] = math.floor(em) end
-        setIfString(o, string.format("league%dBankReasonShort", n), inv.bankReasonShort)
-      end
+      local d = LEAGUE_INVITE_DEFAULTS_BY_TARGET[n]
+      o[string.format("league%dInviteOrgName", n)] = d.orgName
+      o[string.format("league%dInviteAcronym", n)] = d.acronym
+      o[string.format("league%dInviteFeeEarly", n)] = d.feeEarly
+      o[string.format("league%dInviteFeeLate", n)] = d.feeLate
+      o[string.format("league%dInviteFeeEscalateMinutes", n)] = d.feeEscalateMinutes
+      o[string.format("league%dBankReasonShort", n)] = nil
+      o[string.format("splashLeague%dTitle", n)] = nil
+      o[string.format("splashLeague%dBody", n)] = nil
+      o[string.format("splashLeague%dAcceptLabel", n)] = nil
+      o[string.format("splashLeague%dLaterLabel", n)] = nil
+      o[string.format("splashLeague%dImageUrl", n)] = nil
+      o[string.format("splashLeague%dWelcomeTitle", n)] = nil
+      o[string.format("splashLeague%dWelcomeBody", n)] = nil
+      o[string.format("splashLeague%dWelcomeContinueLabel", n)] = nil
+      o[string.format("splashLeague%dWelcomeImageUrl", n)] = nil
+      o[string.format("msgWelcomeLeague%d", n)] = nil
     end
-    local sp = raw.sponsorOffer
-    if type(sp) == "table" and type(sp.focusLabel) == "string" and sp.focusLabel ~= "" then
-      o.sponsorFocusLabel = sp.focusLabel
-    end
-    local msg = raw.messages
-    if type(msg) == "table" then
-      setIfString(o, "msgWelcomeLeague2", msg.welcomeLeague2)
-      setIfString(o, "msgWelcomeLeague3", msg.welcomeLeague3)
-      setIfString(o, "msgWelcomeLeague4", msg.welcomeLeague4)
-      setIfString(o, "msgWelcomeToastTitle", msg.welcomeToastTitle)
-      setIfString(o, "msgRaceOffersLeague2", msg.raceOffersLeague2)
-      setIfString(o, "msgProxyRaceScheduledToastTitle", msg.proxyRaceScheduledToastTitle)
-    end
-    local hints = raw.hints
-    if type(hints) == "table" and type(hints.noSanctionedRaces) == "string" and hints.noSanctionedRaces ~= "" then
-      o.msgNoSanctionedRaces = hints.noSanctionedRaces
-    end
-    if type(raw.leagueDisplayNames) == "table" then
-      o.leagueDisplayNames = shallowCopyTable(raw.leagueDisplayNames)
-    end
-    if type(raw.extra) == "table" then
-      o.extra = shallowCopyTable(raw.extra)
-    end
-    local sps = raw.splashes
-    if type(sps) == "table" then
-      local pu = sps.purchase
-      if type(pu) == "table" then
-        setIfString(o, "splashPurchaseTitle", pu.title)
-        setIfString(o, "splashPurchaseBody", pu.body)
-        setIfString(o, "splashPurchaseContinueLabel", pu.continueLabel)
-        setIfString(o, "splashPurchaseImageUrl", pu.imageUrl)
-      end
-      local cf = sps.careerFinale
-      if type(cf) == "table" then
-        setIfString(o, "splashCareerFinaleTitle", cf.title)
-        setIfString(o, "splashCareerFinaleBody", cf.body)
-        setIfString(o, "splashCareerFinaleContinueLabel", cf.continueLabel)
-        setIfString(o, "splashCareerFinaleImageUrl", cf.imageUrl)
-      end
+
+    if type(raw) == "table" then
       for n = 2, 4 do
-        local l = sps[string.format("league%d", n)]
-        if type(l) == "table" then
-          setIfString(o, string.format("splashLeague%dTitle", n), l.title)
-          setIfString(o, string.format("splashLeague%dBody", n), l.body)
-          setIfString(o, string.format("splashLeague%dAcceptLabel", n), l.acceptLabel)
-          setIfString(o, string.format("splashLeague%dLaterLabel", n), l.laterLabel)
-          setIfString(o, string.format("splashLeague%dImageUrl", n), l.imageUrl)
-        end
-        local lw = sps[string.format("league%dWelcome", n)]
-        if type(lw) == "table" then
-          setIfString(o, string.format("splashLeague%dWelcomeTitle", n), lw.title)
-          setIfString(o, string.format("splashLeague%dWelcomeBody", n), lw.body)
-          setIfString(o, string.format("splashLeague%dWelcomeContinueLabel", n), lw.continueLabel)
-          setIfString(o, string.format("splashLeague%dWelcomeImageUrl", n), lw.imageUrl)
+        local inv = raw[string.format("league%dInvite", n)]
+        if type(inv) == "table" then
+          setIfString(o, string.format("league%dInviteOrgName", n), inv.orgName)
+          setIfString(o, string.format("league%dInviteAcronym", n), inv.acronym)
+          local fe = tonumber(inv.feeEarly)
+          if fe and fe > 0 then o[string.format("league%dInviteFeeEarly", n)] = math.floor(fe) end
+          local fl = tonumber(inv.feeLate)
+          if fl and fl > 0 then o[string.format("league%dInviteFeeLate", n)] = math.floor(fl) end
+          local em = tonumber(inv.feeEscalateMinutes)
+          if em and em > 0 then o[string.format("league%dInviteFeeEscalateMinutes", n)] = math.floor(em) end
+          setIfString(o, string.format("league%dBankReasonShort", n), inv.bankReasonShort)
         end
       end
-    end
-  end
-
-  local ac2 = o.league2InviteAcronym
-  if not o.sponsorFocusLabel or o.sponsorFocusLabel == "" then
-    o.sponsorFocusLabel = ac2 .. " team racing"
-  end
-  if not o.msgRaceOffersLeague2 or o.msgRaceOffersLeague2 == "" then
-    o.msgRaceOffersLeague2 =
-      ac2 .. " management: assign proxy races from the Drivers tab (rolled events — no job board)."
-  end
-  if not o.msgWelcomeToastTitle or o.msgWelcomeToastTitle == "" then
-    o.msgWelcomeToastTitle = ac2
-  end
-  if not o.msgProxyRaceScheduledToastTitle or o.msgProxyRaceScheduledToastTitle == "" then
-    o.msgProxyRaceScheduledToastTitle = ac2
-  end
-  if not o.msgNoSanctionedRaces or o.msgNoSanctionedRaces == "" then
-    o.msgNoSanctionedRaces =
-      "No sanctioned race offers yet. Keep working through your team goals — circuit offers unlock as you progress."
-  end
-  if not o.splashPurchaseTitle or o.splashPurchaseTitle == "" then
-    o.splashPurchaseTitle = "Welcome"
-  end
-  if not o.splashPurchaseBody or o.splashPurchaseBody == "" then
-    o.splashPurchaseBody =
-      "You own the racing team. Open the business computer and work through goals to grow the program."
-  end
-  if not o.splashPurchaseContinueLabel or o.splashPurchaseContinueLabel == "" then
-    o.splashPurchaseContinueLabel = "Continue"
-  end
-  if not o.splashCareerFinaleTitle or o.splashCareerFinaleTitle == "" then
-    o.splashCareerFinaleTitle = "Well done indeed"
-  end
-  if not o.splashCareerFinaleBody or o.splashCareerFinaleBody == "" then
-    o.splashCareerFinaleBody =
-      "Look how far you've come..... what started as a few bucks and a dream has turned into a career. You know what they say, \"find something you love to do and you'll never work a day in your life\"\n\n"
-        .. "How does it feel? National recognition, dreams realized? You've made it. Enjoy this career you've built - keep pushing the envelope and competing - it doesn't get any easier, but, you know that by now.\n\n"
-        .. "Congratulations kid, well done indeed"
-  end
-  if not o.splashCareerFinaleContinueLabel or o.splashCareerFinaleContinueLabel == "" then
-    o.splashCareerFinaleContinueLabel = "Continue"
-  end
-
-  for n = 2, 4 do
-    local ac = o[string.format("league%dInviteAcronym", n)]
-    local titleKey = string.format("splashLeague%dTitle", n)
-    if not o[titleKey] or o[titleKey] == "" then
-      o[titleKey] = ac .. " invitation"
-    end
-    local bodyKey = string.format("splashLeague%dBody", n)
-    if not o[bodyKey] or o[bodyKey] == "" then
-      if n == 2 then
-        o[bodyKey] =
-          "Tier one is complete. You can register with " .. ac
-            .. " now (fee from your business account) or choose Later and decide from the Goals tab."
-      else
-        o[bodyKey] = string.format(
-          "Your league %d objectives are complete. Register with %s to advance into a higher league — tougher cars, tighter fields, bigger stakes. Fee posts to your team account when you accept, or choose Later and decide from the Goals tab.",
-          n - 1, ac
-        )
+      local sp = raw.sponsorOffer
+      if type(sp) == "table" and type(sp.focusLabel) == "string" and sp.focusLabel ~= "" then
+        o.sponsorFocusLabel = sp.focusLabel
+      end
+      local msg = raw.messages
+      if type(msg) == "table" then
+        setIfString(o, "msgWelcomeLeague2", msg.welcomeLeague2)
+        setIfString(o, "msgWelcomeLeague3", msg.welcomeLeague3)
+        setIfString(o, "msgWelcomeLeague4", msg.welcomeLeague4)
+        setIfString(o, "msgWelcomeToastTitle", msg.welcomeToastTitle)
+        setIfString(o, "msgRaceOffersLeague2", msg.raceOffersLeague2)
+        setIfString(o, "msgProxyRaceScheduledToastTitle", msg.proxyRaceScheduledToastTitle)
+      end
+      local hints = raw.hints
+      if type(hints) == "table" and type(hints.noSanctionedRaces) == "string" and hints.noSanctionedRaces ~= "" then
+        o.msgNoSanctionedRaces = hints.noSanctionedRaces
+      end
+      if type(raw.leagueDisplayNames) == "table" then
+        o.leagueDisplayNames = shallowCopyTable(raw.leagueDisplayNames)
+      end
+      if type(raw.extra) == "table" then
+        o.extra = shallowCopyTable(raw.extra)
+      end
+      local sps = raw.splashes
+      if type(sps) == "table" then
+        local pu = sps.purchase
+        if type(pu) == "table" then
+          setIfString(o, "splashPurchaseTitle", pu.title)
+          setIfString(o, "splashPurchaseBody", pu.body)
+          setIfString(o, "splashPurchaseContinueLabel", pu.continueLabel)
+          setIfString(o, "splashPurchaseImageUrl", pu.imageUrl)
+        end
+        local cf = sps.careerFinale
+        if type(cf) == "table" then
+          setIfString(o, "splashCareerFinaleTitle", cf.title)
+          setIfString(o, "splashCareerFinaleBody", cf.body)
+          setIfString(o, "splashCareerFinaleContinueLabel", cf.continueLabel)
+          setIfString(o, "splashCareerFinaleImageUrl", cf.imageUrl)
+        end
+        for n = 2, 4 do
+          local l = sps[string.format("league%d", n)]
+          if type(l) == "table" then
+            setIfString(o, string.format("splashLeague%dTitle", n), l.title)
+            setIfString(o, string.format("splashLeague%dBody", n), l.body)
+            setIfString(o, string.format("splashLeague%dAcceptLabel", n), l.acceptLabel)
+            setIfString(o, string.format("splashLeague%dLaterLabel", n), l.laterLabel)
+            setIfString(o, string.format("splashLeague%dImageUrl", n), l.imageUrl)
+          end
+          local lw = sps[string.format("league%dWelcome", n)]
+          if type(lw) == "table" then
+            setIfString(o, string.format("splashLeague%dWelcomeTitle", n), lw.title)
+            setIfString(o, string.format("splashLeague%dWelcomeBody", n), lw.body)
+            setIfString(o, string.format("splashLeague%dWelcomeContinueLabel", n), lw.continueLabel)
+            setIfString(o, string.format("splashLeague%dWelcomeImageUrl", n), lw.imageUrl)
+          end
+        end
       end
     end
-    local accKey = string.format("splashLeague%dAcceptLabel", n)
-    if not o[accKey] or o[accKey] == "" then o[accKey] = "Accept" end
-    local latKey = string.format("splashLeague%dLaterLabel", n)
-    if not o[latKey] or o[latKey] == "" then o[latKey] = "Later" end
 
-    local welTitleKey = string.format("splashLeague%dWelcomeTitle", n)
-    if not o[welTitleKey] or o[welTitleKey] == "" then
-      o[welTitleKey] = "You're in"
+    local ac2 = o.league2InviteAcronym
+    if not o.sponsorFocusLabel or o.sponsorFocusLabel == "" then
+      o.sponsorFocusLabel = ac2 .. " team racing"
     end
-    local welBodyKey = string.format("splashLeague%dWelcomeBody", n)
-    if not o[welBodyKey] or o[welBodyKey] == "" then
-      if n == 2 then
-        o[welBodyKey] =
-          "Registration fee posted to your team account. Welcome to the regional grid — hire drivers, keep the cars healthy, and use the Race tab when you are ready to run."
-      else
-        o[welBodyKey] = string.format(
-          "Registration fee posted. You are now competing in %s — keep the operation tight, hire drivers who can hold position, and use the Race tab when you are ready to run.",
-          ac
-        )
+    if not o.msgRaceOffersLeague2 or o.msgRaceOffersLeague2 == "" then
+      o.msgRaceOffersLeague2 =
+        ac2 .. " management: assign proxy races from the Drivers tab (rolled events — no job board)."
+    end
+    if not o.msgWelcomeToastTitle or o.msgWelcomeToastTitle == "" then
+      o.msgWelcomeToastTitle = ac2
+    end
+    if not o.msgProxyRaceScheduledToastTitle or o.msgProxyRaceScheduledToastTitle == "" then
+      o.msgProxyRaceScheduledToastTitle = ac2
+    end
+    if not o.msgNoSanctionedRaces or o.msgNoSanctionedRaces == "" then
+      o.msgNoSanctionedRaces =
+        "No sanctioned race offers yet. Keep working through your team goals — circuit offers unlock as you progress."
+    end
+    if not o.splashPurchaseTitle or o.splashPurchaseTitle == "" then
+      o.splashPurchaseTitle = "Welcome"
+    end
+    if not o.splashPurchaseBody or o.splashPurchaseBody == "" then
+      o.splashPurchaseBody =
+        "You own the racing team. Open the business computer and work through goals to grow the program."
+    end
+    if not o.splashPurchaseContinueLabel or o.splashPurchaseContinueLabel == "" then
+      o.splashPurchaseContinueLabel = "Continue"
+    end
+    if not o.splashCareerFinaleTitle or o.splashCareerFinaleTitle == "" then
+      o.splashCareerFinaleTitle = "Well done indeed"
+    end
+    if not o.splashCareerFinaleBody or o.splashCareerFinaleBody == "" then
+      o.splashCareerFinaleBody =
+        "Look how far you've come..... what started as a few bucks and a dream has turned into a career. You know what they say, \"find something you love to do and you'll never work a day in your life\"\n\n"
+          .. "How does it feel? National recognition, dreams realized? You've made it. Enjoy this career you've built - keep pushing the envelope and competing - it doesn't get any easier, but, you know that by now.\n\n"
+          .. "Congratulations kid, well done indeed"
+    end
+    if not o.splashCareerFinaleContinueLabel or o.splashCareerFinaleContinueLabel == "" then
+      o.splashCareerFinaleContinueLabel = "Continue"
+    end
+
+    for n = 2, 4 do
+      local ac = o[string.format("league%dInviteAcronym", n)]
+      local titleKey = string.format("splashLeague%dTitle", n)
+      if not o[titleKey] or o[titleKey] == "" then
+        o[titleKey] = ac .. " invitation"
+      end
+      local bodyKey = string.format("splashLeague%dBody", n)
+      if not o[bodyKey] or o[bodyKey] == "" then
+        if n == 2 then
+          o[bodyKey] =
+            "Tier one is complete. You can register with " .. ac
+              .. " now (fee from your business account) or choose Later and decide from the Goals tab."
+        else
+          o[bodyKey] = string.format(
+            "Your league %d objectives are complete. Register with %s to advance into a higher league — tougher cars, tighter fields, bigger stakes. Fee posts to your team account when you accept, or choose Later and decide from the Goals tab.",
+            n - 1, ac
+          )
+        end
+      end
+      local accKey = string.format("splashLeague%dAcceptLabel", n)
+      if not o[accKey] or o[accKey] == "" then o[accKey] = "Accept" end
+      local latKey = string.format("splashLeague%dLaterLabel", n)
+      if not o[latKey] or o[latKey] == "" then o[latKey] = "Later" end
+
+      local welTitleKey = string.format("splashLeague%dWelcomeTitle", n)
+      if not o[welTitleKey] or o[welTitleKey] == "" then
+        o[welTitleKey] = "You're in"
+      end
+      local welBodyKey = string.format("splashLeague%dWelcomeBody", n)
+      if not o[welBodyKey] or o[welBodyKey] == "" then
+        if n == 2 then
+          o[welBodyKey] =
+            "Registration fee posted to your team account. Welcome to the regional grid — hire drivers, keep the cars healthy, and use the Race tab when you are ready to run."
+        else
+          o[welBodyKey] = string.format(
+            "Registration fee posted. You are now competing in %s — keep the operation tight, hire drivers who can hold position, and use the Race tab when you are ready to run.",
+            ac
+          )
+        end
+      end
+      local welContKey = string.format("splashLeague%dWelcomeContinueLabel", n)
+      if not o[welContKey] or o[welContKey] == "" then o[welContKey] = "Let's Go!" end
+
+      local msgWelKey = string.format("msgWelcomeLeague%d", n)
+      if not o[msgWelKey] or o[msgWelKey] == "" then
+        o[msgWelKey] = "Welcome to " .. ac .. " — hire drivers and run sanctioned races."
       end
     end
-    local welContKey = string.format("splashLeague%dWelcomeContinueLabel", n)
-    if not o[welContKey] or o[welContKey] == "" then o[welContKey] = "Let's Go!" end
-
-    local msgWelKey = string.format("msgWelcomeLeague%d", n)
-    if not o[msgWelKey] or o[msgWelKey] == "" then
-      o[msgWelKey] = "Welcome to " .. ac .. " — hire drivers and run sanctioned races."
-    end
+    return o
   end
-  return o
-end
 
   local lid = ""
   if type(levelId) == "string" then
@@ -948,22 +1007,14 @@ local function getMaxPulledOutVehicles(businessId)
   local function clampPulls(n)
     return math.min(cap, math.max(1, math.floor(tonumber(n) or 1)))
   end
-  if rtState.rtInternal.getCurrentLeague(businessId) == "league1" then
-    local base = rtState.rtInternal.allTierOneGoalsComplete(businessId) and 2 or 1
-    return clampPulls(base + slotLv)
-  end
-  local n = math.max(
-    2,
-    rtState.K.MAX_LEAGUE2_PULLED_OUT + getSkillTreeNodeLevel(businessId, "team-operations", "paddock-capacity")
-  ) + slotLv
-  return clampPulls(n)
+  local isLeague1 = rtState.rtInternal.getCurrentLeague(businessId) == "league1"
+  local base = (not isLeague1 or rtState.rtInternal.allTierOneGoalsComplete(businessId)) and 2 or 1
+  return clampPulls(base + slotLv)
 end
 
 local function getMaxActiveJobs(businessId)
   local cap = rtState.K.RACING_TEAM_GARAGE_PARKING_CAP or 4
-  local n = 2
-    + getSkillTreeNodeLevel(businessId, "team-operations", "parallel-programs")
-    + getRacingTeamGarageSlotsSkillLevel(businessId)
+  local n = 2 + getRacingTeamGarageSlotsSkillLevel(businessId)
   return math.min(cap, math.max(1, n))
 end
 
@@ -1105,56 +1156,66 @@ local function dropRacingTeamSponsorActive(businessId, offerId) return racingTea
 
 rtState.loadRacingTeamDrivers = function(businessId)
   businessId = normalizeBusinessId(businessId)
-  if not businessId then
-    return {}
-  end
+  if not businessId then return {} end
+  
   local function ensurePendingOfferWallDeadlineForTech(tech)
     local pr = tech and tech.pendingRaceOffer
-    if not pr or type(pr) ~= "table" then
-      return
-    end
+    if not pr or type(pr) ~= "table" then return end
     local simDue = tonumber(pr.scheduledRaceSimTime)
-    if not simDue then
-      return
-    end
-    if tonumber(pr.scheduledRaceReadyWallEpoch) then
-      return
-    end
+    if not simDue then return end
+    if tonumber(pr.scheduledRaceReadyWallEpoch) then return end
     local rem = math.max(0, math.ceil(simDue - getCareerSimTime()))
     pr.scheduledRaceReadyWallEpoch = os.time() + rem
   end
+  
   local function ensurePostRaceCooldownWallDeadlineForTech(tech)
-    if not tech or type(tech) ~= "table" then
-      return
-    end
+    if not tech or type(tech) ~= "table" then return end
+    
     local untilSim = tonumber(tech.racingCooldownUntilSimTime)
     if not untilSim then
       tech.postRaceCooldownReadyWallEpoch = nil
       return
     end
+    
     local wallEpoch = tonumber(tech.postRaceCooldownReadyWallEpoch)
     if wallEpoch and wallEpoch > 0 and os.time() >= wallEpoch then
       tech.racingCooldownUntilSimTime = nil
       tech.postRaceCooldownReadyWallEpoch = nil
       return
     end
+    
     local nowSim = getCareerSimTime()
     if nowSim >= untilSim then
       tech.racingCooldownUntilSimTime = nil
       tech.postRaceCooldownReadyWallEpoch = nil
       return
     end
+    
     if wallEpoch and wallEpoch > 0 then
       return
     end
     local remSim = math.max(0, math.ceil(untilSim - nowSim))
     tech.postRaceCooldownReadyWallEpoch = os.time() + remSim
   end
+  
+  local function ensureDriverSimulationState(businessId, tech)
+    if not tech or type(tech) ~= "table" then return end
+    local sim = racingTeamRaceSim and racingTeamRaceSim.getActiveSim and racingTeamRaceSim.getActiveSim(businessId)
+    local isThisDriverSimulating = sim and tonumber(sim.driverId) == tonumber(tech.id)
+    local isThisDriverStateInRace = tech.currentAction == racingTeamRaceSim.DRIVER_DRIVING_TO_RACE or tech.currentAction == racingTeamRaceSim.DRIVER_IN_RACE or tech.currentAction == racingTeamRaceSim.DRIVER_DRIVING_FROM_RACE
+    if not isThisDriverSimulating and isThisDriverStateInRace then
+      -- if driver is in state of background race, but race simulation is stale, then reset state
+      tech.currentAction = "idle"
+      tech.phase = "idle"
+    end
+  end
+  
   if rtState.businessDrivers[businessId] then
     ensureRacingTeamDriverSlots(businessId)
     for _, tech in ipairs(rtState.businessDrivers[businessId]) do
       ensurePendingOfferWallDeadlineForTech(tech)
       ensurePostRaceCooldownWallDeadlineForTech(tech)
+      ensureDriverSimulationState(businessId, tech)
     end
     return rtState.businessDrivers[businessId]
   end
@@ -1169,6 +1230,7 @@ rtState.loadRacingTeamDrivers = function(businessId)
           ensureRacingDriverIdentity(tech, tech.id or index)
           ensurePendingOfferWallDeadlineForTech(tech)
           ensurePostRaceCooldownWallDeadlineForTech(tech)
+          ensureDriverSimulationState(businessId, tech)
           table.insert(techs, tech)
         end
       end
@@ -1180,10 +1242,10 @@ rtState.loadRacingTeamDrivers = function(businessId)
 end
 
 local function getRacingTeamDriversRawForUI(businessId)
-  if getRacingTeamDriverCapacity(businessId) < 1 then
-    return {}
+  if getRacingTeamDriverCapacity(businessId) >= 1 then
+    return rtState.loadRacingTeamDrivers(businessId) or {}
   end
-  return rtState.loadRacingTeamDrivers(businessId)
+  return {}
 end
 
 local function getRacingTeamDriverById(businessId, techId)
@@ -1236,12 +1298,106 @@ local function sanctionedOfferMatchesFleetVehicle(businessId, fleetVehicleId, of
   if not pw then
     return false
   end
+  local hi = tonumber(offer.classPwMax) or tonumber(offer.classHpMax) or 0
   local lo = tonumber(offer.classPwMin) or tonumber(offer.classHpMin) or 0
-  local hi = tonumber(offer.classPwMax) or tonumber(offer.classHpMax) or lo
   if hi < lo then
     lo, hi = hi, lo
   end
-  return pw >= lo and pw <= hi
+  return pw <= hi
+end
+
+local function completeVehicleAssessment(businessId, vehicleId)
+  local idStr = tostring(normalizeBusinessId(businessId))
+  local vidStr = tostring(vehicleId)
+  local pending = rtState.pendingVehicleMeasurementByBusiness and rtState.pendingVehicleMeasurementByBusiness[idStr] and rtState.pendingVehicleMeasurementByBusiness[idStr][vidStr]
+  local entry = nil
+  if type(pending) == "table" and pending.hp then
+    entry = pending
+  else
+    local raw = getBusinessVehicleRawByInventoryId(businessId, vehicleId)
+    local hp = raw and getEffectiveTeamJobVehicleHp(businessId, raw)
+    local pw = raw and getEffectiveTeamJobVehiclePw(businessId, raw)
+    local w = (hp and pw and pw > 0) and math.floor(hp / pw + 0.5) or 1200
+    entry = { hp = hp or 200, weightKg = w }
+  end
+
+  rtState.classOptimizationPeakHpByBusiness[idStr] = rtState.classOptimizationPeakHpByBusiness[idStr] or {}
+  rtState.classOptimizationPeakHpByBusiness[idStr][vidStr] = entry
+
+  if rtState.dynoRequiredByBusiness[idStr] then rtState.dynoRequiredByBusiness[idStr][vidStr] = nil end
+  if rtState.vehicleAssessmentInProgressByBusiness[idStr] then rtState.vehicleAssessmentInProgressByBusiness[idStr][vidStr] = nil end
+  if rtState.pendingVehicleMeasurementByBusiness[idStr] then rtState.pendingVehicleMeasurementByBusiness[idStr][vidStr] = nil end
+
+  local _, savePath = career_saveSystem.getCurrentProfile()
+  if savePath then saveRacingTeamPersistedState(businessId, savePath) end
+
+  local pw = type(entry) == "table" and entry.hp and entry.weightKg and entry.weightKg > 0 and (entry.hp / entry.weightKg) or 0
+  local sr = gameplay_events_freContracts_sanctionedRacing
+  local classLabel = sr and sr.getSanctionedPwBracketLabelForPw and pw > 0 and sr.getSanctionedPwBracketLabelForPw(pw) or "Class Certified"
+  local rawV = getBusinessVehicleRawByInventoryId(businessId, vehicleId)
+  local vName = rawV and (rawV.vehicleName or rawV.name) or ("Vehicle #" .. vidStr)
+  
+  if ui_message then ui_message(string.format("%s assessed: %s (%.2f hp/kg)", vName, classLabel, pw), 7, "Racing Team", "info") end
+  racingTeamRaceOffers.bumpRefresh(businessId)
+  rtState.rtInternal.advanceRacingTeamGoalsIfReady(businessId)
+  
+  log("I", "racingTeam", "Vehicle assessment completed for " .. vidStr)
+end
+
+local function startVehicleAssessment(businessId, vehicleId)
+  businessId = normalizeBusinessId(businessId)
+  if not businessId or vehicleId == nil then
+    return { ok = false, err = "missing_args" }
+  end
+  local raw = getBusinessVehicleRawByInventoryId(businessId, vehicleId)
+  if not raw then
+    return { ok = false, err = "vehicle_not_found" }
+  end
+  
+  local idStr = tostring(businessId)
+  local vidStr = tostring(vehicleId)
+
+  local status = getVehicleDynoStatus(businessId, vehicleId)
+  if status == 0 then
+    return { ok = false, err = "already_assessing" }
+  end
+
+  local activeSim = racingTeamRaceSim.getActiveSim(businessId)
+  if activeSim and tonumber(activeSim.fleetVehicleId) == tonumber(vehicleId) then
+    return { ok = false, err = "vehicle_in_race" }
+  end
+
+  local cost = rtState.K.RACING_TEAM_VEHICLE_ASSESS_COST or 1200
+  if not career_modules_bank or not career_modules_bank.getBusinessAccount or not career_modules_bank.removeFunds then
+    return { ok = false, err = "bank_unavailable" }
+  end
+  
+  local bAccount = career_modules_bank.getBusinessAccount(rtState.businessType, businessId)
+  local accountId = bAccount and (bAccount.id or bAccount.accountId)
+  if not accountId then
+    return { ok = false, err = "no_business_account" }
+  end
+  
+  local debited = career_modules_bank.removeFunds(accountId, cost, "Vehicle Assessment", "Third-party dyno assessment & flatbed transport", false)
+  if not debited then
+    if ui_message then ui_message("Not enough funds in team account for vehicle assessment.", 6, "Racing Team", "warning") end
+    return { ok = false, err = "insufficient_funds" }
+  end
+
+  rtState.vehicleAssessmentInProgressByBusiness[idStr] = rtState.vehicleAssessmentInProgressByBusiness[idStr] or {}
+  rtState.vehicleAssessmentInProgressByBusiness[idStr][vidStr] = {
+    duration = rtState.K.RACING_TEAM_VEHICLE_ASSESS_DURATION_SIM or 300,
+    elapsed = 0,
+    cost = cost,
+  }
+
+  local _, savePath = career_saveSystem.getCurrentProfile()
+  if savePath then saveRacingTeamPersistedState(businessId, savePath) end
+  if ui_message then ui_message(string.format("Vehicle assessment scheduled (-$%d). Flatbed transport en route (5 min).", cost), 6, "Racing Team", "info") end
+
+  notifyRacingTeamDriversUpdated(businessId)
+  rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer(businessId)
+  return { ok = true }
 end
 
 local function fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, offer)
@@ -1264,7 +1420,7 @@ local function fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, offer
   return pw > hi
 end
 
-local function fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer)
+local function fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer, forceStrict)
   if type(offer) ~= "table" or fleetVehicleId == nil then
     return false
   end
@@ -1281,11 +1437,15 @@ local function fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer)
   if hi < lo then
     lo, hi = hi, lo
   end
+  if forceStrict and pw < lo then
+    return false
+  end
   return pw <= hi
 end
 
-local notifyRacingTeamDriversUpdated
-local racingTeamPersistDrivers
+local function fleetVehicleMatchesBracketStrict(businessId, fleetVehicleId, offer)
+  return fleetVehicleEligibleForOffer(businessId, fleetVehicleId, offer, true)
+end
 
 local function acceptRacingTeamRaceOffer(businessId, offerId, techId)
   businessId = normalizeBusinessId(businessId)
@@ -1331,6 +1491,9 @@ local function acceptRacingTeamRaceOffer(businessId, offerId, techId)
   end
   if not idx or not picked then
     return false
+  end
+  if showDynoRequiredMessageIfBlocked(businessId, fleetVehicleId) then
+    return "dyno_required"
   end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, picked) then
     if guihooks then
@@ -1398,9 +1561,9 @@ local function acceptRacingTeamRaceOffer(businessId, offerId, techId)
   tech.postRaceCooldownReadyWallEpoch = nil
   racingTeamPersistDrivers(businessId)
   topUpRaceOffers(businessId)
-  if career_saveSystem.saveCurrent then
-    career_saveSystem.saveCurrent()
-  end
+  
+  local _, savePath = career_saveSystem and career_saveSystem.getCurrentProfile and career_saveSystem.getCurrentProfile()
+  if savePath then saveRacingTeamPersistedState(businessId, savePath) end
   if ui_message then
     ui_message(
       string.format(
@@ -1556,12 +1719,20 @@ local function listLeague1FleetVehiclesForSanctionedOffer(businessId, offerId)
           fleetEffectivePw = formatted.fleetEffectivePw,
           fleetSanctionedClassLabel = formatted.fleetSanctionedClassLabel,
           fleetClassStatusMessage = formatted.fleetClassStatusMessage,
+          dynoStatus = formatted.dynoStatus,
           overpowered = overpowered,
           onCooldown = onCooldown,
           cooldownSec = cooldownSec
         })
       else
-        table.insert(out, { vehicleId = vid, vehicleName = "Vehicle " .. tostring(vid), overpowered = overpowered, onCooldown = onCooldown, cooldownSec = cooldownSec })
+        table.insert(out, {
+          vehicleId = vid,
+          vehicleName = "Vehicle " .. tostring(vid),
+          dynoStatus = getVehicleDynoStatus(businessId, vid),
+          overpowered = overpowered,
+          onCooldown = onCooldown,
+          cooldownSec = cooldownSec
+        })
       end
     end
   end
@@ -1607,6 +1778,9 @@ local function acceptRacingTeamRaceOfferAsPlayer(businessId, offerId, fleetVehic
       ui_message("That race offer is no longer on the board (refresh or pick another offer).", 8, "Racing Team", "warning")
     end
     return "offer_not_on_board"
+  end
+  if showDynoRequiredMessageIfBlocked(businessId, fleetVehicleId) then
+    return "dyno_required"
   end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, picked) then
     if guihooks then
@@ -1654,6 +1828,10 @@ local function acceptRacingTeamRaceOfferAsPlayer(businessId, offerId, fleetVehic
   for k, v in pairs(picked) do
     pr[k] = v
   end
+
+  local rawV = getBusinessVehicleRawByInventoryId(businessId, fleetVehicleId)
+  local mk = rawV and rawV.vehicleConfig and rawV.vehicleConfig.model_key or nil
+
   pr.scheduledRaceSimTime = nil
   pr.scheduledRaceReadyWallEpoch = nil
   pr.disciplineId = pr.disciplineId or "roadracing"
@@ -1662,6 +1840,7 @@ local function acceptRacingTeamRaceOfferAsPlayer(businessId, offerId, fleetVehic
   pr.businessId = tostring(normalizeBusinessId(businessId))
   pr.fleetVehicleId = tonumber(fleetVehicleId) or fleetVehicleId
   pr.requiredFleetVehicleId = tonumber(fleetVehicleId) or fleetVehicleId
+  pr.fleetVehicleName = mk or ("Vehicle " .. tostring(fleetVehicleId))
   local sr = gameplay_events_freContracts_sanctionedRacing
   if not sr or not sr.commitAndNavigateExternalOffer then
     racingTeamFinances.refundRaceEntranceFee(businessId, picked, rtState.rtInternal.getCurrentLeague(businessId))
@@ -1692,14 +1871,18 @@ local function acceptRacingTeamRaceOfferAsPlayer(businessId, offerId, fleetVehic
     end
     return type(commitFailReason) == "string" and commitFailReason ~= "" and commitFailReason or "sanctioned_commit_failed"
   end
+  
+  local idStr = tostring(normalizeBusinessId(businessId))
+  rtState.playerScheduledOfferByBusiness[idStr] = pr
   local _, savePath = career_saveSystem.getCurrentProfile()
   if savePath then
     saveRacingTeamPersistedState(businessId, savePath)
   end
   topUpRaceOffers(businessId)
+  notifyRacingTeamDriversUpdated(businessId)
   if career_saveSystem.saveCurrent then
-        career_saveSystem.saveCurrent()
-      end
+    career_saveSystem.saveCurrent()
+  end
   return true
 end
 
@@ -1749,6 +1932,7 @@ local function listLeague2FleetVehiclesForSanctionedOffer(businessId, offerId)
           fleetEffectivePw = formatted.fleetEffectivePw,
           fleetSanctionedClassLabel = formatted.fleetSanctionedClassLabel,
           fleetClassStatusMessage = formatted.fleetClassStatusMessage,
+          dynoStatus = formatted.dynoStatus,
           overpowered = overpowered,
           onCooldown = onCooldown,
           cooldownSec = cooldownSec,
@@ -1759,6 +1943,7 @@ local function listLeague2FleetVehiclesForSanctionedOffer(businessId, offerId)
         table.insert(out, {
           vehicleId = vid,
           vehicleName = "Vehicle " .. tostring(vid),
+          dynoStatus = getVehicleDynoStatus(businessId, vid),
           overpowered = overpowered,
           onCooldown = onCooldown,
           cooldownSec = cooldownSec,
@@ -1816,6 +2001,9 @@ local function acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(businessId, offer
       ui_message("That race offer is no longer on the board (refresh or pick another offer).", 8, "Racing Team", "warning")
     end
     return "offer_not_on_board"
+  end
+  if showDynoRequiredMessageIfBlocked(businessId, fleetVehicleId) then
+    return "dyno_required"
   end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, picked) then
     if guihooks then
@@ -1881,6 +2069,10 @@ local function acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(businessId, offer
   for k, v in pairs(picked) do
     pr[k] = v
   end
+
+  local rawV = getBusinessVehicleRawByInventoryId(businessId, fleetVehicleId)
+  local mk = rawV and rawV.vehicleConfig and rawV.vehicleConfig.model_key or nil
+
   pr.scheduledRaceSimTime = nil
   pr.scheduledRaceReadyWallEpoch = nil
   pr.disciplineId = pr.disciplineId or "roadracing"
@@ -1889,6 +2081,7 @@ local function acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(businessId, offer
   pr.businessId = tostring(normalizeBusinessId(businessId))
   pr.fleetVehicleId = tonumber(fleetVehicleId) or fleetVehicleId
   pr.requiredFleetVehicleId = tonumber(fleetVehicleId) or fleetVehicleId
+  pr.fleetVehicleName = mk or ("Vehicle " .. tostring(fleetVehicleId))
   local sr = gameplay_events_freContracts_sanctionedRacing
   if not sr or not sr.commitAndNavigateExternalOffer then
     racingTeamFinances.refundRaceEntranceFee(businessId, picked, rtState.rtInternal.getCurrentLeague(businessId))
@@ -1912,11 +2105,15 @@ local function acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(businessId, offer
     end
     return type(failMsg) == "string" and failMsg ~= "" and failMsg or "sanctioned_commit_failed"
   end
+  
+  local idStr = tostring(normalizeBusinessId(businessId))
+  rtState.playerScheduledOfferByBusiness[idStr] = pr
   local _, savePath = career_saveSystem.getCurrentProfile()
   if savePath then
     saveRacingTeamPersistedState(businessId, savePath)
   end
   topUpRaceOffers(businessId)
+  notifyRacingTeamDriversUpdated(businessId)
   if career_saveSystem.saveCurrent then
     career_saveSystem.saveCurrent()
   end
@@ -2062,6 +2259,9 @@ function M.proxyDriverRaceValidateAndBuildRequest(opts)
     return { ok = false, err = "no_valid_fleet_vehicle" }
   end
   local pr = tech.pendingRaceOffer
+  if isOfferBlockedByDyno(businessId, fleetVehicleId) then
+    return { ok = false, err = "dyno_required" }
+  end
   if fleetVehicleOverpoweredForOffer(businessId, fleetVehicleId, pr) then
     return { ok = false, err = "fleet_hp_over_class_max" }
   end
@@ -2280,7 +2480,7 @@ local function applyProxySanctionedRaceDriverStats(businessId, driverId, place, 
   end
 end
 
-local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
+local function settleProxySanctionedRaceFromAiResults(businessId, aiResults, isSilent, override)
   businessId = normalizeBusinessId(businessId)
   if not businessId then
     return { money = 0, businessSkillXp = 0, noRewardDetail = "Invalid business." }
@@ -2288,8 +2488,13 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
   getOfferState(businessId)
   local req = getProxyDriverRaceRequest(businessId)
   local offer = req and type(req.offerSnapshot) == "table" and req.offerSnapshot
-  if not offer and req and tonumber(req.driverId) then
-    local tech = getRacingTeamDriverById(businessId, tonumber(req.driverId))
+  local driverId = req and tonumber(req.driverId)
+  if type(override) == "table" then
+    if override.offer then offer = override.offer end
+    if override.driverId then driverId = override.driverId end
+  end
+  if not offer and driverId then
+    local tech = getRacingTeamDriverById(businessId, driverId)
     offer = tech and tech.pendingRaceOffer
   end
   if not offer then
@@ -2308,7 +2513,6 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
   if not place then
     return { money = 0, businessSkillXp = 0, noRewardDetail = "Couldn't determine placement — no podium reward." }
   end
-  local driverId = req and tonumber(req.driverId)
   do
     local fleetVid = nil
     if driverId then
@@ -2333,98 +2537,122 @@ local function settleProxySanctionedRaceFromAiResults(businessId, aiResults)
   if hMax < hMin then
     hMin, hMax = hMax, hMin
   end
-  if (hMax > 0 or hMin > 0) and career_modules_competitiveRace_aiRacers
+
+  -- Check class ceiling (underdogs pw <= hMax allowed).
+  if not override and hMax > 0 and career_modules_competitiveRace_aiRacers
       and career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck then
     local pwLive = career_modules_competitiveRace_aiRacers.getPlayerVehiclePwForPodiumCapCheck()
-    if type(pwLive) == "number" then
-      if pwLive > hMax then
-        podiumHpBandReason = "Over class hp/kg limit — no podium rewards."
-      elseif pwLive < hMin then
-        podiumHpBandReason = "Below class minimum hp/kg — no podium rewards."
-      end
+    if type(pwLive) == "number" and pwLive > hMax then
+      podiumHpBandReason = "Vehicle exceeds class power-to-weight limit — no podium rewards."
     end
   end
-  if place >= 1 and place <= 3 then
-    if podiumHpBandReason then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = podiumHpBandReason }
-    end
-    do
-      local offerForNotify = offer
-      if type(offerForNotify) == "table" then
-        offerForNotify = {}
-        for k, v in pairs(offer) do
-          offerForNotify[k] = v
-        end
-        offerForNotify.racingTeamBusinessOffer = true
-        offerForNotify.businessId = offerForNotify.businessId or businessId
-      end
-      M.notifyOfficialSanctionedPodium(place, offerForNotify)
-    end
-    local amount = 0
-    local xpStored = nil
-    if place == 1 then
-      amount = tonumber(offer.payoutFirst) or 0
-      xpStored = offer.xpFirst
-    elseif place == 2 then
-      amount = tonumber(offer.payoutSecond) or 0
-      xpStored = offer.xpSecond
-    elseif place == 3 then
-      amount = tonumber(offer.payoutThird) or 0
-      xpStored = offer.xpThird
-    end
-    amount = math.floor(math.max(0, amount))
-    local xpNum = tonumber(xpStored)
-    local xpAmount = (xpNum ~= nil) and math.max(0, math.floor(xpNum)) or proxyPodiumXpFromMoney(amount)
-    local bm, bx = racingTeamSponsorBonusTotals(businessId)
-    amount = math.floor(amount * (1 + bm) + 0.5)
-    xpAmount = math.floor(xpAmount * (1 + bx) + 0.5)
-    local paLevel = getSkillTreeNodeLevel(businessId, "driver", "podium-analytics")
-    if paLevel > 0 then
-      xpAmount = math.floor(xpAmount * (1 + 0.1 * paLevel) + 0.5)
-    end
-    if amount <= 0 then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      if career_saveSystem.saveCurrent then
-        career_saveSystem.saveCurrent()
-      end
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "No payout configured for this podium position." }
-    end
-    if not career_modules_bank or not career_modules_bank.getBusinessAccount or not career_modules_bank.rewardToAccount then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "Bank unavailable — reward not applied." }
-    end
-    local businessAccount = career_modules_bank.getBusinessAccount(rtState.businessType, businessId)
-    local accountId = businessAccount and (businessAccount.id or businessAccount.accountId)
-    if not accountId then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "No business account — reward not applied." }
-    end
-    local ok = career_modules_bank.rewardToAccount({
-      money = { amount = amount, canBeNegative = false },
-    }, accountId, string.format("Sanctioned team race — P%d", place), "Racing team circuit payout")
-    if not ok then
-      applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = 0 })
-      return { money = 0, businessSkillXp = 0, noRewardDetail = "Could not deposit race payout." }
-    end
-    do
-      local techCut = driverId and getRacingTeamDriverById(businessId, driverId)
-      racingTeamFinances.applyDriverCutAfterPayout(businessId, amount, {
-        racingSkillXp = techCut and techCut.racingSkillXp,
-        driverName = techCut and techCut.name,
-      })
-    end
+
+  local function bailSettle(podium, xp, msg)
+    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = podium, xpGain = xp })
+    return { money = 0, businessSkillXp = xp, noRewardDetail = msg }
+  end
+
+  -- Check class HP/weight limits for podium eligibility
+  if podiumHpBandReason then
+    return bailSettle(false, 0, podiumHpBandReason)
+  end
+
+  -- Determine base purse and XP
+  local amount = 0
+  local xpStored = nil
+  if place == 1 then
+    amount = tonumber(offer.payoutFirst) or 0
+    xpStored = offer.xpFirst
+  elseif place == 2 then
+    amount = tonumber(offer.payoutSecond) or 0
+    xpStored = offer.xpSecond
+  elseif place == 3 then
+    amount = tonumber(offer.payoutThird) or 0
+    xpStored = offer.xpThird
+  else
+    -- Safe P3 XP fallback with binary half-decay downscaling
+    local baseLossXp = tonumber(offer.xpThird) or proxyPodiumXpFromMoney(tonumber(offer.payoutThird) or ((tonumber(offer.payoutFirst) or 2000) * 0.35))
+    local decayDivisor = 2 ^ math.max(2, place - 2)
+    xpStored = math.max(5, math.floor(baseLossXp / decayDivisor + 0.5))
+  end
+
+  amount = math.floor(math.max(0, amount))
+  local xpNum = tonumber(xpStored)
+  local xpAmount = (xpNum ~= nil) and math.max(0, math.floor(xpNum)) or proxyPodiumXpFromMoney(amount)
+
+  -- Stacking sponsor bonuses
+  local bm, bx = racingTeamSponsorBonusTotals(businessId)
+  amount = math.floor(amount * (1 + bm) + 0.5)
+  xpAmount = math.floor(xpAmount * (1 + bx) + 0.5)
+
+  -- Podium Analytics applies strictly to podium finishes
+  local isPodium = place >= 1 and place <= 3
+  local paLevel = getSkillTreeNodeLevel(businessId, "driver", "podium-analytics")
+  if isPodium and paLevel > 0 then
+    xpAmount = math.floor(xpAmount * (1 + 0.1 * paLevel) + 0.5)
+  end
+
+  local silentToast = isSilent == true
+  local techCut = driverId and getRacingTeamDriverById(businessId, driverId)
+  local dname = techCut and techCut.name or "Driver"
+  local pct = math.floor(racingTeamFinances.driverCutPercentFromRacingXp(techCut and techCut.racingSkillXp or 0) + 0.5)
+  local cut = math.floor(amount * pct / 100 + 0.5)
+  local netPayout = amount - cut
+
+  -- Off-podium or unconfigured payout flow
+  if not isPodium or amount <= 0 then
     if xpAmount > 0 then
       addRacingTeamBusinessSkillXpValue(businessId, xpAmount)
     end
-    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = xpAmount })
-    if career_saveSystem.saveCurrent then
-      career_saveSystem.saveCurrent()
-    end
-    return { money = amount, businessSkillXp = xpAmount, noRewardDetail = nil }
+    applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = xpAmount })
+    local uiMessage = string.format("P%d Finish (%s): +%d XP gained from race experience.", place, dname, xpAmount)
+    if not silentToast and ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
+    if not silentToast and career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
+    local noRewardDetail = string.format("P%d Finish — +%d XP gained from race experience (podium required for prize money).", place, xpAmount)
+    return { money = 0, businessSkillXp = xpAmount, noRewardDetail = noRewardDetail }
   end
-  applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = false, xpGain = 0 })
-  return { money = 0, businessSkillXp = 0, noRewardDetail = "Didn't place on the podium — no podium rewards." }
+
+  -- Official podium goal notification
+  do
+    local offerForNotify = offer
+    if type(offerForNotify) == "table" then
+      offerForNotify = {}
+      for k, v in pairs(offer) do offerForNotify[k] = v end
+      offerForNotify.racingTeamBusinessOffer = true
+      offerForNotify.businessId = offerForNotify.businessId or businessId
+    end
+    M.notifyOfficialSanctionedPodium(place, offerForNotify)
+  end
+
+  -- Bank deposit for podium purse
+  if not career_modules_bank or not career_modules_bank.getBusinessAccount or not career_modules_bank.rewardToAccount then
+    return bailSettle(true, 0, "Bank unavailable — reward not applied.")
+  end
+  local businessAccount = career_modules_bank.getBusinessAccount(rtState.businessType, businessId)
+  local accountId = businessAccount and (businessAccount.id or businessAccount.accountId)
+  if not accountId then
+    return bailSettle(true, 0, "No business account — reward not applied.")
+  end
+
+  local txLabel = string.format("Sanctioned team race (%s) - P%d", dname, place)
+  local txDesc = string.format("Circuit payout: +$%d (%d%% net), -$%d (%d%% driver share — %s)", netPayout, 100 - pct, cut, pct, dname)
+  local moneyDict = { money = { amount = amount, canBeNegative = false } }
+  local ok = career_modules_bank.rewardToAccount(moneyDict, accountId, txLabel, txDesc)
+  if not ok then
+    return bailSettle(true, 0, "Could not deposit race payout.")
+  end
+
+  -- Record driver cut & award podium rewards
+  racingTeamFinances.applyDriverCutAfterPayout(businessId, amount, { racingSkillXp = techCut and techCut.racingSkillXp, driverName = dname })
+  if xpAmount > 0 then
+    addRacingTeamBusinessSkillXpValue(businessId, xpAmount)
+  end
+  applyProxySanctionedRaceDriverStats(businessId, driverId, place, { eligiblePodium = true, xpGain = xpAmount })
+  local uiMessage = string.format("P%d Finish (%s): +$%d (%d%% net, %d%% driver share).", place, dname, netPayout, 100 - pct, pct)
+  if not silentToast and ui_message then ui_message(uiMessage, 7, "Racing Team", "info") end
+  if not silentToast and career_saveSystem.saveCurrent then career_saveSystem.saveCurrent() end
+
+  return { money = amount, businessSkillXp = xpAmount, noRewardDetail = nil }
 end
 
 local function onBusinessSanctionedRaceOutcome(offer, place, reason)
@@ -2572,21 +2800,30 @@ local function formatRacingTeamDriverForUI(businessId, tech)
       fleetVehicleName = "Unavailable"
     end
   end
+  
+  local simState = racingTeamRaceSim and racingTeamRaceSim.getDriverSimState and racingTeamRaceSim.getDriverSimState(businessId, tech.id)
+  local isInSim = simState ~= nil
   return {
     id = tech.id,
     name = tech.name,
     state = tech.state or 0,
-    action = tech.currentAction or "idle",
-    label = label,
-    progress = 0,
-    elapsedSeconds = 0,
-    totalSeconds = 0,
+    action = simState and simState.phase or tech.currentAction or "idle",
+    label = simState and simState.badge or label,
+    progress = simState and simState.progress or 0,
+    elapsedSeconds = simState and simState.stateElapsed or 0,
+    totalSeconds = simState and simState.stateDuration or 0,
+    isInSim = isInSim,
+    canSpectate = (simState == nil) or (simState.canSpectate == true),
+    simBadge = simState and simState.badge or nil,
+    simPhase = simState and simState.phase or nil,
+    simProgress = simState and simState.progress or 0,
     serverTime = os.clock(),
     jobId = tech.jobId,
     jobLabel = jobLabel,
     jobReward = jobReward,
     fleetVehicleId = fleetVehicleId,
     fleetVehicleName = fleetVehicleName,
+    dynoStatus = getVehicleDynoStatus(businessId, fleetVehicleId),
     pendingRaceOffer = tech.pendingRaceOffer,
     scheduledRaceSimTime = scheduledRaceSimTime,
     scheduledRaceReadyWallEpoch = scheduledRaceReadyWallEpoch,
@@ -2596,7 +2833,8 @@ local function formatRacingTeamDriverForUI(businessId, tech)
       and not tech.jobId
       and not tech.pendingRaceOffer
       and (tech.currentAction == "idle")
-      and postRaceCd <= 0,
+      and postRaceCd <= 0
+      and not isInSim,
     postRaceCooldownRemainingSec = postRaceCd,
     racingCooldownUntilSimTime = tonumber(tech.racingCooldownUntilSimTime),
     postRaceCooldownReadyWallEpoch = tonumber(tech.postRaceCooldownReadyWallEpoch),
@@ -2608,25 +2846,30 @@ local function formatRacingTeamDriverForUI(businessId, tech)
     sanctionedRacesFinished = tech.sanctionedRacesFinished,
     sanctionedRaceWins = tech.sanctionedRaceWins,
     sanctionedPodiums = tech.sanctionedPodiums,
+    isPlayer = tech.isPlayer or false,
   }
 end
 
 notifyRacingTeamDriversUpdated = function(businessId)
-  if not businessId or getRacingTeamDriverCapacity(businessId) < 1 then
+  if not businessId then
     return
   end
   local techEntries = {}
-  for _, tech in ipairs(rtState.loadRacingTeamDrivers(businessId)) do
+  for _, tech in ipairs(getRacingTeamDriversRawForUI(businessId)) do
     local formatted = formatRacingTeamDriverForUI(businessId, tech)
     if formatted then
       table.insert(techEntries, formatted)
     end
   end
   if guihooks then
+    local bidStr = tostring(normalizeBusinessId(businessId))
+    local playerScheduledOffer = rtState.playerScheduledOfferByBusiness[bidStr] or nil
     guihooks.trigger("businessComputer:onTechsUpdated", {
       businessType = rtState.businessType,
       businessId = tostring(businessId),
       techs = techEntries,
+      activeBackgroundRace = racingTeamRaceSim.getActiveSim(businessId) ~= nil,
+      playerScheduledOffer = playerScheduledOffer,
     })
   end
 end
@@ -2719,16 +2962,78 @@ local function clearRacingTeamProxyDriverAssignment(businessId, opts)
   return true
 end
 
+clearPlayerScheduledRace = function(businessId)
+  businessId = normalizeBusinessId(businessId)
+  if not businessId then return end
+  local idStr = tostring(businessId)
+  if not rtState.playerScheduledOfferByBusiness[idStr] then return end
+  
+  rtState.playerScheduledOfferByBusiness[idStr] = nil
+  local _, savePath = career_saveSystem.getCurrentProfile()
+  if savePath then saveRacingTeamPersistedState(businessId, savePath) end
+  notifyRacingTeamDriversUpdated(businessId)
+end
+
+local function cancelUnarmedScheduledRacingTeamPlayerRace(businessId)
+  businessId = normalizeBusinessId(businessId)
+  if not businessId then
+    return { ok = false, err = "missing_business" }
+  end
+
+  local idStr = tostring(businessId)
+  local playerOffer = rtState.playerScheduledOfferByBusiness and rtState.playerScheduledOfferByBusiness[idStr]
+  if not playerOffer then
+    return { ok = false, err = "no_pending_player_race" }
+  end
+
+  rtState.playerScheduledOfferByBusiness[idStr] = nil
+  local sr = gameplay_events_freContracts_sanctionedRacing
+  if sr and sr.finishOfferClear then sr.finishOfferClear() end
+
+  pushRaceOfferBackToBoardIfRoom(businessId, playerOffer)
+  racingTeamFinances.refundRaceEntranceFee(businessId, playerOffer, rtState.rtInternal.getCurrentLeague(businessId))
+  topUpRaceOffers(businessId)
+
+  local _, savePath = career_saveSystem.getCurrentProfile()
+  if savePath then saveRacingTeamPersistedState(businessId, savePath) end
+
+  notifyRacingTeamDriversUpdated(businessId)
+  if guihooks and guihooks.trigger then
+    local uid = rtState.rtInternal.getUIData(businessId)
+    guihooks.trigger("businessComputer:onRaceOffersUpdated", {
+      businessId = businessId,
+      raceOffers = uid and uid.raceOffers or {},
+      raceOffersLevelId = uid and uid.raceOffersLevelId,
+      raceOffersNextRefreshAt = uid and uid.raceOffersNextRefreshAt,
+      raceOffersMessage = uid and uid.raceOffersMessage,
+      racingTeamProxyArmed = uid and uid.racingTeamProxyArmed,
+    })
+  end
+  return { ok = true }
+end
+
 local function cancelUnarmedScheduledRacingTeamProxyRace(businessId, driverId)
   businessId = normalizeBusinessId(businessId)
+  if not businessId then
+    return { ok = false, err = "missing_business" }
+  end
+  if tostring(driverId) == "player" then
+    return cancelUnarmedScheduledRacingTeamPlayerRace(businessId)
+  end
+
   driverId = tonumber(driverId)
-  if not businessId or not driverId then
+  if not driverId then
     return { ok = false, err = "missing_business_or_driver" }
   end
+  
   local tech = getRacingTeamDriverById(businessId, driverId)
-  if not tech or tech.fired or not tech.pendingRaceOffer then
-    return { ok = false, err = "no_pending_race_offer" }
+  if not tech or tech.fired then return { ok = false, err = "invalid_driver" } end
+  if not tech.pendingRaceOffer then
+    if tech.currentAction == "idle" then return { ok = true }
+    else  return { ok = false, err = "no_pending_race_offer" }
+    end
   end
+
   local pendingCopy = tech.pendingRaceOffer
   tech.pendingRaceOffer = nil
   tech.currentAction = "idle"
@@ -3048,8 +3353,38 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
   end
   if (fleetSanctionedClassLabel == nil or fleetSanctionedClassLabel == "")
       and not (type(fleetEffectivePw) == "number" and fleetEffectivePw > 0) then
-    fleetClassStatusMessage = "no weight found for config - pull out vehicle or open parts"
+    fleetClassStatusMessage = "no weight found - pull out vehicle"
   end
+  local dynoStatus = getVehicleDynoStatus(businessId, vehicleId)
+  local dynoAssessLocked = (dynoStatus == 0)
+  local assessDuration = 0
+  local assessElapsed = 0
+  if dynoAssessLocked then
+    local idStr = tostring(normalizeBusinessId(businessId))
+    local inProg = rtState.vehicleAssessmentInProgressByBusiness and rtState.vehicleAssessmentInProgressByBusiness[idStr]
+    local it = inProg and inProg[tostring(vehicleId)]
+    if it then
+      assessDuration = math.max(0, it.duration)
+      assessElapsed = math.max(0, it.elapsed)
+    end
+  end
+
+  local simRaceData = racingTeamRaceSim.getActiveSim(businessId)
+  local simFleetVid = simRaceData and tonumber(simRaceData.fleetVehicleId)
+  local simRaceLocked = (simRaceData ~= nil) and (simFleetVid ~= nil) and (simFleetVid == vehicleId)
+
+  if dynoStatus == 0 then
+    fleetSanctionedClassLabel = "Assessing..."
+    fleetClassStatusMessage = string.format("Assessing in facility (%d min left)", math.ceil((assessDuration - assessElapsed) / 60))
+  elseif dynoStatus == -1 then
+    fleetSanctionedClassLabel = "Unknown - Assessment Required"
+    fleetClassStatusMessage = "Assessment Required"
+  elseif simRaceLocked then
+    fleetClassStatusMessage = "In Background Race"
+  end
+
+  local dynoLevel = rtState.rtInternal.getSkillTreeNodeLevel and rtState.rtInternal.getSkillTreeNodeLevel(businessId, "qol", "dyno") or 0
+  local cooldownSec = getFleetVehiclePostRaceCooldownRemainingSec(businessId, vehicleId) or 0
   return {
     id = tostring(vehicleId),
     vehicleId = vehicleId,
@@ -3068,7 +3403,15 @@ rtState.formatVehicleForUI = function(vehicle, businessId)
     fleetEffectiveHp = fleetEffectiveHp,
     fleetEffectivePw = fleetEffectivePw,
     fleetSanctionedClassLabel = fleetSanctionedClassLabel,
-    fleetClassStatusMessage = fleetClassStatusMessage
+    fleetClassStatusMessage = fleetClassStatusMessage,
+    dynoAssessLocked = dynoAssessLocked,
+    dynoStatus = dynoStatus,
+    dynoSkillLevel = dynoLevel,
+    simRaceLocked = simRaceLocked,
+    assessDuration = assessDuration,
+    assessElapsed = assessElapsed,
+    assessCost = rtState.K.RACING_TEAM_VEHICLE_ASSESS_COST or 1200,
+    cooldownSec = cooldownSec,
   }
 end
 
@@ -3144,10 +3487,10 @@ local function acceptJob(businessId, jobId)
   if job.vehicleConfig and career_modules_business_businessInventory
     and career_modules_business_businessInventory.storeVehicle then
     local okStore, storedVehicleId = career_modules_business_businessInventory.storeVehicle(businessId, {
-    vehicleConfig = job.vehicleConfig,
-    mileage = job.mileage or 0,
+      vehicleConfig = job.vehicleConfig,
+      mileage = job.mileage or 0,
       purchasePrice = vehicleCost,
-    storedTime = os.time()
+      storedTime = os.time()
     })
     if okStore and storedVehicleId ~= nil then
       job.storedVehicleId = storedVehicleId
@@ -3222,20 +3565,20 @@ local function abandonJob(businessId, jobId)
       break
     end
     if job.storedVehicleId == nil and jobIdsMatch(jobId, vehicle.jobId) then
-        vehicleToRemove = vehicle
-        break
-      end
+      vehicleToRemove = vehicle
+      break
     end
+  end
     
-    if not vehicleToRemove then
-      return false
-    end
+  if not vehicleToRemove then
+    return false
+  end
 
-    local saleFallback = tonumber(job.reward) or 0
-    local salePrice = getTeamVehicleSellValue(vehicleToRemove, saleFallback)
+  local saleFallback = tonumber(job.reward) or 0
+  local salePrice = getTeamVehicleSellValue(vehicleToRemove, saleFallback)
     
-    if salePrice > 0 then
-      if not career_modules_bank
+  if salePrice > 0 then
+    if not career_modules_bank
       or not career_modules_bank.getBusinessAccount
       or not career_modules_bank.rewardToAccount then
       return false
@@ -3332,6 +3675,21 @@ local function sellVehicle(businessId, vehicleId)
     return false
   end
 
+  -- Guard against selling vehicles currently engaged in background race simulation
+  local activeSim = racingTeamRaceSim.getActiveSim(businessId)
+  if activeSim and tonumber(activeSim.fleetVehicleId) == removeId then
+    log("W", "racingTeam", string.format("Cannot sell vehicle %s: actively competing in background race", tostring(removeId)))
+    return false
+  end
+
+  -- Guard against selling vehicles currently undergoing third-party dyno assessment
+  local bidStr = tostring(normalizeBusinessId(businessId))
+  local vidStr = tostring(removeId)
+  if rtState.vehicleAssessmentInProgressByBusiness[bidStr] and rtState.vehicleAssessmentInProgressByBusiness[bidStr][vidStr] then
+    log("W", "racingTeam", string.format("Cannot sell vehicle %s: third-party assessment in progress", tostring(removeId)))
+    return false
+  end
+
   local linkedJobIdx, linkedJob = findActiveVehicleJobByVehicleId(state, removeId)
   local saleFallback = tonumber(linkedJob and linkedJob.reward) or 0
   local salePrice = getTeamVehicleSellValue(vehicleToRemove, saleFallback)
@@ -3367,14 +3725,14 @@ local function sellVehicle(businessId, vehicleId)
       end
     end
 
-  if career_saveSystem.saveCurrent then
-    career_saveSystem.saveCurrent()
-  end
+    if career_saveSystem.saveCurrent then
+      career_saveSystem.saveCurrent()
+    end
     if rtState.rtInternal.advanceRacingTeamGoalsIfReady then
       rtState.rtInternal.advanceRacingTeamGoalsIfReady(businessId)
     end
-  return true
-end
+    return true
+  end
 
   local scheduledPutAway = false
   if inv.getPulledOutVehicles then
@@ -3676,6 +4034,7 @@ local function buildRacingTeamUIDataCore(businessId)
       table.insert(techEntries, formattedTech)
     end
   end
+  local playerScheduledOffer = rtState.playerScheduledOfferByBusiness[id] or nil
   local raceBoard = ensureRaceOfferBoard(businessId)
   local raceOffersRaw = raceBoard.offers or {}
   local raceOffers = {}
@@ -3767,6 +4126,7 @@ local function buildRacingTeamUIDataCore(businessId)
       return {}
     end)(),
     techs = techEntries,
+    playerScheduledOffer = playerScheduledOffer,
     vehicleDamage = topVehicleDamage,
     vehicleDamageLocked = topVehicleDamageLocked,
     vehicleDamageThreshold = getDamageThreshold(businessId),
@@ -3786,6 +4146,8 @@ local function buildRacingTeamUIDataCore(businessId)
     racingTeamManagerAssignIntervalRemainingSec = racingTeamManagerAssignIntervalRemainingSec,
     racingTeamManagerNextAssignWallEpoch = racingTeamManagerNextAssignWallEpoch,
     racingTeamManagerAssignIntervalOptions = racingTeamManagerAssignIntervalOptions,
+    racingTeamManagerAutoStartRaces = rtState.autoStartBackgroundRacesByBusiness[tostring(normalizeBusinessId(businessId))] ~= false,
+    activeBackgroundRace = racingTeamRaceSim.getActiveSim(businessId) ~= nil,
     racingTeamFleetCooldowns = (function()
       local out = {}
       local inv = career_modules_business_businessInventory
@@ -3986,6 +4348,7 @@ local function resetBusinessForSale(businessId)
   rtState.staminaShortTrackStreakByBusiness[id] = nil
   rtState.sanctionedOfficialFirstPlaceWinsByBusiness[id] = nil
   rtState.classOptimizationPeakHpByBusiness[id] = nil
+  rtState.dynoRequiredByBusiness[id] = nil
   rtState.persistLoaded[id] = true
   rtState.vehicleCooldownByBusiness[id] = nil
   rtState.playerCooldownByBusiness[id] = nil
@@ -4052,6 +4415,7 @@ local businessObject = {
   resetBusinessForSale = function(businessId) return resetBusinessForSale(businessId) end,
   getTechsForBusiness = function(businessId) return getRacingTeamDriversRawForUI(businessId) end,
   formatTechForUIEntry = function(businessId, tech) return formatRacingTeamDriverForUI(businessId, tech) end,
+  formatVehicleForUIEntry = function(vehicle, businessId) return rtState.formatVehicleForUI(vehicle, businessId) end,
 }
 
 local function onSaveCurrentProfile(currentSavePath)
@@ -4085,6 +4449,7 @@ local function onSaveCurrentProfile(currentSavePath)
 end
 
 local function onCareerActivated()
+  rtState.racingTeamVehicleAssessAccumulator = 0
   rtState.scheduledRaceReadyToastAccumulator = 0
   rtState.offerStateByBusiness = {}
   rtState.goalCompletionByBusiness = {}
@@ -4105,6 +4470,8 @@ local function onCareerActivated()
   rtState.staminaShortTrackStreakByBusiness = {}
   rtState.sanctionedOfficialFirstPlaceWinsByBusiness = {}
   rtState.classOptimizationPeakHpByBusiness = {}
+  rtState.dynoRequiredByBusiness = {}
+  rtState.autoStartBackgroundRacesByBusiness = {}
   rtState.businessDrivers = {}
   rtState.league2InviteByBusiness = {}
   rtState.league2InvitePromoUiByBusiness = {}
@@ -4125,10 +4492,9 @@ local function onCareerActivated()
   rtState.postRaceCooldownUiPollAccumulator = 0
   rtState.allLeaderboardsBaselineByBusiness = {}
   rtState.completedGoalLeaderboardTimesByBusiness = {}
+  racingTeamRaceSim.onCareerActivated()
   racingTeamFinances.onCareerActivated()
-  if racingTeamManager and racingTeamManager.onCareerActivated then
-    racingTeamManager.onCareerActivated()
-  end
+  racingTeamManager.onCareerActivated()
   career_modules_business_businessManager.registerBusiness(rtState.businessType, businessObject)
   ensureTabsRegistered()
 
@@ -4206,6 +4572,87 @@ local function tickPostRaceCooldownDriverUiPushAccumulated(dtSim)
   end
 end
 
+local function invalidateVehicleDynoCertification(vehicleId)
+  if vehicleId == nil then return end
+  local vidStr = tostring(vehicleId)
+  local bm = career_modules_business_businessManager
+  if not bm or not bm.getPurchasedBusinesses then return end
+  local purchased = bm.getPurchasedBusinesses(rtState.businessType) or {}
+  for bid, _ in pairs(purchased) do
+    local idStr = tostring(normalizeBusinessId(bid))
+    local dynoLevel = getSkillTreeNodeLevel(bid, "qol", "dyno")
+    if dynoLevel == 0 then
+      local changed = false
+      if rtState.classOptimizationPeakHpByBusiness and rtState.classOptimizationPeakHpByBusiness[idStr] and rtState.classOptimizationPeakHpByBusiness[idStr][vidStr] then
+        rtState.classOptimizationPeakHpByBusiness[idStr][vidStr] = nil
+        changed = true
+      end
+      if rtState.dynoRequiredByBusiness then
+        rtState.dynoRequiredByBusiness[idStr] = rtState.dynoRequiredByBusiness[idStr] or {}
+        if not rtState.dynoRequiredByBusiness[idStr][vidStr] then
+          rtState.dynoRequiredByBusiness[idStr][vidStr] = true
+          changed = true
+        end
+      end
+      if changed then
+        local _, savePath = career_saveSystem.getCurrentProfile()
+        if savePath then
+          saveRacingTeamPersistedState(bid, savePath)
+        end
+        if rtState.rtInternal and rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer then
+          rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer(bid)
+        end
+        notifyRacingTeamDriversUpdated(bid)
+      end
+    end
+  end
+end
+
+local function onPartShoppingPartsInstalled(inventoryId, installedParts)
+  invalidateVehicleDynoCertification(inventoryId)
+end
+
+local function onCareerTuningApplied()
+  local invId = career_modules_inventory and career_modules_inventory.getCurrentVehicle and career_modules_inventory.getCurrentVehicle()
+  if invId then
+    invalidateVehicleDynoCertification(invId)
+  end
+end
+
+local function tickRacingTeamVehicleAssessAccumulated(dtSim)
+  if not dtSim or dtSim <= 0 then return end
+  if not career_career or not career_career.isActive or not career_career.isActive() then return end
+  
+  rtState.racingTeamVehicleAssessAccumulator = rtState.racingTeamVehicleAssessAccumulator + dtSim
+  if rtState.racingTeamVehicleAssessAccumulator < rtState.K.RACING_TEAM_VEHICLE_ASSESS_TICK_INTERVAL then
+    return
+  end
+
+  if rtState.vehicleAssessmentInProgressByBusiness then
+    for bidStr, vMap in pairs(rtState.vehicleAssessmentInProgressByBusiness) do
+      local completedAny = false
+      for vidStr, entry in pairs(vMap) do
+        if type(entry) == "table" then
+          -- Tick elapsed time forward with simulation delta time
+          entry.elapsed = entry.elapsed + rtState.racingTeamVehicleAssessAccumulator
+          if entry.elapsed >= entry.duration then
+            completeVehicleAssessment(bidStr, vidStr)
+            completedAny = true
+          end
+        end
+      end
+      if completedAny then
+        if rtState.rtInternal and rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer then
+          rtState.rtInternal.pushRacingTeamGoalsToBusinessComputer(bidStr)
+        end
+        notifyRacingTeamDriversUpdated(bidStr)
+      end
+    end
+  end
+
+  rtState.racingTeamVehicleAssessAccumulator = 0
+end
+
 local function tickScheduledRaceReadyToastsAccumulated(dtSim)
   if not dtSim or dtSim <= 0 then
     return
@@ -4221,17 +4668,58 @@ local function tickScheduledRaceReadyToastsAccumulated(dtSim)
   processScheduledRaceReadyToastQueue()
 end
 
-M.tickScheduledRaceReadyToastsAccumulated = tickScheduledRaceReadyToastsAccumulated
-M.tickHomeMechanicPwDeferredRechecks = racingTeamGoals.tickHomeMechanicPwDeferredRechecks
-M.tickPostRaceCooldownDriverUiPushAccumulated = tickPostRaceCooldownDriverUiPushAccumulated
-function M.tickRacingTeamManagerAccumulated(dtSim)
+local function tickRacingTeamManagerAccumulated(dtSim)
   if racingTeamManager and racingTeamManager.tickAccumulated then
     racingTeamManager.tickAccumulated(dtSim)
   end
 end
+
+local function tickRacingTeamRaceSimAccumulated(dtSim)
+  if racingTeamRaceSim and racingTeamRaceSim.tickAccumulated then
+    racingTeamRaceSim.tickAccumulated(dtSim)
+  end
+end
+
+function M.getAutoStartBackgroundRaces(businessId)
+  local id = tostring(normalizeBusinessId(businessId))
+  if not rtState.persistLoaded[id] and getOfferState then
+    getOfferState(businessId)
+  end
+  local val = rtState.autoStartBackgroundRacesByBusiness[id]
+  if val == nil then return true end
+  return val == true
+end
+
+function M.setAutoStartBackgroundRaces(businessId, enabled)
+  local id = tostring(normalizeBusinessId(businessId))
+  if not rtState.autoStartBackgroundRacesByBusiness then
+    rtState.autoStartBackgroundRacesByBusiness = {}
+  end
+  rtState.autoStartBackgroundRacesByBusiness[id] = (enabled == true)
+  local _, savePath = career_saveSystem.getCurrentProfile()
+  if savePath then
+    saveRacingTeamPersistedState(businessId, savePath)
+  end
+  if guihooks and guihooks.trigger then
+    guihooks.trigger("racingTeamManagerSettingsUpdated", {
+      businessId = tostring(businessId),
+      autoStartBackgroundRaces = (enabled == true),
+    })
+  end
+  return true
+end
+
+M.hasManagerLevel1 = hasManagerLevel1
+M.hasManagerLevel2 = hasManagerLevel2
+M.tickRacingTeamVehicleAssessAccumulated = tickRacingTeamVehicleAssessAccumulated
+M.tickScheduledRaceReadyToastsAccumulated = tickScheduledRaceReadyToastsAccumulated
+M.tickHomeMechanicPwDeferredRechecks = racingTeamGoals.tickHomeMechanicPwDeferredRechecks
+M.tickPostRaceCooldownDriverUiPushAccumulated = tickPostRaceCooldownDriverUiPushAccumulated
+M.tickRacingTeamManagerAccumulated = tickRacingTeamManagerAccumulated
 M.sanctionedOfferMatchesFleetVehicle = sanctionedOfferMatchesFleetVehicle
 M.fleetVehicleOverpoweredForOffer = fleetVehicleOverpoweredForOffer
 M.fleetVehicleEligibleForOffer = fleetVehicleEligibleForOffer
+M.fleetVehicleMatchesBracketStrict = fleetVehicleMatchesBracketStrict
 M.getRacingTeamPostRaceCooldownSeconds = getRacingTeamPostRaceCooldownSeconds
 M.getRacingTeamDriverPostRaceCooldownRemainingSec = getRacingTeamDriverPostRaceCooldownRemainingSec
 M.ensureSanctionedRaceOffersBoard = ensureRaceOfferBoard
@@ -4250,12 +4738,23 @@ M.acceptJob = acceptJob
 M.declineJob = declineJob
 M.abandonJob = abandonJob
 M.sellVehicle = sellVehicle
+M.getRacingTeamDriverById = getRacingTeamDriverById
+M.getBusinessVehicleRawByInventoryId = getBusinessVehicleRawByInventoryId
+M.getEffectiveTeamJobVehiclePw = getEffectiveTeamJobVehiclePw
+M.notifyRacingTeamDriversUpdated = notifyRacingTeamDriversUpdated
+M.saveRacingTeamPersistedState = saveRacingTeamPersistedState
+M.racingTeamPersistDrivers = racingTeamPersistDrivers
+M.loadRacingTeamDrivers = rtState.loadRacingTeamDrivers
 M.acceptRacingTeamRaceOffer = acceptRacingTeamRaceOffer
 M.acceptRacingTeamRaceOfferAsPlayer = acceptRacingTeamRaceOfferAsPlayer
+M.tickRacingTeamRaceSimAccumulated = tickRacingTeamRaceSimAccumulated
+M.sendDriverWithManager = racingTeamRaceSim.startBackgroundRace
+M.cancelBackgroundRaceSim = racingTeamRaceSim.cancelBackgroundRace
 M.listLeague1FleetVehiclesForSanctionedOffer = listLeague1FleetVehiclesForSanctionedOffer
 M.listLeague2FleetVehiclesForSanctionedOffer = listLeague2FleetVehiclesForSanctionedOffer
 M.acceptRacingTeamRaceOfferAsPlayerAlongsideProxy = acceptRacingTeamRaceOfferAsPlayerAlongsideProxy
 M.getFleetVehiclePostRaceCooldownRemainingSec = getFleetVehiclePostRaceCooldownRemainingSec
+M.armFleetVehiclePostRaceCooldown = armFleetVehiclePostRaceCooldown
 M.getPlayerPostRaceCooldownRemainingSec = getPlayerPostRaceCooldownRemainingSec
 M.armPlayerPostRaceCooldown = armPlayerPostRaceCooldown
 M.getRacingTeamPlayerPostRaceCooldownSeconds = getRacingTeamPlayerPostRaceCooldownSeconds
@@ -4307,9 +4806,17 @@ M.dropRacingTeamSponsorActive = dropRacingTeamSponsorActive
 M.getMaxPulledOutVehicles = getMaxPulledOutVehicles
 M.getMaxActiveJobs = getMaxActiveJobs
 
-function M.getCareerSimTimeForUI()
-  return getCareerSimTime()
-end
+M.clearPlayerScheduledRace = clearPlayerScheduledRace
+M.cancelUnarmedScheduledRacingTeamPlayerRace = cancelUnarmedScheduledRacingTeamPlayerRace
+M.driverCutPercentFromRacingXp = racingTeamFinances.driverCutPercentFromRacingXp
+M.getCareerSimTime = getCareerSimTime
+M.isOfferBlockedByDyno = isOfferBlockedByDyno
+M.getVehicleDynoStatus = getVehicleDynoStatus
+M.startVehicleAssessment = startVehicleAssessment
+M.completeVehicleAssessment = completeVehicleAssessment
+M.invalidateVehicleDynoCertification = invalidateVehicleDynoCertification
+M.onPartShoppingPartsInstalled = onPartShoppingPartsInstalled
+M.onCareerTuningApplied = onCareerTuningApplied
 
 function M.tickScheduledRaceReadyToasts()
   processScheduledRaceReadyToastQueue()
@@ -4397,5 +4904,6 @@ rtState.rtInternal.getMaxRaceOffersOnBoard = getMaxRaceOffersOnBoard
 rtState.rtInternal.resolveRacingTeamLeaderboardLevelIds = resolveRacingTeamLeaderboardLevelIds
 rtState.rtInternal.getSkillTreeNodeLevel = getSkillTreeNodeLevel
 rtState.rtInternal.syncRacingTeamDriverUnlock = syncRacingTeamDriverUnlock
+rtState.rtInternal.notifyRacingTeamDriversUpdated = notifyRacingTeamDriversUpdated
 
 return M

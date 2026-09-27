@@ -39,9 +39,10 @@
       "tier": 1,
       "order": 3,
       "title": "Home Mechanic",
-      "description": "Make a team car stronger (parts or dyno).",
-      "targetLabel": "Raise car power",
+      "description": "Upgrade a team car exceeding factory baseline power.",
+      "targetLabel": "Exceed baseline power",
       "progressLabel": "Install parts or dyno a team car to start",
+      "progressDone": "Car upgraded",
       "status": "active",
       "kind": "tuning_milestone"
     },

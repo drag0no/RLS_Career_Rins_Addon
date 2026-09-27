@@ -255,12 +255,12 @@ const handleComplete = async (job) => {
 
 <style scoped lang="scss">
 .home-dashboard {
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   padding-bottom: 1em; 
   gap: 1.5em;
+  box-sizing: border-box;
 }
 
 .top-row {
@@ -268,16 +268,32 @@ const handleComplete = async (job) => {
 }
 
 .dashboard-grid {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5em;
-  min-height: 0; /* Allow children to scroll */
   flex: 1;
-  overflow-y: auto; /* Allow grid to scroll if needed on small screens */
-  
+  min-height: 24rem;
+
   @media (min-width: 1280px) {
     grid-template-columns: 1fr 1fr; /* 50% - 50% split as requested */
-    overflow-y: hidden; /* Lock scroll on large screens */
+
+    .main-column {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: calc(50% - 0.75em);
+      height: 100%;
+
+      :deep(.home-widget) {
+        max-height: none;
+      }
+    }
+
+    .side-column {
+      grid-column: 2;
+    }
   }
 }
 
@@ -285,22 +301,19 @@ const handleComplete = async (job) => {
   display: flex;
   flex-direction: column;
   gap: 1.5em;
-  min-height: 0;
-  
+
   &.main-column {
     height: 100%;
-    overflow: hidden;
 
-    :deep(.finances-widget) {
+    :deep(.home-widget) {
       flex: 1;
-      min-height: 0;
+      min-height: 14rem;
+      max-height: 28rem;
     }
   }
-  
+
   &.side-column {
     height: 100%;
-    overflow: hidden; /* Match main column - widgets handle their own scroll */
-    min-height: 0;
   }
 }
 
@@ -308,26 +321,18 @@ const handleComplete = async (job) => {
   display: flex;
   flex-direction: column;
   gap: 1.5em;
-  height: 100%; /* Fill full height of side column */
-  min-height: 0;
+  height: 100%;
 
-  :deep(.finances-widget),
-  :deep(.sponsorship-widget),
-  :deep(.techs-widget) {
+  :deep(.home-widget) {
     flex: 1;
-    min-height: 0;
+    min-height: 11rem;
   }
 
   &.side-stack--racing-team {
     :deep(.jobs-widget) {
       flex: 0 1 auto;
       max-height: min(22rem, 48%);
-      min-height: 0;
-    }
-
-    :deep(.sponsorship-widget) {
-      flex: 1;
-      min-height: 0;
+      min-height: 10rem;
     }
   }
 }

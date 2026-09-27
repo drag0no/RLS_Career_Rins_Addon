@@ -58,9 +58,9 @@
         v-for="tech in techList"
         :key="`tech-${tech.id}`"
         class="tech-card"
-        :class="{ 
-          'tech-card--working': tech.jobId && !tech.fired, 
-          'tech-card--idle': !tech.jobId && !tech.fired,
+        :class="{
+          'tech-card--working': (tech.jobId || tech.isInSim) && !tech.fired,
+          'tech-card--idle': !tech.jobId && !tech.isInSim && !tech.fired,
           'tech-card--fired': tech.fired
         }"
         @click.stop
@@ -70,7 +70,7 @@
           <div class="tech-card__title">
             <div class="tech-card__icon">
               <div v-if="tech.fired" class="status-dot fired"></div>
-              <div v-else-if="tech.jobId" class="status-dot active"></div>
+              <div v-else-if="tech.jobId || tech.isInSim" class="status-dot active"></div>
               <div v-else class="status-dot idle"></div>
             </div>
             <template v-if="editingTechId === tech.id && !tech.fired">
@@ -113,18 +113,18 @@
           </div>
         </div>
 
-        <div class="tech-card__progress-container" v-if="tech.jobId && !tech.fired">
+        <div class="tech-card__progress-container" v-if="(tech.jobId || tech.isInSim) && !tech.fired">
           <div class="tech-card__progress-info">
-            <span>{{ formatPhase(tech) }}</span>
+            <span>{{ tech.isInSim ? (tech.simBadge || formatPhase(tech)) : formatPhase(tech) }}</span>
           </div>
           <div class="tech-card__progress" aria-hidden="true">
             <div
               class="tech-card__progress-fill"
-              :style="{ width: `${Math.min(100, Math.round(tech.progress * 100))}%` }"
+              :style="{ width: `${Math.min(100, Math.round((tech.isInSim ? (tech.simProgress ?? 0) : (tech.progress ?? 0)) * 100))}%` }"
             />
           </div>
           <span class="tech-card__state-badge" :class="getPhaseClass(tech)">
-            {{ tech.label }}
+            {{ tech.isInSim ? (tech.simPhase === 'driving_to_race' ? 'Transit' : tech.simPhase === 'in_race' ? 'Racing' : 'Returning') : tech.label }}
           </span>
         </div>
         
@@ -140,7 +140,10 @@
           <div class="tech-card__row" v-if="!tech.fired">
             <span class="label">Current Assignment</span>
             <span class="value">
-              <template v-if="tech.pendingRaceOffer">
+              <template v-if="tech.isInSim">
+                {{ tech.pendingRaceOffer ? (tech.pendingRaceOffer.raceLabel || tech.pendingRaceOffer.raceName || "Race") + " — " + (tech.simBadge || "Simulating") : (tech.simBadge || "Background race in progress") }}
+              </template>
+              <template v-else-if="tech.pendingRaceOffer">
                 {{ tech.pendingRaceOffer.raceLabel || tech.pendingRaceOffer.raceName || "Scheduled race" }}
               </template>
               <template v-else-if="tech.jobId">
@@ -218,6 +221,15 @@
               data-focusable
             >
               Stop Goal
+            </button>
+          </div>
+          <div v-else-if="tech.isInSim" class="assign-panel">
+            <button
+              type="button"
+              class="btn btn-secondary assign-panel__btn"
+              disabled
+            >
+              {{ tech.simBadge || "Racing with manager" }}
             </button>
           </div>
           <div v-else-if="!tech.jobId" class="assign-panel">
@@ -495,7 +507,7 @@ const getJobLabel = (jobId) => {
 }
 
 const getPhaseClass = (tech) => {
-    if (!tech.jobId) return 'badge-idle'
+    if (!tech.jobId && !tech.isInSim) return 'badge-idle'
     if (tech.phase === 'failed') return 'badge-failed'
     if (tech.phase === 'completed') return 'badge-success'
     return 'badge-working'

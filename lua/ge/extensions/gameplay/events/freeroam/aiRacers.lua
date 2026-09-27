@@ -987,6 +987,21 @@ local function mergeVehiclePoolFromFirstAvailableTier(vehiclePool)
     return {}
 end
 
+-- Fallback to the target tier or base pool if bracket/ceiling filtering empties available cars
+local function fallbackPoolIfEmpty(available, vehiclePool, startClass, fallbackBase)
+    if type(available) == "table" and #available > 0 then
+        return available
+    end
+    local tier = type(vehiclePool) == "table" and startClass and vehiclePool[startClass]
+    if type(tier) == "table" and #tier > 0 then
+        local avail = filterVehiclePoolToAvailable(tier)
+        if #avail > 0 then
+            return avail
+        end
+    end
+    return fallbackBase or {}
+end
+
 local function shuffleInPlace(t)
     for i = #t, 2, -1 do
         local j = math.random(1, i)
@@ -1357,8 +1372,8 @@ local function buildBusinessSanctionedPlan(available, playerPw, requestedCount, 
     return plan, dbg
 end
 
--- Racing team proxy: pool configs with hp/kg in [pwMin, pwMax], preferring highest pw in band.
-local function buildBracketMaxBiasedPlan(available, pwMin, pwMax, requestedCount)
+-- Racing team proxy: pool configs with hp/kg in [pwMin, pwMax], randomly distributed across category bracket band.
+local function buildBracketRandomPlan(available, pwMin, pwMax, requestedCount)
     local plan = {}
     if type(available) ~= "table" or type(requestedCount) ~= "number" or requestedCount < 1 then
         return plan
@@ -1380,11 +1395,11 @@ local function buildBracketMaxBiasedPlan(available, pwMin, pwMax, requestedCount
     if #rows == 0 then
         return plan
     end
-    table.sort(rows, function(a, b)
-        if a.pw ~= b.pw then return a.pw > b.pw end
-        if (a.model or "") ~= (b.model or "") then return (a.model or "") < (b.model or "") end
-        return (a.config or "") < (b.config or "")
-    end)
+    -- Fisher-Yates shuffle for natural random power distribution across the category bracket
+    for i = #rows, 2, -1 do
+        local j = math.random(i)
+        rows[i], rows[j] = rows[j], rows[i]
+    end
     local maxPerIdentity = 2
     local counts = {}
     local function poolKey(r)
@@ -1529,12 +1544,16 @@ local function buildCircularPlanFromPoolRows(avail, requestedCount)
 end
 
 -- Last-resort: spawn from first non-empty vehiclePool tier (subdir-prefixed when merged). Returns spawned count.
-local function spawnFromStructuredPoolLastResort(raceName, race, facilityName, cfg, requestedCount)
+local function spawnFromStructuredPoolLastResort(raceName, race, facilityName, cfg, requestedCount, preferredClass)
     if type(cfg) ~= "table" or type(cfg.vehiclePool) ~= "table" then
         return 0
     end
-    local merged = mergeVehiclePoolFromFirstAvailableTier(cfg.vehiclePool)
-    local avail = filterVehiclePoolToAvailable(merged)
+    local merged = preferredClass and mergeVehiclePoolFromClassUpward(cfg.vehiclePool, preferredClass) or nil
+    local avail = merged and filterVehiclePoolToAvailable(merged) or {}
+    if #avail == 0 then
+        merged = mergeVehiclePoolFromFirstAvailableTier(cfg.vehiclePool)
+        avail = filterVehiclePoolToAvailable(merged)
+    end
     if #avail == 0 then
         return 0
     end
@@ -1789,38 +1808,55 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
         local closeAbove = resolveCloseAbovePw()
         local businessSanctionedOffer = type(sanctionedSpawnCtx) == "table" and sanctionedSpawnCtx.racingTeamBusinessOffer == true
 
+        local sCtx = type(sanctionedSpawnCtx) == "table" and sanctionedSpawnCtx or nil
+        local classPwMin = sCtx and tonumber(sCtx.classPwMin)
+        local classHpMin = sCtx and tonumber(sCtx.classHpMin)
+        local poolHpMin = type(poolReferenceHpMin) == "number" and poolReferenceHpMin > 0 and poolReferenceHpMin or nil
+        local bMin = classPwMin or classHpMin or poolHpMin or nil
+
+        local classPwMax = sCtx and tonumber(sCtx.classPwMax)
+        local classHpMax = sCtx and tonumber(sCtx.classHpMax)
+        local poolHpRef = type(poolReferenceHp) == "number" and poolReferenceHp > 0 and poolReferenceHp or nil
+        local bMax = classPwMax or classHpMax or poolHpRef or nil
+        
+        if bMin and bMax and bMax < bMin then bMin, bMax = bMax, bMin end
+
+        local effHp = hp
+        if bMax and bMax > 0 and bMin and bMin > 0 and effHp < bMin then
+            -- For sanctioned bracketed races, opponents must represent the race bracket [bMin, bMax].
+            -- If player is an underdog (effHp < bMin), opponents are NOT downscaled to match the player.
+            effHp = (bMin + bMax) * 0.5
+            hpMin = bMin
+        elseif bMax and bMax > 0 and effHp <= 0 then
+            effHp = bMax
+        end
+
+        local startClass = type(sCtx and sCtx.hpBracketBranch) == "string" and string.lower(sCtx.hpBracketBranch) or nil
+        if not startClass or startClass == "" or (type(cfg.vehiclePool) == "table" and not cfg.vehiclePool[startClass]) then
+            startClass = getClassFromHpForVehiclePool(effHp > 0 and effHp or hp)
+        end
+
         local bracketOnly = type(sanctionedSpawnCtx) == "table" and sanctionedSpawnCtx.racingTeamProxyBracketOnlyAi == true
-        local bmin = bracketOnly
-            and (tonumber(sanctionedSpawnCtx.classPwMin) or tonumber(sanctionedSpawnCtx.classHpMin))
-            or nil
-        local bmax = bracketOnly
-            and (tonumber(sanctionedSpawnCtx.classPwMax) or tonumber(sanctionedSpawnCtx.classHpMax))
-            or nil
+        local bmin = bracketOnly and bMin or nil
+        local bmax = bracketOnly and bMax or nil
         if bracketOnly and bmin and bmax and bmax > 0 and bmin > 0 and bmax >= bmin then
             local skillT = 1
             if type(sanctionedSpawnCtx) == "table" and sanctionedSpawnCtx.racingTeamProxyAiDifficultyT ~= nil then
                 skillT = tonumber(sanctionedSpawnCtx.racingTeamProxyAiDifficultyT) or 1
             end
             skillT = math.max(0, math.min(1, skillT))
-            local span = bmax - bmin
             local effectiveBmax = bmax
-            if span > 0 then
-                if hp > 0 then
-                    local softCap = math.max(bmin, math.min(bmax, hp - PROXY_BRACKET_SOFT_PW_BELOW_PLAYER))
-                    effectiveBmax = softCap + (bmax - softCap) * skillT
-                else
-                    local frac = 0.2 + 0.8 * skillT
-                    effectiveBmax = bmin + span * frac
-                end
-                effectiveBmax = math.max(bmin, math.min(bmax, effectiveBmax))
-            end
             if type(cfg.vehiclePool) == "table" then
-                local merged = mergeVehiclePoolFromFirstAvailableTier(cfg.vehiclePool)
+                local merged = mergeVehiclePoolFromClassUpward(cfg.vehiclePool, startClass)
                 local availableBase = filterVehiclePoolToAvailable(merged)
                 local available = filterPoolByBracketMin(availableBase, bmin)
                 available = filterPoolByBracketMax(available, effectiveBmax)
+                available = fallbackPoolIfEmpty(available, cfg.vehiclePool, startClass, availableBase)
                 if #available > 0 then
-                    local plan = buildBracketMaxBiasedPlan(available, bmin, effectiveBmax, requestedCount)
+                    local plan = buildBracketRandomPlan(available, bmin, effectiveBmax, requestedCount)
+                    if #plan == 0 then
+                        plan = buildCircularPlanFromPoolRows(available, requestedCount)
+                    end
                     if #plan > 0 then
                         local spawned = spawnStagingPlan(raceName, race, facilityName, plan)
                         if aiSpawnDebugEnabled(cfg) then
@@ -1840,23 +1876,18 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
         end
 
         local sanctionedBracketMax = nil
-        if businessSanctionedOffer and type(sanctionedSpawnCtx) == "table" then
+        if type(sanctionedSpawnCtx) == "table" then
             local sm = tonumber(sanctionedSpawnCtx.classPwMax) or tonumber(sanctionedSpawnCtx.classHpMax)
             if sm and sm > 0 then
                 sanctionedBracketMax = sm
             end
         end
+        if not sanctionedBracketMax and type(bMax) == "number" and bMax > 0 then
+            sanctionedBracketMax = bMax
+        end
 
-        if type(cfg.vehiclePool) == "table" and type(cfg.vehiclePool.stock) == "table" then
-            local effHp = hp
-            if effHp <= 0 and type(sanctionedSpawnCtx) == "table" then
-                local hi = tonumber(sanctionedSpawnCtx.classPwMax) or tonumber(sanctionedSpawnCtx.classHpMax)
-                if hi and hi > 0 then
-                    effHp = hi
-                end
-            end
+        if type(cfg.vehiclePool) == "table" and (type(cfg.vehiclePool.stock) == "table" or type(cfg.vehiclePool[startClass]) == "table") then
             if effHp > 0 then
-                local startClass = getClassFromHpForVehiclePool(effHp)
                 local merged = mergeVehiclePoolFromClassUpward(cfg.vehiclePool, startClass)
                 local availableBase = filterVehiclePoolToAvailable(merged)
                 local available = filterPoolByBracketMin(availableBase, hpMin)
@@ -1866,6 +1897,7 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
                 if sanctionedBracketMax then
                     available = filterPoolByBracketMax(available, sanctionedBracketMax, true)
                 end
+                available = fallbackPoolIfEmpty(available, cfg.vehiclePool, startClass, availableBase)
                 if #available > 0 then
                     local availablePw = filterPoolByPowerWeight(available, effHp, cfg)
                     if type(availablePw) ~= "table" or #availablePw == 0 then
@@ -1892,6 +1924,9 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
                             plan = strictPlan
                         end
                     end
+                    if #plan == 0 then
+                        plan = buildCircularPlanFromPoolRows(available, requestedCount)
+                    end
                     if #plan > 0 then
                         local spawned = spawnStagingPlan(raceName, race, facilityName, plan)
                         if aiSpawnDebugEnabled(cfg) then
@@ -1903,14 +1938,14 @@ function M.spawnForStagingWithPlayerHp(raceName, race, facilityName, callback, p
                 end
             end
         end
-        local spawned = spawnFromStructuredPoolLastResort(raceName, race, facilityName, cfg, requestedCount)
+        local spawned = spawnFromStructuredPoolLastResort(raceName, race, facilityName, cfg, requestedCount, startClass)
         if spawned <= 0 then
-            local class = getDcbaClassFromPlayerPw(hp)
+            local class = getDcbaClassFromPlayerPw(effHp or hp)
             local rawPool = getVehiclePoolForHpClass(cfg, class)
-            local pool = filterPoolByPowerWeight(rawPool, hp, cfg)
+            local pool = filterPoolByPowerWeight(rawPool, effHp or hp, cfg)
             pool = filterPoolByBracketMin(pool, hpMin)
             if type(pool) ~= "table" or #pool == 0 then
-                pool = filterPoolByPowerWeight(rawPool, hp, cfg)
+                pool = filterPoolByPowerWeight(rawPool, effHp or hp, cfg)
             end
             if type(pool) ~= "table" or #pool == 0 then
                 pool = rawPool
@@ -2051,6 +2086,24 @@ local function randomAggression(cfg, race)
     if maxAgg < minAgg then maxAgg = minAgg end
     local raw = minAgg + math.random() * (maxAgg - minAgg)
     return clamp(raw, 0.2, 1.5)
+end
+
+local function setPlayersAiParams(cfg)
+    local ctf = gameplay_events_freeroam_competitiveTrackFlow
+    if not ctf or not ctf.getRacingTeamProxyAiDifficultyT then return end
+    
+    local skillT = ctf.getRacingTeamProxyAiDifficultyT()
+    if not skillT then return end
+
+    skillT = math.max(0, math.min(1, tonumber(skillT) or 0))
+    cfg.aggression = 0.88 + 0.32 * skillT
+    cfg.raceTrafficPassBlend = 0.20 + 0.65 * skillT
+    cfg.raceClearanceScaleMin = 0.58 - 0.28 * skillT
+    cfg.raceCornerLineLiftScale = 0.70 + 0.65 * skillT
+    cfg.targetSpeedSmootherRate = math.floor(16 + 12 * skillT + 0.5)
+    cfg.raceThrottleRateMult = 3.0 + 3.0 * skillT
+    cfg.raceUndersteerSlipMin = 1.02 + 0.14 * skillT
+    cfg.raceCommitCorners = true
 end
 
 local function getRacingParameters(cfg, race)
@@ -2427,8 +2480,7 @@ local function queueNavDriveForVehicle(vehObj, path, noOfLaps, cfg, race)
         wpTargetList[#wpTargetList + 1] = wpTargetList[1]
     end
     local wpTargetListStr = serialize(wpTargetList)
-    -- Full aggression: state-based speed (no route speed limit). Rubberband later by player XP.
-    local aggression = 1.0
+    local aggression = tonumber(cfg.aggression) or 1.0
     local driveInLane = tostring(cfg.driveInLane or DEFAULT_CONFIG.driveInLane)
     local avoidCars = tostring(cfg.avoidCars or DEFAULT_CONFIG.avoidCars)
     local targetSpeedSmootherRate = tonumber(cfg.targetSpeedSmootherRate) or DEFAULT_CONFIG.targetSpeedSmootherRate or 18
@@ -2490,8 +2542,7 @@ local function queueDriveForVehicle(vehObj, race, noOfLaps, cfg, laneIndex)
     if not scriptPath or #scriptPath < 2 then return end
 
     local pathStr = serialize(scriptPath)
-    -- Full aggression: state-based speed (no route speed limit). Rubberband later by player XP.
-    local aggression = 1.0
+    local aggression = tonumber(cfg.aggression) or 1.0
     local driveInLane = tostring(cfg.driveInLane or DEFAULT_CONFIG.driveInLane)
     local avoidCars = tostring(cfg.avoidCars or DEFAULT_CONFIG.avoidCars)
     local targetSpeedSmootherRate = tonumber(cfg.targetSpeedSmootherRate) or DEFAULT_CONFIG.targetSpeedSmootherRate or 18
@@ -2587,6 +2638,8 @@ function M.driveVehicleOnRacePath(vehId, race, lapCount, laneIndex)
         queueEngineStart(vehObj)
     end
     mVehicleLaneIndexByVehId[vehId] = laneIndex
+
+    setPlayersAiParams(cfg)
     queueDriveForVehicle(vehObj, race, noOfLaps, cfg, laneIndex)
 end
 

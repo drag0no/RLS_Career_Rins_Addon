@@ -340,7 +340,7 @@ local function restoreFuelLevels(vehObj, storedFuelLevels)
   end, 'energyStorage')
 end
 
--- ignoreDynoGate: allow power read when dyno skill locked (racing team); tuning shop still gates unless true.
+-- ignoreDynoGate: allow power read when dyno skill locked (e.g. initial vehicle purchase catalog); workshop tuning gates on dyno skill.
 local function requestVehiclePowerWeight(vehObj, businessId, vehicleId, ignoreDynoGate)
   if not vehObj or not businessId or not vehicleId then
     return
@@ -367,7 +367,8 @@ local function requestVehiclePowerWeight(vehObj, businessId, vehicleId, ignoreDy
     elseif businessType == "racingTeam" then
       dynoLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, "qol", "dyno") or 0
     end
-    if dynoLevel == 0 and businessType ~= "racingTeam" then
+    -- post-tuning assessment is required for Race Team biz to validate a car's tier
+    if businessType == "tuningShop" and dynoLevel == 0 then
       return
     end
   end
@@ -1474,15 +1475,20 @@ local function onPowerWeightReceived(requestId, power, weight, torqueData)
       currentSession.powerWeight = result
     end
 
-    guihooks.trigger('businessComputer:onVehiclePowerWeight', {
-      success = true,
-      businessId = businessId,
-      vehicleId = numericVehicleId or vehicleId,
-      power = power,
-      weight = weight,
-      powerToWeight = result.powerToWeight,
-      torque = torqueData
-    })
+    local dynoLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, "qol", "dyno") or 0
+    if dynoLevel == 0 then dynoLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, "shop-upgrades", "dyno") or 0 end
+    -- show updated values only if Dyno machine is bought
+    if dynoLevel > 0 then
+      guihooks.trigger('businessComputer:onVehiclePowerWeight', {
+        success = true,
+        businessId = businessId,
+        vehicleId = numericVehicleId or vehicleId,
+        power = power,
+        weight = weight,
+        powerToWeight = result.powerToWeight,
+        torque = torqueData
+      })
+    end
     if career_modules_business_racingTeam and career_modules_business_racingTeam.notifyTeamVehicleDynoPeakHp then
       career_modules_business_racingTeam.notifyTeamVehicleDynoPeakHp(businessId, numericVehicleId or vehicleId, power, weight)
     end
@@ -1515,7 +1521,7 @@ local function getVehiclePowerWeight(businessId, vehicleId)
     elseif businessType == "racingTeam" then
       dynoLevel = career_modules_business_businessSkillTree.getNodeProgress(businessId, "qol", "dyno") or 0
     end
-    if dynoLevel == 0 and businessType ~= "racingTeam" then
+    if dynoLevel == 0 then
       return nil
     end
   end

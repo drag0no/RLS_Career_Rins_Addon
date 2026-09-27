@@ -4,12 +4,6 @@
       <div class="header-content">
         <div>
           <h2>{{ raceOffersScreenTitle }}</h2>
-          <p
-            v-if="layout !== 'phone' && managerBookingTimerText"
-            class="racing-tab__manager-booking-timer"
-          >
-            {{ managerBookingTimerText }}
-          </p>
         </div>
       </div>
     </div>
@@ -23,19 +17,35 @@
         <div class="manager-auto-panel__heading">
           <div class="manager-auto-panel__title-row">
             <h3 class="manager-auto-panel__title">Manager automation</h3>
-            <label
-              class="manager-auto-toggle"
-              :class="{ 'manager-auto-toggle--disabled': managerAutoToggleBusy }"
-            >
-              <input
-                type="checkbox"
-                :checked="managerAutoAssign"
-                :disabled="managerAutoToggleBusy"
-                @change="onManagerAutoToggle"
-              />
-              <span class="manager-auto-toggle__slider" aria-hidden="true" />
-              <span class="manager-auto-toggle__label">{{ layout === 'phone' ? 'Auto-assign' : 'Auto-assign sanctioned offers' }}</span>
-            </label>
+            <div class="manager-auto-panel__toggles">
+              <label
+                class="manager-auto-toggle"
+                :class="{ 'manager-auto-toggle--disabled': managerAutoToggleBusy }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="managerAutoAssign"
+                  :disabled="managerAutoToggleBusy"
+                  @change="onManagerAutoToggle"
+                />
+                <span class="manager-auto-toggle__slider" aria-hidden="true" />
+                <span class="manager-auto-toggle__label">{{ layout === 'phone' ? 'Auto-assign' : 'Auto-assign sanctioned offers' }}</span>
+              </label>
+              <label
+                v-if="managerSkillLevel >= 2"
+                class="manager-auto-toggle"
+                :class="{ 'manager-auto-toggle--disabled': managerAutoStartRacesBusy }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="managerAutoStartBackgroundRaces"
+                  :disabled="managerAutoStartRacesBusy"
+                  @change="onManagerAutoStartRacesToggle"
+                />
+                <span class="manager-auto-toggle__slider" aria-hidden="true" />
+                <span class="manager-auto-toggle__label">{{ layout === 'phone' ? 'Auto-race' : 'Auto-start background races' }}</span>
+              </label>
+            </div>
           </div>
           <div v-if="managerSkillLevel >= 2" class="manager-auto-panel__interval">
             <span class="manager-auto-interval-text">Automation interval:</span>
@@ -91,36 +101,38 @@
     <template v-if="!selectedOffer">
       <section v-if="driversWithScheduledRaces.length" class="races-section">
         <h3 class="races-section__title">Scheduled Races</h3>
-        <ul v-if="layout === 'phone'" class="offers-list">
-          <li v-for="row in driversWithScheduledRaces" :key="row.key" class="offer-row">
+        <component
+          :is="layout === 'phone' ? 'ul' : 'div'"
+          :class="layout === 'phone' ? 'offers-list' : 'offers-grid'"
+        >
+          <component
+            :is="layout === 'phone' ? 'li' : 'div'"
+            v-for="row in driversWithScheduledRaces"
+            :key="row.key"
+            :class="layout === 'phone' ? 'offer-row' : 'offer-grid-item'"
+          >
             <RaceOfferBoardCard
               :offer="row.offer"
               :driver-name="row.driverName"
-              :declining="armScheduledBusyId === row.driverId || dropScheduledBusyId === row.driverId"
-              :primary-disabled="!row.scheduledRaceReady"
-              :status-text="row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock)"
-              primary-label="Spectate"
+              :declining="armScheduledBusyId === row.driverId || dropScheduledBusyId === row.driverId || sendWithManagerBusyId === row.driverId"
+              :primary-disabled="row.primaryDisabled"
+              :hide-primary="row.hidePrimary"
+              :hide-secondary="row.hideSecondary"
+              :show-send-with-manager="row.showSendWithManager"
+              :send-with-manager-disabled="row.sendWithManagerDisabled"
+              :send-with-manager-tooltip="row.sendWithManagerTooltip"
+              :is-in-background-sim="row.isInSim"
+              :sim-progress="row.simProgress"
+              :sim-badge="row.simBadge"
+              :status-text="row.statusText"
+              :primary-label="row.primaryLabel"
               secondary-label="Drop out"
-              @accept="startScheduledRaceSpectate(row.driverId)"
+              @accept="onManageMyself(row.driverId)"
+              @send-with-manager="onSendDriverWithManager(row.driverId)"
               @decline="dropScheduledRace(row.driverId)"
             />
-          </li>
-        </ul>
-        <div v-else class="offers-grid">
-          <div v-for="row in driversWithScheduledRaces" :key="row.key" class="offer-grid-item">
-            <RaceOfferBoardCard
-              :offer="row.offer"
-              :driver-name="row.driverName"
-              :declining="armScheduledBusyId === row.driverId || dropScheduledBusyId === row.driverId"
-              :primary-disabled="!row.scheduledRaceReady"
-              :status-text="row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock)"
-              primary-label="Spectate"
-              secondary-label="Drop out"
-              @accept="startScheduledRaceSpectate(row.driverId)"
-              @decline="dropScheduledRace(row.driverId)"
-            />
-          </div>
-        </div>
+          </component>
+        </component>
       </section>
 
       <p v-if="raceOffersMessage" class="info-banner">{{ raceOffersMessage }}</p>
@@ -165,18 +177,7 @@
       </ul>
       <div class="offer-detail__actions">
         <button
-          v-if="isLeague1"
-          type="button"
-          class="btn btn-primary"
-          data-focusable
-          :disabled="league1FleetLoading"
-          @click.stop="openLeague1FleetPicker"
-          @mousedown.stop
-        >
-          Choose fleet car
-        </button>
-        <button
-          v-else
+          v-if="!isLeague1"
           type="button"
           class="btn btn-primary"
           data-focusable
@@ -186,62 +187,25 @@
           Assign driver
         </button>
         <button
-          v-if="!isLeague1"
           type="button"
-          class="btn btn-secondary"
+          :class="isLeague1 ? 'btn btn-primary' : 'btn btn-secondary'"
           data-focusable
-          :disabled="league2FleetLoading"
-          @click.stop="openLeague2FleetPicker"
+          :disabled="fleetPickerLoading"
+          @click.stop="openFleetPicker"
           @mousedown.stop
-          title="Drive this race yourself. Team payout is reduced (see racing team docs) and you'll have a cooldown after."
+          :title="isLeague1 ? 'Drive yourself in this race' : 'Drive yourself: 85% payout (15% crew share) · 15m cooldown.'"
         >
           Race myself
         </button>
       </div>
 
-      <div v-if="isLeague1 && league1FleetPickerOpen" class="offer-detail__driver-picker">
-        <p class="driver-picker-title">Choose a team car</p>
-        <p class="driver-picker-hint">Match the car’s class to this offer.</p>
-        <p v-if="league1FleetLoading" class="driver-picker-empty">Loading fleet…</p>
-        <p v-else-if="!league1FleetOptions.length" class="driver-picker-empty">No fleet vehicle matches this sanctioned class.</p>
+      <div v-if="fleetPickerOpen" class="offer-detail__driver-picker">
+        <p class="driver-picker-title">{{ isLeague1 ? "Choose a team car" : "Race this offer yourself" }}</p>
+        <p class="driver-picker-hint">{{ isLeague1 ? "Match the car’s class to this offer." : "85% payout (15% crew share) · 15m cooldown" }}</p>
+        <p v-if="fleetPickerLoading" class="driver-picker-empty">Loading fleet…</p>
+        <p v-else-if="!fleetPickerOptions.length" class="driver-picker-empty">No fleet vehicle matches this sanctioned class.</p>
         <ul v-else class="driver-picker-list">
-          <li v-for="fv in league1FleetOptions" :key="String(fv.vehicleId)" class="driver-picker-item">
-            <div class="driver-picker-row-head">
-              <div class="driver-picker-row-titles">
-                <span class="driver-picker-name">{{ fv.vehicleName || ("Vehicle #" + fv.vehicleId) }}</span>
-                <span
-                  v-if="formatClassLabel(fv.fleetSanctionedClassLabel, fv.fleetEffectivePw) || fv.fleetClassStatusMessage"
-                  class="driver-picker-class"
-                >
-                  {{ formatClassLabel(fv.fleetSanctionedClassLabel, fv.fleetEffectivePw) || fv.fleetClassStatusMessage }}
-                </span>
-              </div>
-              <span v-if="fv.overpowered" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Over class</span>
-              <span v-if="fv.onCooldown" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Cooling down {{ formatCooldown(fv.cooldownSec) }}</span>
-            </div>
-            <div class="driver-picker-actions">
-              <button
-                type="button"
-                class="btn btn-primary"
-                data-focusable
-                :disabled="raceLeague1BusyVehicleId !== null"
-                @click.stop="confirmLeague1RaceWithFleet(fv)"
-                @mousedown.stop
-              >
-                Race
-              </button>
-            </div>
-          </li>
-        </ul>
-      </div>
-
-      <div v-if="!isLeague1 && league2FleetPickerOpen" class="offer-detail__driver-picker">
-        <p class="driver-picker-title">Race this offer yourself</p>
-        <p class="driver-picker-hint">Lower team payout; cooldown after you race.</p>
-        <p v-if="league2FleetLoading" class="driver-picker-empty">Loading fleet…</p>
-        <p v-else-if="!league2FleetOptions.length" class="driver-picker-empty">No fleet vehicle matches this sanctioned class.</p>
-        <ul v-else class="driver-picker-list">
-          <li v-for="fv in league2FleetOptions" :key="String(fv.vehicleId)" class="driver-picker-item">
+          <li v-for="fv in fleetPickerOptions" :key="String(fv.vehicleId)" class="driver-picker-item">
             <div class="driver-picker-row-head">
               <div class="driver-picker-row-titles">
                 <span class="driver-picker-name">{{ fv.vehicleName || ("Vehicle #" + fv.vehicleId) }}</span>
@@ -255,14 +219,15 @@
               <span v-if="fv.overpowered" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Over class</span>
               <span v-if="fv.onCooldown" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Vehicle cooling {{ formatCooldown(fv.cooldownSec) }}</span>
               <span v-if="fv.playerOnCooldown" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(245,73,0,0.2)', color: 'rgba(255,180,120,0.95)', border: '1px solid rgba(245,73,0,0.5)' }">Player cooling {{ formatCooldown(fv.playerCooldownSec) }}</span>
+              <span v-if="fv.dynoStatus === -1" :style="{ marginLeft: '0.5em', fontSize: '0.75em', padding: '0.15em 0.5em', borderRadius: '0.25em', background: 'rgba(234,179,8,0.2)', color: '#facc15', border: '1px solid rgba(234,179,8,0.5)' }">Dyno Required</span>
             </div>
             <div class="driver-picker-actions">
               <button
                 type="button"
                 class="btn btn-primary"
                 data-focusable
-                :disabled="raceLeague2BusyVehicleId !== null || fv.onCooldown || fv.playerOnCooldown || fv.overpowered"
-                @click.stop="confirmLeague2RaceWithFleet(fv)"
+                :disabled="raceBusyVehicleId !== null || fv.onCooldown || fv.playerOnCooldown || fv.overpowered || isFleetVehicleDynoRequired(fv)"
+                @click.stop="confirmRaceWithFleet(fv)"
                 @mousedown.stop
               >
                 Race
@@ -270,6 +235,9 @@
             </div>
           </li>
         </ul>
+        <button type="button" class="btn btn-secondary offer-detail__back" data-focusable @click.stop="cancelFleetPicker" @mousedown.stop>
+          Cancel
+        </button>
       </div>
 
       <div v-if="driverPickerOpen && !isLeague1" class="offer-detail__driver-picker">
@@ -285,13 +253,16 @@
                 <span v-if="hasFleetVehicleAssigned(tech) && isDriverOnPostRaceCooldown(tech)" class="driver-picker-sub warn">
                   — recovering {{ formatCooldownCounter(remainingSecondsForPostRaceCooldown(tech)) }}
                 </span>
+                <span v-else-if="hasFleetVehicleAssigned(tech) && isDriverVehicleDynoRequired(tech)" class="driver-picker-sub warn">
+                  — dyno certification required
+                </span>
               </div>
               <div class="driver-picker-actions">
                 <button
                   type="button"
                   class="btn btn-primary"
                   data-focusable
-                  :disabled="!hasFleetVehicleAssigned(tech) || isDriverOnPostRaceCooldown(tech)"
+                  :disabled="!hasFleetVehicleAssigned(tech) || isDriverOnPostRaceCooldown(tech) || isDriverVehicleDynoRequired(tech)"
                   @click.stop="confirmRaceWithDriver(tech)"
                   @mousedown.stop
                 >
@@ -351,6 +322,28 @@
           </div>
         </div>
       </div>
+      <div
+        v-if="vehicleDynoRequiredModalOpen"
+        class="modal-overlay"
+        @click.self.stop="vehicleDynoRequiredModalOpen = false"
+        @mousedown.self.stop="vehicleDynoRequiredModalOpen = false"
+      >
+        <div class="modal-content" @click.stop @mousedown.stop>
+          <h2>Dyno Certification Required</h2>
+          <p>
+            This car has been modified by more than 5% above baseline and requires dyno certification before entering sanctioned races. Test it on your workshop dyno to certify its power-to-weight bracket.
+          </p>
+          <div class="modal-buttons">
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-focusable
+              @click.stop="vehicleDynoRequiredModalOpen = false"
+              @mousedown.stop
+            >OK</button>
+          </div>
+        </div>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -361,6 +354,7 @@ import { lua, useBridge } from "@/bridge"
 import { useBusinessComputerStore } from "../../stores/businessComputerStore"
 import { formatSanctionedClassWithBucket } from "../../utils/sanctionedClassFormat"
 import RaceOfferBoardCard from "./RaceOfferBoardCard.vue"
+import { useScheduledRaces } from "../../composables/useScheduledRaces"
 
 defineProps({
   layout: {
@@ -372,9 +366,7 @@ defineProps({
 
 const store = useBusinessComputerStore()
 const { events } = useBridge()
-
-const scheduleUiSecondTick = ref(0)
-let scheduleUiTimer = null
+const { scheduledRows: driversWithScheduledRaces, scheduleUiSecondTick } = useScheduledRaces(store)
 
 const formatCooldownCounter = (totalSec) => {
   const s = Math.max(0, Math.floor(Number(totalSec) || 0))
@@ -416,31 +408,27 @@ const handleVehicleOnCooldown = (payload) => {
 
 const formatCooldown = (totalSec) => formatCooldownCounter(totalSec)
 
-onMounted(() => {
-  scheduleUiTimer = setInterval(() => {
-    scheduleUiSecondTick.value++
-    if (
-      managerAutoAssign.value
-      && managerIntervalCountdownSec.value === 0
-      && store.businessId
-      && store.businessType
-    ) {
-      const now = Date.now()
-      if (now - managerReloadThrottle > 4000) {
-        managerReloadThrottle = now
-        store.loadBusinessData(store.businessType, store.businessId)
-      }
+watch(scheduleUiSecondTick, () => {
+  if (
+    managerAutoAssign.value
+    && managerIntervalCountdownSec.value === 0
+    && store.businessId
+    && store.businessType
+  ) {
+    const now = Date.now()
+    if (now - managerReloadThrottle > 4000) {
+      managerReloadThrottle = now
+      store.loadBusinessData(store.businessType, store.businessId)
     }
-  }, 1000)
+  }
+})
+
+onMounted(() => {
   events.on("racingTeam:vehicleOutOfClass", handleVehicleOutOfClass)
   events.on("racingTeam:vehicleOnCooldown", handleVehicleOnCooldown)
   events.on("racingTeamManagerSettingsUpdated", onManagerSettingsUpdated)
 })
 onUnmounted(() => {
-  if (scheduleUiTimer) {
-    clearInterval(scheduleUiTimer)
-    scheduleUiTimer = null
-  }
   events.off("racingTeam:vehicleOutOfClass", handleVehicleOutOfClass)
   events.off("racingTeam:vehicleOnCooldown", handleVehicleOnCooldown)
   events.off("racingTeamManagerSettingsUpdated", onManagerSettingsUpdated)
@@ -467,15 +455,10 @@ const selectedOffer = ref(null)
 
 const driverPickerOpen = ref(false)
 
-const league1FleetPickerOpen = ref(false)
-const league1FleetOptions = ref([])
-const league1FleetLoading = ref(false)
-const raceLeague1BusyVehicleId = ref(null)
-
-const league2FleetPickerOpen = ref(false)
-const league2FleetOptions = ref([])
-const league2FleetLoading = ref(false)
-const raceLeague2BusyVehicleId = ref(null)
+const fleetPickerOpen = ref(false)
+const fleetPickerOptions = ref([])
+const fleetPickerLoading = ref(false)
+const raceBusyVehicleId = ref(null)
 
 const raceFromGarageBusy = ref(false)
 
@@ -483,30 +466,14 @@ const armScheduledBusyId = ref(null)
 
 const dropScheduledBusyId = ref(null)
 
+const sendWithManagerBusyId = ref(null)
+
 const decliningOfferId = ref(null)
 
 const vehicleOutOfClassModalOpen = ref(false)
 const vehicleOnCooldownModalOpen = ref(false)
+const vehicleDynoRequiredModalOpen = ref(false)
 const vehicleOnCooldownSec = ref(0)
-
-const remainingSecondsForScheduledDriver = (t) => {
-  const pr = t?.pendingRaceOffer
-  const wallDue = Number(pr?.scheduledRaceReadyWallEpoch ?? t?.scheduledRaceReadyWallEpoch)
-  void scheduleUiSecondTick.value
-  if (Number.isFinite(wallDue)) {
-    return Math.max(0, wallDue - Math.floor(Date.now() / 1000))
-  }
-  const due = Number(t.scheduledRaceSimTime)
-  const now = Number(store.racingTeamCareerSimTime)
-  if (Number.isFinite(due) && Number.isFinite(now)) {
-    return Math.max(0, Math.floor(due - now))
-  }
-  const fallback = Number(t.secondsUntilScheduledRace)
-  if (Number.isFinite(fallback)) {
-    return Math.max(0, Math.floor(fallback))
-  }
-  return null
-}
 
 const racingTeamProxyArmed = computed(() => store.businessData?.racingTeamProxyArmed === true)
 
@@ -522,14 +489,15 @@ const showManagerAutomationPanel = computed(() => {
 const managerSkillLevel = computed(() => Number(store.businessData?.racingTeamManagerSkillLevel ?? 0))
 
 const managerAutoAssign = computed(() => store.businessData?.racingTeamManagerAutoAssign === true)
+const managerAutoStartBackgroundRaces = computed(() => store.businessData?.racingTeamManagerAutoStartRaces !== false)
 
-const DEFAULT_MANAGER_INTERVAL_SEC = 1800
+const DEFAULT_MANAGER_INTERVAL_SEC = 300
 
 const MANAGER_INTERVAL_SHORT = {
+  300: "5m",
   600: "10m",
   1200: "20m",
   1800: "30m",
-  2700: "45m",
   3600: "60m",
 }
 
@@ -546,10 +514,10 @@ const managerIntervalOptions = computed(() => {
   const list = Array.isArray(opts) && opts.length
     ? opts
     : [
+        { sec: 300, label: "5 minutes" },
         { sec: 600, label: "10 minutes" },
         { sec: 1200, label: "20 minutes" },
         { sec: 1800, label: "30 minutes" },
-        { sec: 2700, label: "45 minutes" },
         { sec: 3600, label: "60 minutes" },
       ]
   return list.map((o) => {
@@ -627,6 +595,20 @@ async function onManagerAutoToggle (ev) {
   }
 }
 
+const managerAutoStartRacesBusy = ref(false)
+async function onManagerAutoStartRacesToggle (ev) {
+  const enabled = ev.target.checked
+  managerAutoStartRacesBusy.value = true
+  try {
+    await store.setRacingTeamAutoStartBackgroundRaces(enabled)
+    await store.loadBusinessData(store.businessType, store.businessId)
+  } catch (err) {
+    console.error("[BusinessRacingTab] setRacingTeamAutoStartBackgroundRaces", err)
+  } finally {
+    managerAutoStartRacesBusy.value = false
+  }
+}
+
 watch(managerIntervalModel, async (sec, prevSec) => {
   if (sec === prevSec || managerIntervalBusy.value) return
   if (!Number.isFinite(sec) || sec <= 0) return
@@ -649,50 +631,6 @@ async function onManagerSettingsUpdated (data) {
   if (!data || String(data.businessId) !== String(store.businessId)) return
   if (!store.businessType || !store.businessId) return
   await store.loadBusinessData(store.businessType, store.businessId)
-}
-
-const driversWithScheduledRaces = computed(() => {
-  void store.racingTeamCareerSimTime
-  void scheduleUiSecondTick.value
-  const list = store.techs
-  if (!Array.isArray(list)) return []
-  const rows = []
-  for (const t of list) {
-    if (!t || t.fired || !t.pendingRaceOffer) continue
-    const pr = t.pendingRaceOffer
-    const useWallClock = Number.isFinite(Number(pr.scheduledRaceReadyWallEpoch ?? t.scheduledRaceReadyWallEpoch))
-    const remaining = remainingSecondsForScheduledDriver(t)
-    rows.push({
-      key: `sched-${t.id}-${pr.id ?? ""}`,
-      driverId: t.id,
-      driverName: t.name || `Driver #${t.id}`,
-      offer: pr,
-      scheduledRaceReady: remaining !== null ? remaining <= 0 : t.scheduledRaceReady === true,
-      secondsUntilScheduledRace: remaining ?? 0,
-      useWallClock,
-    })
-  }
-  return rows
-})
-
-const formatWaitText = (seconds, useWallClock) => {
-  if (!useWallClock && (store.racingTeamCareerSimTime === null || store.racingTeamCareerSimTime === undefined)) {
-    if (Number.isFinite(seconds) && seconds > 0) {
-      const s = Math.max(0, Math.floor(seconds))
-      const minutes = Math.floor(s / 60)
-      const secs = s % 60
-      return minutes > 0 ? `Ready in ~${minutes}m ${secs}s (syncing…)` : `Ready in ~${secs}s (syncing…)`
-    }
-    return "Syncing countdown…"
-  }
-  if (!Number.isFinite(seconds) || seconds <= 0) return "Not ready yet"
-  const s = Math.max(0, Math.floor(seconds))
-  const minutes = Math.floor(s / 60)
-  const secs = s % 60
-  if (minutes > 0) {
-    return `Ready in ${minutes}m ${secs}s`
-  }
-  return `Ready in ${secs}s`
 }
 
 const raceOffers = computed(() => {
@@ -724,6 +662,7 @@ const LEAGUE1_ACCEPT_TOAST = {
   not_eligible_pw: "This car is outside the race power-to-weight bracket (too high or bracket read failed).",
   fleet_power_weight_unknown:
     "Cannot read this car's power-to-weight (dyno or weight missing). Run a dyno on it or pick another vehicle.",
+  dyno_required: "Dyno certification required: This vehicle has been modified and must be tested on the dyno before entering sanctioned races.",
   insufficient_funds: "Not enough team funds for the entry fee.",
   offer_not_on_board: "That offer is no longer on the board — refresh and pick again.",
   bad_fleet_vehicle: "Fleet vehicle not found. Pull the car from inventory or reload.",
@@ -744,6 +683,17 @@ const hasFleetVehicleAssigned = (tech) => {
 }
 
 const isDriverOnPostRaceCooldown = (tech) => remainingSecondsForPostRaceCooldown(tech) > 0
+
+const isDriverVehicleDynoRequired = (tech) => {
+  if (!tech || !hasFleetVehicleAssigned(tech)) return false
+  const status = Number(tech.dynoStatus ?? tech.fleetVehicleDynoStatus)
+  return status !== 1
+}
+
+const isFleetVehicleDynoRequired = (fv) => {
+  if (!fv) return false
+  return Number(fv.dynoStatus) !== 1
+}
 
 const formatPostRaceCooldownText = (tech) => formatCooldownCounter(remainingSecondsForPostRaceCooldown(tech))
 
@@ -770,12 +720,12 @@ const onDeclineRaceOffer = async (offer) => {
 }
 
 const onOfferDetailBack = () => {
-  if (league1FleetPickerOpen.value) {
-    cancelLeague1FleetPicker()
+  if (fleetPickerOpen.value) {
+    cancelFleetPicker()
     return
   }
-  if (league2FleetPickerOpen.value) {
-    cancelLeague2FleetPicker()
+  if (driverPickerOpen.value) {
+    cancelDriverPicker()
     return
   }
   clearSelectedOffer()
@@ -783,14 +733,10 @@ const onOfferDetailBack = () => {
 
 const clearSelectedOffer = () => {
   driverPickerOpen.value = false
-  league1FleetPickerOpen.value = false
-  league1FleetOptions.value = []
-  league1FleetLoading.value = false
-  raceLeague1BusyVehicleId.value = null
-  league2FleetPickerOpen.value = false
-  league2FleetOptions.value = []
-  league2FleetLoading.value = false
-  raceLeague2BusyVehicleId.value = null
+  fleetPickerOpen.value = false
+  fleetPickerOptions.value = []
+  fleetPickerLoading.value = false
+  raceBusyVehicleId.value = null
   selectedOffer.value = null
 }
 
@@ -799,23 +745,25 @@ const onAssignDriver = () => {
   driverPickerOpen.value = true
 }
 
-const cancelLeague1FleetPicker = () => {
-  league1FleetPickerOpen.value = false
-  league1FleetOptions.value = []
-  league1FleetLoading.value = false
-  raceLeague1BusyVehicleId.value = null
+const cancelFleetPicker = () => {
+  fleetPickerOpen.value = false
+  fleetPickerOptions.value = []
+  fleetPickerLoading.value = false
+  raceBusyVehicleId.value = null
 }
 
-const openLeague1FleetPicker = async () => {
+const openFleetPicker = async () => {
   const offer = selectedOffer.value
   if (!offer || offer.id === undefined || offer.id === null) return
-  league1FleetPickerOpen.value = true
-  league1FleetLoading.value = true
-  league1FleetOptions.value = []
+  fleetPickerOpen.value = true
+  fleetPickerLoading.value = true
+  fleetPickerOptions.value = []
   try {
-    const opts = await store.listLeague1FleetVehiclesForSanctionedOffer(offer.id)
-    league1FleetOptions.value = Array.isArray(opts) ? opts : []
-    if (!league1FleetOptions.value.length) {
+    const opts = isLeague1.value
+      ? await store.listLeague1FleetVehiclesForSanctionedOffer(offer.id)
+      : await store.listLeague2FleetVehiclesForSanctionedOffer(offer.id)
+    fleetPickerOptions.value = Array.isArray(opts) ? opts : []
+    if (!fleetPickerOptions.value.length) {
       try {
         lua.ui_message(
           "No fleet vehicle matches this race HP class. Buy or tune a car in the bracket shown on the offer.",
@@ -825,155 +773,48 @@ const openLeague1FleetPicker = async () => {
         )
       } catch (e) {
       }
-      league1FleetPickerOpen.value = false
+      fleetPickerOpen.value = false
     }
   } catch (e) {
-    console.error("[BusinessRacingTab] openLeague1FleetPicker", e)
-    league1FleetPickerOpen.value = false
+    console.error("[BusinessRacingTab] openFleetPicker", e)
+    fleetPickerOpen.value = false
   } finally {
-    league1FleetLoading.value = false
+    fleetPickerLoading.value = false
   }
 }
 
-const cancelLeague2FleetPicker = () => {
-  league2FleetPickerOpen.value = false
-  league2FleetOptions.value = []
-  league2FleetLoading.value = false
-  raceLeague2BusyVehicleId.value = null
-}
-
-const openLeague2FleetPicker = async () => {
-  const offer = selectedOffer.value
-  if (!offer || offer.id === undefined || offer.id === null) return
-  league2FleetPickerOpen.value = true
-  league2FleetLoading.value = true
-  league2FleetOptions.value = []
-  try {
-    const opts = await store.listLeague2FleetVehiclesForSanctionedOffer(offer.id)
-    league2FleetOptions.value = Array.isArray(opts) ? opts : []
-    if (!league2FleetOptions.value.length) {
-      try {
-        lua.ui_message(
-          "No fleet vehicle matches this race power-to-weight class. Tune or assign a car in the bracket shown.",
-          9,
-          "Racing Team",
-          "warning"
-        )
-      } catch (e) {
-      }
-      league2FleetPickerOpen.value = false
-    }
-  } catch (e) {
-    console.error("[BusinessRacingTab] openLeague2FleetPicker", e)
-    league2FleetPickerOpen.value = false
-  } finally {
-    league2FleetLoading.value = false
+const handleRaceAcceptResult = (res) => {
+  const key = String(res || "").toLowerCase()
+  if (key === "out_of_class") { vehicleOutOfClassModalOpen.value = true; return false }
+  if (key === "vehicle_cooldown") { vehicleOnCooldownModalOpen.value = true; return false }
+  if (key === "dyno_required") { vehicleDynoRequiredModalOpen.value = true; return false }
+  if (res !== true) {
+    const specific = LEAGUE1_ACCEPT_TOAST[key] || (res ? `Could not start this race (${res}).` : "Could not start this race.")
+    try { lua.ui_message(specific, 9, "Racing Team", "warning") } catch (_) {}
+    return false
   }
+  return true
 }
 
-const confirmLeague2RaceWithFleet = async (fv) => {
+const confirmRaceWithFleet = async (fv) => {
   const offer = selectedOffer.value
   if (!offer || offer.id === undefined || offer.id === null || !fv) return
   const vid = fv.vehicleId
   if (vid === undefined || vid === null || vid === "") return
-  raceLeague2BusyVehicleId.value = vid
+  raceBusyVehicleId.value = vid
   try {
-    const res = await store.acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(offer.id, vid)
-    if (res === "out_of_class" || String(res || "").toLowerCase() === "out_of_class") {
-      vehicleOutOfClassModalOpen.value = true
-      return
-    }
-    if (res === "vehicle_cooldown" || String(res || "").toLowerCase() === "vehicle_cooldown") {
-      vehicleOnCooldownModalOpen.value = true
-      return
-    }
-    if (res !== true) {
-      const key = typeof res === "string" ? String(res).toLowerCase() : ""
-      const specific = key ? LEAGUE1_ACCEPT_TOAST[key] : null
-      try {
-        if (specific) {
-          lua.ui_message(specific, 10, "Racing Team", "warning")
-        } else if (res === false || res == null || res === "") {
-          lua.ui_message(
-            "Could not start this race. The offer may no longer be on the board, the team account may not cover the entry fee, or a sanctioned race may already be active.",
-            8,
-            "Racing Team",
-            "error"
-          )
-        } else if (typeof res === "string" && res.length > 0) {
-          lua.ui_message(`Could not start this race (${res}).`, 9, "Racing Team", "warning")
-        }
-      } catch (e) {
-        /* ignore */
-      }
-      return
-    }
+    const res = isLeague1.value
+      ? await store.acceptRacingTeamRaceOfferAsPlayer(offer.id, vid)
+      : await store.acceptRacingTeamRaceOfferAsPlayerAlongsideProxy(offer.id, vid)
+    if (!handleRaceAcceptResult(res)) return
     await store.loadBusinessData(store.businessType, store.businessId)
     clearSelectedOffer()
     try {
       lua.ui_message("Go to race set. Drive to staging to begin.", 6, "Racing Team", "info")
-    } catch (e) {
-    }
-    if (store.exitBusinessComputerToPlay) {
-      store.exitBusinessComputerToPlay()
-    }
+    } catch (e) {}
+    store.exitBusinessComputerToPlay()
   } finally {
-    raceLeague2BusyVehicleId.value = null
-  }
-}
-
-const confirmLeague1RaceWithFleet = async (fv) => {
-  const offer = selectedOffer.value
-  if (!offer || offer.id === undefined || offer.id === null || !fv) return
-  const vid = fv.vehicleId
-  if (vid === undefined || vid === null || vid === "") return
-  raceLeague1BusyVehicleId.value = vid
-  try {
-    // eslint-disable-next-line no-console
-    console.warn("[L1PLAYER] confirmLeague1RaceWithFleet", { offerId: offer.id, fleetVehicleId: vid })
-    const res = await store.acceptRacingTeamRaceOfferAsPlayer(offer.id, vid)
-    // eslint-disable-next-line no-console
-    console.warn("[L1PLAYER] acceptRacingTeamRaceOfferAsPlayer result", res)
-    if (res === "out_of_class" || String(res || "").toLowerCase() === "out_of_class" || vehicleOutOfClassModalOpen.value) {
-      vehicleOutOfClassModalOpen.value = true
-      return
-    }
-    if (res === "vehicle_cooldown" || String(res || "").toLowerCase() === "vehicle_cooldown" || vehicleOnCooldownModalOpen.value) {
-      vehicleOnCooldownModalOpen.value = true
-      return
-    }
-    if (res !== true) {
-      const key = typeof res === "string" ? String(res).toLowerCase() : ""
-      const specific = key ? LEAGUE1_ACCEPT_TOAST[key] : null
-      try {
-        if (specific) {
-          lua.ui_message(specific, 10, "Racing Team", "warning")
-        } else if (res === false || res == null || res === "") {
-          lua.ui_message(
-            "Could not start this race. The offer may no longer be on the board, the team account may not cover the entry fee, or a sanctioned race may already be active.",
-            8,
-            "Racing Team",
-            "error"
-          )
-        } else if (typeof res === "string" && res.length > 0) {
-          lua.ui_message(`Could not start this race (${res}).`, 9, "Racing Team", "warning")
-        }
-      } catch (e) {
-        /* ignore */
-      }
-      return
-    }
-    await store.loadBusinessData(store.businessType, store.businessId)
-    clearSelectedOffer()
-    try {
-      lua.ui_message("Go to race set. Drive to staging to begin.", 6, "Racing Team", "info")
-    } catch (e) {
-    }
-    if (store.exitBusinessComputerToPlay) {
-      store.exitBusinessComputerToPlay()
-    }
-  } finally {
-    raceLeague1BusyVehicleId.value = null
+    raceBusyVehicleId.value = null
   }
 }
 
@@ -995,40 +836,11 @@ const confirmRaceWithDriver = async (tech) => {
         "Racing Team",
         "warning"
       )
-    } catch (e) {
-    }
+    } catch (e) {}
     return
   }
   const accepted = await store.acceptRacingTeamRaceOffer(offer.id, tech.id)
-  if (accepted === "out_of_class" || String(accepted || "").toLowerCase() === "out_of_class" || vehicleOutOfClassModalOpen.value) {
-    vehicleOutOfClassModalOpen.value = true
-    return
-  }
-  if (accepted === "vehicle_cooldown" || String(accepted || "").toLowerCase() === "vehicle_cooldown" || vehicleOnCooldownModalOpen.value) {
-    vehicleOnCooldownModalOpen.value = true
-    return
-  }
-  if (accepted !== true) {
-    const key = typeof accepted === "string" ? String(accepted).toLowerCase() : ""
-    const specific = key ? LEAGUE1_ACCEPT_TOAST[key] : null
-    try {
-      if (specific) {
-        lua.ui_message(specific, 10, "Racing Team", "warning")
-      } else if (!accepted) {
-        lua.ui_message(
-          "Could not accept this race. The offer may have expired, the fleet car may be invalid, or the car may not match the sanctioned class.",
-          7,
-          "Racing Team",
-          "error"
-        )
-      } else if (typeof accepted === "string" && accepted.length > 0) {
-        lua.ui_message(`Could not accept this race (${accepted}).`, 8, "Racing Team", "warning")
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    return
-  }
+  if (!handleRaceAcceptResult(accepted)) return
   driverPickerOpen.value = false
   clearSelectedOffer()
   await store.loadBusinessData(store.businessType, store.businessId)
@@ -1047,9 +859,12 @@ const armScheduledErrMessage = (err) => {
     no_valid_fleet_vehicle: "Driver needs a valid fleet vehicle.",
     missing_business_or_driver: "Missing business or driver.",
     no_business: "No business selected.",
+    dyno_required: "Dyno certification required before entering sanctioned races.",
     fleet_hp_over_class_max: "Fleet car is too powerful for this race class.",
     fleet_hp_under_class_min: "Fleet car is below the minimum HP for this race class.",
     fleet_hp_bracket_mismatch: "Fleet car does not match the race HP class.",
+    requires_manager_level_1: "Requires Manager Lv 1.",
+    manager_already_running_race: "Manager is already supervising a race.",
     lua_error: "Something went wrong. Check the log.",
     no_proxy_flow: "Race flow extension is not ready. Restart the game or verify the mod install.",
     no_staging_spot: "No track staging spot (player_stage_track) on this map.",
@@ -1057,7 +872,7 @@ const armScheduledErrMessage = (err) => {
     teleport_failed: "Could not place the team car at staging.",
     enter_vehicle_failed: "Could not switch you into the team car.",
     begin_failed: "Staging did not complete. Check the log.",
-    unknown_error: "Could not start spectate (no error detail from the game).",
+    unknown_error: "Could not start race simulation (no error detail from game).",
   }
   return m[err] || (err ? String(err) : "Could not start the race.")
 }
@@ -1073,6 +888,7 @@ const proxyRaceErrMessage = (err) => {
     teleport_failed: "Could not place the team car at staging.",
     enter_vehicle_failed: "Could not switch you into the team car.",
     no_business: "No business selected.",
+    dyno_required: "Dyno certification required before entering sanctioned races.",
     no_track_flow: "Track flow is not available.",
     no_proxy_flow: "Race flow extension is not ready. Restart the game or verify the mod install.",
     lua_error: "Something went wrong. Check the log.",
@@ -1097,7 +913,13 @@ const dropScheduledRace = async (driverId) => {
   if (driverId === undefined || driverId === null) return
   dropScheduledBusyId.value = driverId
   try {
-    const res = await store.cancelRacingTeamProxyScheduledRace(driverId)
+    const row = driversWithScheduledRaces.value.find((r) => r.driverId === driverId)
+    if (row && row.isInSim) {
+      await store.cancelRacingTeamBackgroundRace(driverId, "dropped")
+    }
+    const res = row?.isPlayer
+      ? await store.cancelRacingTeamPlayerScheduledRace()
+      : await store.cancelRacingTeamProxyScheduledRace(driverId)
     if (res && res.ok) {
       await store.loadBusinessData(store.businessType, store.businessId)
       try {
@@ -1112,6 +934,48 @@ const dropScheduledRace = async (driverId) => {
     }
   } finally {
     dropScheduledBusyId.value = null
+  }
+}
+
+const onManageMyself = async (driverId) => {
+  if (driverId === undefined || driverId === null) return
+  const row = driversWithScheduledRaces.value.find((r) => r.driverId === driverId)
+  if (row?.isPlayer) {
+    await store.driveToTrack(row.offer)
+    return
+  }
+  if (row && row.isInSim) {
+    try {
+      await store.cancelRacingTeamBackgroundRace(driverId, "manage_myself")
+      await store.loadBusinessData(store.businessType, store.businessId)
+    } catch (e) {
+      console.error("[BusinessRacingTab] cancelRacingTeamBackgroundRace error", e)
+    }
+  }
+  await startScheduledRaceSpectate(driverId)
+}
+
+const onSendDriverWithManager = async (driverId) => {
+  if (driverId === undefined || driverId === null) return
+  sendWithManagerBusyId.value = driverId
+  try {
+    const res = await store.sendRacingTeamDriverWithManager(driverId)
+    if (res && res.ok) {
+      try {
+        lua.ui_message("Driver dispatched with team manager for background race.", 6, "Racing Team", "info")
+      } catch (e) {}
+      await store.loadBusinessData(store.businessType, store.businessId)
+    } else {
+      const err = res?.err || "unknown_error"
+      const msg = armScheduledErrMessage(err)
+      try {
+        lua.ui_message(msg, 6, "Racing Team", "warning")
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.error("[BusinessRacingTab] sendDriverWithManager", err)
+  } finally {
+    sendWithManagerBusyId.value = null
   }
 }
 
@@ -1135,6 +999,10 @@ const startScheduledRaceSpectate = async (driverId) => {
       return
     }
     const err = res && res.err ? res.err : "unknown_error"
+    if (err === "dyno_required") {
+      vehicleDynoRequiredModalOpen.value = true
+      return
+    }
     let showOos = isOutOfSpecErr(err)
     if (!showOos) {
       try {
@@ -1171,6 +1039,10 @@ const onRaceFromGarage = async () => {
       return
     }
     const err = res && res.err ? res.err : "unknown_error"
+    if (err === "dyno_required") {
+      vehicleDynoRequiredModalOpen.value = true
+      return
+    }
     let showOos = isOutOfSpecErr(err)
     if (!showOos) {
       try {
@@ -1229,6 +1101,12 @@ const onRaceFromGarage = async () => {
   font-size: 1em;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.92);
+}
+.manager-auto-panel__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
 }
 .manager-auto-toggle {
   display: inline-flex;

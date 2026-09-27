@@ -29,25 +29,9 @@
         </div>
         
         <div v-if="showBreakdown" class="operating-costs-breakdown">
-          <div class="cost-item">
-            <span class="cost-label">Base Lift:</span>
-            <span class="cost-value">+{{ formatCurrency(operatingCosts.baseLift) }}</span>
-          </div>
-          <div class="cost-item" v-if="operatingCosts.additionalLifts > 0">
-            <span class="cost-label">Additional Lifts ({{ operatingCosts.additionalLifts }}):</span>
-            <span class="cost-value">+{{ formatCurrency(operatingCosts.additionalLiftsCost) }}</span>
-          </div>
-          <div class="cost-item" v-if="operatingCosts.techs > 0">
-            <span class="cost-label">Techs ({{ operatingCosts.techs }}):</span>
-            <span class="cost-value">+{{ formatCurrency(operatingCosts.techsCost) }}</span>
-          </div>
-          <div class="cost-item" v-if="operatingCosts.manager > 0">
-            <span class="cost-label">Manager:</span>
-            <span class="cost-value">{{ formatCurrency(operatingCosts.managerCost) }}</span>
-          </div>
-          <div class="cost-item" v-if="operatingCosts.generalManager > 0">
-            <span class="cost-label">General Manager:</span>
-            <span class="cost-value">{{ formatCurrency(operatingCosts.generalManagerCost) }}</span>
+          <div v-for="(item, idx) in breakdownItems" :key="idx" class="cost-item">
+            <span class="cost-label">{{ item.label }}:</span>
+            <span class="cost-value">+{{ formatCurrency(item.cost) }}</span>
           </div>
           <div class="cost-item cost-total">
             <span class="cost-label">Total (per 30 min):</span>
@@ -305,6 +289,7 @@ const loading = ref(true)
 const showBreakdown = ref(false)
 const currentTime = ref(null)
 const operatingCosts = computed(() => financesData.value?.operatingCosts || {})
+const breakdownItems = computed(() => operatingCosts.value?.costItems?.filter(item => item && item.cost != null) || [])
 const accountBalance = computed(() => financesData.value?.account?.balance || 0)
 const transactions = computed(() => financesData.value?.transactions || [])
 const businessLoans = computed(() => financesData.value?.loans || [])

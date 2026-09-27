@@ -1,5 +1,10 @@
 <template>
-  <article class="race-offer-card" @click.stop @mousedown.stop>
+  <article
+    class="race-offer-card"
+    :class="{ 'race-offer-card--compact': compact }"
+    @click.stop
+    @mousedown.stop
+  >
     <div class="race-offer-card__header">
       <span class="race-offer-card__title">{{ title }}</span>
       <span
@@ -19,26 +24,61 @@
         <span v-if="Number(place.xp) > 0" class="race-offer-place__xp">{{ formatMoney(place.xp) }} XP</span>
       </div>
     </div>
+    <div v-if="isInBackgroundSim" class="race-offer-card__sim-progress">
+      <div class="race-offer-card__sim-info">
+        <span class="race-offer-card__sim-badge">{{ simBadge || statusText }}</span>
+      </div>
+      <div class="race-offer-card__progress-track" aria-hidden="true">
+        <div
+          class="race-offer-card__progress-fill"
+          :style="{ width: `${Math.min(100, Math.max(0, Math.round((simProgress || 0) * 100)))}%` }"
+        />
+      </div>
+    </div>
     <div class="race-offer-card__actions">
+      <div class="actions-dispatch-row">
+        <button
+          v-if="!hidePrimary"
+          type="button"
+          class="btn btn-primary btn-action"
+          data-focusable
+          :disabled="declining || primaryDisabled"
+          @click.stop="$emit('accept')"
+          @mousedown.stop
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>{{ primaryLabel }}</span>
+        </button>
+
+        <button
+          v-if="showSendWithManager"
+          type="button"
+          class="btn btn-manager btn-action"
+          data-focusable
+          :disabled="declining || sendWithManagerDisabled"
+          :title="sendWithManagerTooltip || ''"
+          @click.stop="$emit('send-with-manager')"
+          @mousedown.stop
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          <span>{{ sendWithManagerLabel }}</span>
+        </button>
+      </div>
+
       <button
+        v-if="!hideSecondary"
         type="button"
-        class="btn btn-primary"
+        class="btn-cancel-link"
         data-focusable
-        :disabled="declining || primaryDisabled"
-        @click.stop="$emit('accept')"
-        @mousedown.stop
-      >
-        {{ primaryLabel }}
-      </button>
-      <button
-        type="button"
-        class="btn btn-secondary"
-        data-focusable
-        :disabled="declining"
+        :disabled="declining || secondaryDisabled"
         @click.stop="$emit('decline')"
         @mousedown.stop
       >
-        {{ secondaryLabel }}
+        <span>✕ {{ secondaryLabel }}</span>
       </button>
     </div>
   </article>
@@ -49,6 +89,10 @@ import { computed } from "vue"
 import { formatSanctionedClassCompact, pwBucketX1000 } from "../../utils/sanctionedClassFormat"
 
 const props = defineProps({
+  compact: {
+    type: Boolean,
+    default: false
+  },
   offer: {
     type: Object,
     required: true
@@ -73,13 +117,53 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  secondaryDisabled: {
+    type: Boolean,
+    default: false
+  },
+  hidePrimary: {
+    type: Boolean,
+    default: false
+  },
+  hideSecondary: {
+    type: Boolean,
+    default: false
+  },
+  showSendWithManager: {
+    type: Boolean,
+    default: false
+  },
+  sendWithManagerDisabled: {
+    type: Boolean,
+    default: false
+  },
+  sendWithManagerTooltip: {
+    type: String,
+    default: ""
+  },
+  sendWithManagerLabel: {
+    type: String,
+    default: "With Manager"
+  },
+  isInBackgroundSim: {
+    type: Boolean,
+    default: false
+  },
+  simProgress: {
+    type: Number,
+    default: 0
+  },
+  simBadge: {
+    type: String,
+    default: ""
+  },
   statusText: {
     type: String,
     default: ""
   }
 })
 
-defineEmits(["accept", "decline"])
+defineEmits(["accept", "decline", "send-with-manager"])
 
 const title = computed(() => props.offer?.raceLabel || props.offer?.raceName || "Race")
 
@@ -244,50 +328,165 @@ function formatMoney(n) {
   color: rgba(244, 196, 156, 0.78);
 }
 
+.race-offer-card__sim-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  margin-top: 0.15em;
+}
+
+.race-offer-card__sim-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.race-offer-card__sim-badge {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ff9933;
+}
+
+.race-offer-card__progress-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.race-offer-card__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6600, #ff9933);
+  border-radius: 3px;
+  transition: width 0.15s linear;
+}
+
 .race-offer-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  width: 100%;
+  margin-top: 0.25em;
+}
+
+.actions-dispatch-row {
   display: flex;
   gap: 0.45em;
   width: 100%;
+
+  .btn-action {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    padding: 0.52em 0.65em;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s, opacity 0.15s;
+
+    svg {
+      flex-shrink: 0;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+  }
+
+  .btn-primary {
+    background: rgba(245, 73, 0, 0.9);
+    color: #fff;
+    border: 1px solid rgba(255, 120, 50, 0.3);
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 100, 30, 1);
+    }
+  }
+
+  .btn-manager {
+    background: rgba(24, 60, 100, 0.7);
+    color: #70c4ff;
+    border: 1px solid rgba(70, 160, 255, 0.4);
+
+    &:hover:not(:disabled) {
+      background: rgba(30, 85, 145, 0.9);
+      color: #fff;
+    }
+  }
 }
 
-.race-offer-card__actions .btn {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 0.5em 0.75em;
-  border-radius: 999px;
-  font-size: 0.82em;
-  font-weight: 700;
-}
-
-.btn {
-  cursor: pointer;
+.btn-cancel-link {
+  background: transparent;
   border: none;
-  transition: background 0.15s, opacity 0.15s;
-}
+  color: rgba(255, 110, 110, 0.65);
+  font-size: 0.74em;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.15em 0;
+  align-self: center;
+  transition: color 0.15s ease;
 
-.btn-primary {
-  background: rgba(245, 73, 0, 0.92);
-  color: #fff;
   &:hover:not(:disabled) {
-    background: rgba(255, 100, 30, 1);
+    color: rgba(255, 110, 110, 1);
+    text-decoration: underline;
   }
+
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: default;
   }
 }
 
-.btn-secondary {
-  background: rgba(40, 52, 64, 0.95);
-  color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(245, 73, 0, 0.35);
-  &:hover:not(:disabled) {
-    border-color: rgba(245, 73, 0, 0.55);
-    background: rgba(50, 64, 78, 0.98);
+.race-offer-card--compact {
+  font-size: 0.88em;
+  padding: 0.6em 0.8em;
+  gap: 0.4em;
+
+  .race-offer-card__podium {
+    gap: 0.35em;
   }
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
+
+  .race-offer-place {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25em 0.5em;
+    gap: 0.3em;
+
+    .race-offer-place__xp {
+      display: none;
+    }
+  }
+
+  .race-offer-card__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4em;
+    margin-top: 0.15em;
+
+    .actions-dispatch-row {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .btn-cancel-link {
+      padding: 0.2em 0.4em;
+      white-space: nowrap;
+    }
   }
 }
 </style>

@@ -523,6 +523,39 @@ local function addTowingButtons()
   end
 end
 
+local function getRacingTeamQuickTravelButton(order)
+  if not career_modules_business_businessManager or not career_modules_business_businessSkillTree then return end
+
+  local purchased = career_modules_business_businessManager.getPurchasedBusinesses("racingTeam")
+  local rtId = purchased and next(purchased)
+  if not rtId then return end
+
+  local skillUnlock = career_modules_business_businessSkillTree.getNodeProgress(rtId, "qol", "quick-travel")
+  if (skillUnlock or 0) <= 0 then return end
+
+  local pos, rot = career_modules_business_businessInventory.getBusinessGaragePosRot("racingTeam", rtId, nil, 1)
+  if not pos then return end
+
+  return string.format("quickTravelTo%s", rtId), {
+    type = "walk",
+    label = "Belasco Racing Team",
+    includeConditions = {},
+    menuTag = "quickTravel",
+    enableConditions = {},
+    atFadeFunction = function() career_modules_quickTravel.quickTravelToPos(pos, true, "ui.career.attributeLog.quickTravelGarageTaxi", rot) end,
+    order = order,
+    active = true,
+    enabled = true,
+    fadeActive = true,
+    fadeStartSound = "event:>UI>Missions>Vehicle_Recover",
+    icon = "garageNumber" .. math.min(10, order),
+    price = function() return { money = { amount = career_modules_quickTravel.getPriceForQuickTravel(pos) } } end,
+    confirmationText = "Do you want to quick travel to the racing team?",
+    path = "quickTravel/",
+    noUniqueID = true,
+  }
+end
+
 local function addQuickTravelButtons()
   if not getCurrentLevelIdentifier() then return end
   -- Drop sold/unowned garage travel targets left behind from earlier ownership.
@@ -559,6 +592,12 @@ local function addQuickTravelButtons()
         }
       end
     end
+  end
+
+  local rtKey, rtButton = getRacingTeamQuickTravelButton(discoveredGarages + 1)
+  if rtKey then
+    discoveredGarages = discoveredGarages + 1
+    buttonOptions[rtKey] = rtButton
   end
 
   local function getPrice()

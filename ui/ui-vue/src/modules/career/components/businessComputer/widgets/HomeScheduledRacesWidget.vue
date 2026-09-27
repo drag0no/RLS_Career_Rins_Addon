@@ -11,12 +11,8 @@
           <div class="race-row__text">
             <span class="race-row__title">{{ row.raceTitle }}</span>
             <span class="race-row__driver">{{ row.driverName }}</span>
-            <span
-              v-if="row.scheduledRaceReady"
-              class="race-row__meta race-row__meta--ready"
-            >Ready to spectate</span>
-            <span v-else-if="!row.scheduledRaceReady" class="race-row__meta">
-              {{ formatWaitText(row.secondsUntilScheduledRace, row.useWallClock) }}
+            <span :class="['race-row__meta', { 'race-row__meta--ready': row.metaReady }]">
+              {{ row.metaText }}
             </span>
           </div>
         </li>
@@ -26,12 +22,22 @@
           <RaceOfferBoardCard
             :offer="row.offer"
             :driver-name="row.driverName"
-            :declining="spectateBusyId === row.driverId || dropScheduledBusyId === row.driverId"
-            :primary-disabled="!row.scheduledRaceReady"
-            :status-text="row.scheduledRaceReady ? '' : formatWaitText(row.secondsUntilScheduledRace, row.useWallClock)"
-            primary-label="Spectate"
+            :declining="spectateBusyId === row.driverId || dropScheduledBusyId === row.driverId || sendWithManagerBusyId === row.driverId"
+            :primary-disabled="row.primaryDisabled"
+            :hide-primary="row.hidePrimary"
+            :hide-secondary="row.hideSecondary"
+            :show-send-with-manager="row.showSendWithManager"
+            :send-with-manager-disabled="row.sendWithManagerDisabled"
+            :send-with-manager-tooltip="row.sendWithManagerTooltip"
+            :is-in-background-sim="row.isInSim"
+            :sim-progress="row.simProgress"
+            :sim-badge="row.simBadge"
+            :status-text="row.statusText"
+            :primary-label="row.primaryLabel"
             secondary-label="Drop out"
+            compact
             @accept="onSpectate(row.driverId)"
+            @send-with-manager="onSendDriverWithManager(row.driverId)"
             @decline="onDropScheduled(row.driverId)"
           />
         </li>
@@ -55,9 +61,10 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from "vue"
+import { ref } from "vue"
 import { lua, useBridge } from "@/bridge"
 import { useBusinessComputerStore } from "../../../stores/businessComputerStore"
+import { useScheduledRaces } from "../../../composables/useScheduledRaces"
 import RaceOfferBoardCard from "../RaceOfferBoardCard.vue"
 
 const props = defineProps({
@@ -68,6 +75,7 @@ const emit = defineEmits(["open-tab"])
 
 const store = useBusinessComputerStore()
 const { events } = useBridge()
+const { scheduledRows } = useScheduledRaces(store)
 
 const isOutOfSpecErr = (err) => {
   const e = String(err || "")
@@ -75,87 +83,8 @@ const isOutOfSpecErr = (err) => {
 }
 
 const spectateBusyId = ref(null)
-
 const dropScheduledBusyId = ref(null)
-
-/** Wall epoch ticks in real time while menus are open; sim clock may be paused. */
-const scheduleUiSecondTick = ref(0)
-let scheduleUiTimer = null
-onMounted(() => {
-  scheduleUiTimer = setInterval(() => {
-    scheduleUiSecondTick.value++
-  }, 1000)
-})
-onUnmounted(() => {
-  if (scheduleUiTimer) {
-    clearInterval(scheduleUiTimer)
-    scheduleUiTimer = null
-  }
-})
-
-const remainingSecondsForScheduledDriver = (t) => {
-  const pr = t?.pendingRaceOffer
-  const wallDue = Number(pr?.scheduledRaceReadyWallEpoch ?? t?.scheduledRaceReadyWallEpoch)
-  void scheduleUiSecondTick.value
-  if (Number.isFinite(wallDue)) {
-    return Math.max(0, wallDue - Math.floor(Date.now() / 1000))
-  }
-  const due = Number(t.scheduledRaceSimTime)
-  const now = Number(store.racingTeamCareerSimTime)
-  if (Number.isFinite(due) && Number.isFinite(now)) {
-    return Math.max(0, Math.floor(due - now))
-  }
-  const fallback = Number(t.secondsUntilScheduledRace)
-  if (Number.isFinite(fallback)) {
-    return Math.max(0, Math.floor(fallback))
-  }
-  return null
-}
-
-const scheduledRows = computed(() => {
-  void store.racingTeamCareerSimTime
-  void scheduleUiSecondTick.value
-  const list = store.techs
-  if (!Array.isArray(list)) return []
-  const rows = []
-  for (const t of list) {
-    if (!t || t.fired || !t.pendingRaceOffer) continue
-    const pr = t.pendingRaceOffer
-    const useWallClock = Number.isFinite(Number(pr.scheduledRaceReadyWallEpoch ?? t.scheduledRaceReadyWallEpoch))
-    const remaining = remainingSecondsForScheduledDriver(t)
-    rows.push({
-      key: `d-${t.id}-${pr.id ?? ""}`,
-      driverId: t.id,
-      driverName: t.name || `Driver #${t.id}`,
-      raceTitle: pr.raceLabel || pr.raceName || "Race",
-      offer: pr,
-      scheduledRaceReady: remaining !== null ? remaining <= 0 : t.scheduledRaceReady === true,
-      secondsUntilScheduledRace: remaining ?? 0,
-      useWallClock,
-    })
-  }
-  return rows
-})
-
-const formatWaitText = (seconds, useWallClock) => {
-  if (!useWallClock && (store.racingTeamCareerSimTime === null || store.racingTeamCareerSimTime === undefined)) {
-    if (Number.isFinite(seconds) && seconds > 0) {
-      const s = Math.max(0, Math.floor(seconds))
-      const minutes = Math.floor(s / 60)
-      const secs = s % 60
-      return minutes > 0 ? `Ready in ~${minutes}m ${secs}s (syncing…)` : `Ready in ~${secs}s (syncing…)`
-    }
-    return "Syncing countdown…"
-  }
-  if (!Number.isFinite(seconds) || seconds <= 0) return "Not ready yet"
-  const s = Math.max(0, Math.floor(seconds))
-  const minutes = Math.floor(s / 60)
-  const secs = s % 60
-  if (minutes > 0) {
-    return `Ready in ${minutes}m ${secs}s`
-  }
-  return `Ready in ${secs}s`
-}
+const sendWithManagerBusyId = ref(null)
 
 const goToRaceTab = () => {
   emit("open-tab")
@@ -164,7 +93,7 @@ const goToRaceTab = () => {
   }
 }
 
-const spectateErr = (err) => {
+const raceActionErr = (err) => {
   const m = {
     no_pending_race_offer: "No scheduled race on that driver.",
     race_not_scheduled_yet: "Race time not reached yet.",
@@ -172,9 +101,12 @@ const spectateErr = (err) => {
     no_valid_fleet_vehicle: "Driver needs a fleet vehicle.",
     missing_business_or_driver: "Missing business or driver.",
     no_business: "No business selected.",
+    dyno_required: "Dyno certification required before entering sanctioned races.",
     fleet_hp_over_class_max: "Fleet car is too powerful for this race class.",
     fleet_hp_under_class_min: "Fleet car is below the minimum HP for this race class.",
     fleet_hp_bracket_mismatch: "Fleet car does not match the race HP class.",
+    requires_manager_level_1: "Requires Manager Lv 1.",
+    manager_already_running_race: "Manager is already supervising a race.",
     lua_error: "Something went wrong.",
     no_proxy_flow: "Race flow extension is not ready. Restart the game or verify the mod install.",
     no_staging_spot: "No track staging spot (player_stage_track) on this map.",
@@ -182,46 +114,77 @@ const spectateErr = (err) => {
     teleport_failed: "Could not place the team car at staging.",
     enter_vehicle_failed: "Could not switch you into the team car.",
     begin_failed: "Staging did not complete. Check the log.",
-    unknown_error: "Could not spectate (no error detail from the game).",
+    unknown_error: "Operation could not be completed.",
   }
-  return m[err] || (err ? String(err) : "Could not spectate.")
-}
-
-const dropScheduledErr = (err) => {
-  const m = {
-    no_pending_race_offer: "No scheduled race on that driver.",
-    missing_business_or_driver: "Missing business or driver.",
-    no_business: "No business selected.",
-    no_racing_team: "Racing team module is not available.",
-    lua_error: "Something went wrong.",
-  }
-  return m[err] || (err ? String(err) : "Could not drop out.")
+  return m[err] || (err ? String(err) : "Operation failed.")
 }
 
 const onDropScheduled = async (driverId) => {
   if (driverId === undefined || driverId === null) return
   dropScheduledBusyId.value = driverId
   try {
-    const res = await store.cancelRacingTeamProxyScheduledRace(driverId)
+    const row = scheduledRows.value.find((r) => r.driverId === driverId)
+    if (row && row.isInSim) {
+      await store.cancelRacingTeamBackgroundRace(driverId, "dropped")
+    }
+    const res = row?.isPlayer
+      ? await store.cancelRacingTeamPlayerScheduledRace()
+      : await store.cancelRacingTeamProxyScheduledRace(driverId)
     if (res && res.ok) {
       await store.loadBusinessData(store.businessType, store.businessId)
       try {
         lua.ui_message("Scheduled team race withdrawn. Entry fee refunded when applicable.", 7, "Racing Team", "info")
-      } catch (e) {
-      }
+      } catch (e) {}
     } else if (res && res.err) {
       try {
-        lua.ui_message(dropScheduledErr(res.err), 5, "Racing Team", "error")
-      } catch (e) {
-      }
+        lua.ui_message(raceActionErr(res.err), 5, "Racing Team", "error")
+      } catch (e) {}
     }
   } finally {
     dropScheduledBusyId.value = null
   }
 }
 
+const onSendDriverWithManager = async (driverId) => {
+  if (driverId === undefined || driverId === null) return
+  sendWithManagerBusyId.value = driverId
+  try {
+    const res = await store.sendRacingTeamDriverWithManager(driverId)
+    if (res && res.ok) {
+      try {
+        lua.ui_message("Driver dispatched with team manager for background race.", 6, "Racing Team", "info")
+      } catch (e) {}
+      await store.loadBusinessData(store.businessType, store.businessId)
+    } else {
+      const err = res?.err || "unknown_error"
+      try {
+        lua.ui_message(raceActionErr(err), 6, "Racing Team", "warning")
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.error("[HomeScheduledRacesWidget] sendDriverWithManager", err)
+  } finally {
+    sendWithManagerBusyId.value = null
+  }
+}
+
 const onSpectate = async (driverId) => {
   if (driverId === undefined || driverId === null) return
+  const row = scheduledRows.value.find((r) => r.driverId === driverId)
+  if (row?.isPlayer) {
+    await store.driveToTrack(row.offer)
+    return
+  }
+
+  if (row && row.isInSim) {
+    try {
+      await store.cancelRacingTeamBackgroundRace(driverId, "manage_myself")
+      await store.loadBusinessData(store.businessType, store.businessId)
+    } catch (e) {
+      console.error("[HomeScheduledRacesWidget] cancelRacingTeamBackgroundRace error", e)
+    }
+  }
+
   spectateBusyId.value = driverId
   try {
     const res = await store.simulateRacingTeamProxyRace({ driverId })
@@ -234,8 +197,7 @@ const onSpectate = async (driverId) => {
           "Racing Team",
           "info"
         )
-      } catch (e) {
-      }
+      } catch (e) {}
       if (store.exitBusinessComputerToPlay) {
         store.exitBusinessComputerToPlay()
       }
@@ -247,17 +209,15 @@ const onSpectate = async (driverId) => {
       try {
         const chk = await store.isProxyScheduledDriverFleetOverpowered(driverId)
         showOos = !!(chk && chk.overpowered)
-      } catch (e) {
-      }
+      } catch (e) {}
     }
     if (showOos) {
       events.emit("racingTeam:vehicleOutOfClass")
       return
     }
     try {
-      lua.ui_message(spectateErr(err), 5, "Racing Team", "error")
-    } catch (e) {
-    }
+      lua.ui_message(raceActionErr(err), 5, "Racing Team", "error")
+    } catch (e) {}
   } finally {
     spectateBusyId.value = null
   }
@@ -320,9 +280,9 @@ const onSpectate = async (driverId) => {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65em;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 0.75em;
 }
 
 .scheduled-offers-list__item {
@@ -356,51 +316,6 @@ const onSpectate = async (driverId) => {
   gap: 0.2em;
   min-width: 0;
   flex: 1;
-}
-
-.race-row__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.4em;
-  flex-shrink: 0;
-}
-
-.race-row__actions .btn {
-  flex-shrink: 0;
-  padding: 0.35em 0.65em;
-  font-size: 0.8em;
-}
-
-.btn {
-  padding: 0.55em 1.25em;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9em;
-  cursor: pointer;
-  border: none;
-  transition: background 0.15s, opacity 0.15s;
-}
-
-.btn-secondary {
-  background: rgba(40, 52, 64, 0.95);
-  color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(245, 73, 0, 0.35);
-  &:hover:not(:disabled) {
-    border-color: rgba(245, 73, 0, 0.55);
-    background: rgba(50, 64, 78, 0.98);
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-}
-
-.widget-footnote {
-  margin: 0.65em 0 0;
-  font-size: 0.78em;
-  color: rgba(255, 255, 255, 0.4);
 }
 
 .race-row__title {
@@ -468,7 +383,6 @@ const onSpectate = async (driverId) => {
   .race-row__meta {
     font-size: 0.7em;
   }
-
 }
 
 .btn-schedule-pill {

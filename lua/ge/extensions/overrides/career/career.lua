@@ -427,6 +427,9 @@ local function onUpdate(dtReal, dtSim, dtRaw)
   end
   -- Racing team scheduled-race ready toasts (ui_message) must run without business computer / phone open.
   local rt = rawget(_G, "career_modules_business_racingTeam")
+  if rt and rt.tickRacingTeamVehicleAssessAccumulated then
+    rt.tickRacingTeamVehicleAssessAccumulated(dtSim)
+  end
   if rt and rt.tickPostRaceCooldownDriverUiPushAccumulated then
     rt.tickPostRaceCooldownDriverUiPushAccumulated(dtSim)
   end
@@ -438,6 +441,9 @@ local function onUpdate(dtReal, dtSim, dtRaw)
   end
   if rt and rt.tickRacingTeamManagerAccumulated then
     rt.tickRacingTeamManagerAccumulated(dtSim)
+  end
+  if rt and rt.tickRacingTeamRaceSimAccumulated then
+    rt.tickRacingTeamRaceSimAccumulated(dtSim)
   end
   if not cachedRacingTeamFinances then
     local ok, mod = pcall(function()

@@ -98,6 +98,13 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     } catch (error) {
     }
   }
+  const showRepairLockWarning= (message) => {
+    const uiMsg = message || "Vehicle must be repaired before pulling out."
+    try {
+      lua.ui_message(uiMsg, 6, "Racing Team", "warning")
+    } catch (error) {
+    }
+  }
   const showErrorMessage = (message) => {
     if (!message) return
     try {
@@ -109,6 +116,8 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     if (result && typeof result === "object" && result.success === false) {
       if (result.errorCode === "damageLocked") {
         showDamageLockWarning()
+      } else if (result.errorCode === "repairRequired") {
+        showRepairLockWarning(result.message)
       } else if (result.message) {
         showErrorMessage(result.message)
       }
@@ -160,6 +169,7 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     })
   })
   const techs = computed(() => businessData.value.techs || [])
+  const playerScheduledOffer = computed(() => businessData.value?.playerScheduledOffer || null)
   const vehicles = computed(() => {
     const v = businessData.value.vehicles
     if (!v) return []
@@ -728,6 +738,54 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     }
   }
 
+  const sendRacingTeamDriverWithManager = async (driverId) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) {
+      return { ok: false, err: "no_business" }
+    }
+    const tid = Number(driverId)
+    if (!Number.isFinite(tid)) return { ok: false, err: "invalid_driver" }
+    try {
+      return await lua.career_modules_business_businessComputer.sendRacingTeamDriverWithManager({
+        businessId: String(bid),
+        driverId: tid,
+      })
+    } catch (_e) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
+  const setRacingTeamAutoStartBackgroundRaces = async (enabled) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) return false
+    try {
+      return await lua.career_modules_business_businessComputer.setRacingTeamAutoStartBackgroundRaces({
+        businessId: String(bid),
+        enabled: enabled === true,
+      })
+    } catch (_e) {
+      return false
+    }
+  }
+
+  const cancelRacingTeamBackgroundRace = async (driverId, reason) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) {
+      return { ok: false, err: "no_business" }
+    }
+    const tid = Number(driverId)
+    if (!Number.isFinite(tid)) return { ok: false, err: "invalid_driver" }
+    try {
+      return await lua.career_modules_business_businessComputer.cancelRacingTeamBackgroundRace({
+        businessId: String(bid),
+        driverId: tid,
+        reason: String(reason || ""),
+      })
+    } catch (_e) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
   const isProxyScheduledDriverFleetOverpowered = async (driverId) => {
     const bid = luaBusinessId()
     if (bid === null || bid === undefined) return { overpowered: false }
@@ -774,6 +832,33 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
       return await lua.career_modules_business_businessComputer.cancelRacingTeamProxyScheduledRace(
         String(bid),
         tid
+      )
+    } catch (error) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
+  const cancelRacingTeamPlayerScheduledRace = async () => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) return { ok: false, err: "no_business" }
+    try {
+      const res = await lua.career_modules_business_businessComputer.cancelRacingTeamPlayerRace(String(bid))
+      if (res && res.ok && businessData.value) {
+        businessData.value.playerScheduledOffer = null
+      }
+      return res
+    } catch (error) {
+      return { ok: false, err: "lua_error" }
+    }
+  }
+
+  const startRacingTeamVehicleAssessment = async (vehicleId) => {
+    const bid = luaBusinessId()
+    if (bid === null || bid === undefined) return { ok: false, err: "no_business" }
+    try {
+      return await lua.career_modules_business_businessComputer.startRacingTeamVehicleAssessment(
+        String(bid),
+        vehicleId
       )
     } catch (error) {
       return { ok: false, err: "lua_error" }
@@ -1721,6 +1806,36 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     }
   }
 
+  const ensureAssignedVehiclePulledOut = async (offerOrVehicleId) => {
+    const fvId = offerOrVehicleId?.fleetVehicleId
+      ?? offerOrVehicleId?.requiredFleetVehicleId
+      ?? (typeof offerOrVehicleId === "number" || typeof offerOrVehicleId === "string" ? offerOrVehicleId : null)
+      ?? playerScheduledOffer.value?.fleetVehicleId
+      ?? playerScheduledOffer.value?.requiredFleetVehicleId
+    if (fvId === undefined || fvId === null || fvId === "") return false
+
+    const list = Array.isArray(pulledOutVehicles.value) ? pulledOutVehicles.value : []
+    const isAlreadyOut = list.some((v) => {
+      const vid = v?.vehicleId ?? v?.id
+      return String(vid) === String(fvId)
+    })
+    if (!isAlreadyOut) {
+      try {
+        return await pullOutVehicle(fvId)
+      } catch (e) {
+        console.error("[businessComputerStore] pullOutVehicle on Drive to Track failed", e)
+        return false
+      }
+    }
+    return true
+  }
+
+  const driveToTrack = async (offerOrVehicleId) => {
+    const success = await ensureAssignedVehiclePulledOut(offerOrVehicleId)
+    if (!success) return
+    exitBusinessComputerToPlay()
+  }
+
   const requestVehiclePartsTree = async (vehicleId) => {
     if (!businessId.value || !vehicleId) return null
 
@@ -2225,6 +2340,10 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     if (data?.techs && Array.isArray(data.techs)) {
       updateTechs(data.techs)
       syncRacingTeamSimPoll()
+    }
+    if (businessData.value) {
+      businessData.value.activeBackgroundRace = Boolean(data?.activeBackgroundRace)
+      businessData.value.playerScheduledOffer = data?.playerScheduledOffer || null
     }
   }
 
@@ -3490,10 +3609,16 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     getProxyDriverRaceRequest,
     beginRacingTeamProxyRaceFromBusinessComputer,
     simulateRacingTeamProxyRace,
+    sendRacingTeamDriverWithManager,
+    setRacingTeamAutoStartBackgroundRaces,
+    cancelRacingTeamBackgroundRace,
     isProxyScheduledDriverFleetOverpowered,
     isArmedProxyFleetOverpoweredForRequest,
     cancelRacingTeamProxySession,
     cancelRacingTeamProxyScheduledRace,
+    cancelRacingTeamPlayerScheduledRace,
+    playerScheduledOffer,
+    startRacingTeamVehicleAssessment,
     declineJob,
     abandonJob,
     sellVehicle,
@@ -3515,6 +3640,8 @@ export const useBusinessComputerStore = defineStore("businessComputer", () => {
     closeVehicleView,
     onMenuClosed,
     exitBusinessComputerToPlay,
+    driveToTrack,
+    ensureAssignedVehiclePulledOut,
     requestVehiclePartsTree,
     requestVehicleTuningData,
     requestPartInventory,
