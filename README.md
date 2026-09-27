@@ -23,22 +23,22 @@ A community companion mod for BeamNG.drive designed to enhance immersion, perfor
 
 ### 🏁 FRE Contracts
 
-#### [📱 Contract Notification Filters](docs/TWEAKS_FRE_CONTRACT_NOTIFICATION_FILTERS.md)
-* **Contract Notification Filters**: Added phone settings to filter contract notifications by car ownership (owned vs. loaner), difficulty, and race type.
+#### 📱 Contract Notification Filters [Docs ↗](docs/TWEAKS_FRE_CONTRACT_NOTIFICATION_FILTERS.md)
+* **Custom Filters**: Added phone settings to filter contract notifications by car ownership (owned vs. loaner), difficulty, and race type.
 
-#### [🚩 Multi-Stage Rallies & Dirt Progression](docs/TWEAKS_DIRT_AND_RALLY_EVENTS.md)
+#### 🚩 Multi-Stage Rallies & Dirt Progression [Docs ↗](docs/TWEAKS_DIRT_AND_RALLY_EVENTS.md)
 * **Multi-Stage Rallies**: Point-to-point stages are grouped into full rally events with progress tracking (`Stage 2/4`) and a 25% bonus payout.
 * **Dirt Career Tree**: Added a 50-level progression branch with Rally, Dirt, and Rallycross licenses.
 * **Fair Race Payouts & Target Times**: Restored 100% payouts on single-stage events and rebalanced target times so you don't need all-time personal records to beat normal contracts.
 
 ### 💼 Business Management Improvements
 
-#### [🧩 Business Parts Customization & Inventory](docs/TWEAKS_BUSINESS_PARTS_CUSTOMIZATION_TREE.md)
+#### 🧩 Business Parts Customization & Inventory [Docs ↗](docs/TWEAKS_BUSINESS_PARTS_CUSTOMIZATION_TREE.md)
 * **Parts Menu Tree View**: The vehicle parts menu now uses an expandable folder tree like the main garage, instead of opening each category in a separate window.
 * **Disappearing Parts Fix**: Fixed spare parts vanishing from inventory after saving/reloading. Stock parts removed from cars now go to your inventory instead of being deleted.
 * **Persistent Car State**: Putting a car into garage storage no longer magically repairs damage or refills gas. Damaged cars must be repaired before taking them out.
 
-#### [🏎️ Racing Team Operations & Background Race Sim](docs/TWEAKS_RACING_TEAM.md)
+#### 🏎️ Racing Team Operations & Background Race Sim [Docs ↗](docs/TWEAKS_RACING_TEAM.md)
 * **Background Races**: Hired drivers can run scheduled races in the background while you explore, tune cars, or do deliveries. They earn prize money, gain driver XP, put real miles on the car, and have normal cooldowns.
 * **Realistic Race Simulation**: Race results are calculated from car power-to-weight, driver skill, track type, starting position, and chance of driver mistakes — no boring spectator grinds required.
 * **Manager Automation**:
@@ -49,17 +49,17 @@ A community companion mod for BeamNG.drive designed to enhance immersion, perfor
 * **Fairer Economics & Payouts**: Slashed the heavy 75% player-driving cut down to 15%; rebalanced hired driver cuts from 35–60% to a more realistic 15–35% of prize money based on their tier.
 * **Dyno Certification**: Cars must now be certified on a dyno before racing (free and instant at your own shop, or paid via third-party testing). Changing performance parts requires re-certification.
 
-#### [🔧 Tuning Shop Business Fixes](docs/TWEAKS_TUNING_SHOP.md)
+#### 🔧 Tuning Shop Business Fixes [Docs ↗](docs/TWEAKS_TUNING_SHOP.md)
 * **Deadlock Resolution**: Fixed the bug where managers stopped assigning jobs to technicians ("No active jobs available").
 * **Better Job Sorting**: Managers automatically prioritize high-paying jobs first.
 * **Project Car Protection**: Added a cyan `Player Assigned` badge to prevent managers from sending your personal project cars off with technicians.
 
-### [🚗 Vehicle Rotation Pool (High-Immersion Traffic)](docs/TWEAKS_VEHICLE_ROTATION_POOL.md)
+### 🚗 Vehicle Rotation Pool (High-Immersion Traffic) [Docs ↗](docs/TWEAKS_VEHICLE_ROTATION_POOL.md)
 * **Dynamic Fleet Variety**: Continuously cycles fresh traffic and parked cars from a background reserve so you stop seeing the same few models on repeat.
 * **Smooth Car Swapping**: Reserve cars stay frozen until needed, avoiding lag spikes or disk hitches when switching models.
 * **Police Chase Fix**: Police cars chasing you will no longer despawn mid-pursuit if they crash or fall behind.
 
-### [⚡ Performance & Stutter Reduction](docs/TWEAKS_PERFORMANCE_OPTIMIZATIONS_P1.md)
+### ⚡ Performance & Stutter Reduction [Docs ↗](docs/TWEAKS_PERFORMANCE_OPTIMIZATIONS_P1.md)
 * **Autosave Stutter Guard**: Autosaves wait until your car is fully stopped for 10 seconds, preventing force feedback loss and freezes mid-corner.
 * **Background Loop Optimization**: Slowed down background career checks (heat, stamina, bus/taxi loops) to 1–4 Hz so they don't eat CPU every frame.
 * **Tire Water Check Optimization**: Greatly reduced CPU load from tire wetness checks while driving.
