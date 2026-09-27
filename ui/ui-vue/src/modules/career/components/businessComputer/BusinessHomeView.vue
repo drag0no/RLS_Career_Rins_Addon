@@ -268,14 +268,32 @@ const handleComplete = async (job) => {
 }
 
 .dashboard-grid {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5em;
   flex: 1;
   min-height: 24rem;
-  
+
   @media (min-width: 1280px) {
     grid-template-columns: 1fr 1fr; /* 50% - 50% split as requested */
+
+    .main-column {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: calc(50% - 0.75em);
+      height: 100%;
+
+      :deep(.home-widget) {
+        max-height: none;
+      }
+    }
+
+    .side-column {
+      grid-column: 2;
+    }
   }
 }
 
@@ -290,6 +308,7 @@ const handleComplete = async (job) => {
     :deep(.home-widget) {
       flex: 1;
       min-height: 14rem;
+      max-height: 28rem;
     }
   }
 
