@@ -7,7 +7,7 @@ A community companion mod for BeamNG.drive designed to enhance immersion, perfor
 
 ## 📦 Installation
 
-1. Ensure the official **RLS Career Overhaul** mod is installed and active in BeamNG.
+1. **Verify Compatibility**: Ensure the official **RLS Career Overhaul** mod is installed and that its version is compatible with this addon (check the [Releases](https://github.com/drag0no/RLS_Career_Rins_Addon/releases) page for the supported base mod version).
 2. Download the latest `rls_career_z_rins_addon_X.X.X.zip` from the [Releases](https://github.com/drag0no/RLS_Career_Rins_Addon/releases) page.
 3. **Delete previous versions**: If updating, delete any older `rls_career_z_rins_addon_*.zip` from your mods folder first to avoid conflicts.
 4. Drop the new ZIP file directly into the **same mods folder** where you placed the original RLS Career mod:
@@ -21,42 +21,54 @@ A community companion mod for BeamNG.drive designed to enhance immersion, perfor
 
 ## ✨ Key Highlights
 
-### 🚗 Vehicle Rotation Pool (High-Immersion Traffic)
-*Spent nearly a week polishing this system to elevate ambient traffic immersion across the city:*
-* **Dynamic Fleet Variety**: Eliminates repetitive loops of the same few cars and barren parking lots by continuously rotating fresh models in and out of dormant reserve.
-* **Hardware-Adaptive Reserves**: Automatically inspects available RAM and VRAM to scale reserve depth (up to 20 reserve cars per circuit on 24GB+ rigs, scaling down gracefully on budget setups).
-* **Persistent Pursuits**: Chasing police never despawn mid-pursuit, even if they crash or temporarily fall behind.
-* **Event Auto-Suppression**: Automatically clears ambient traffic during races, time trials, and demolition derbies to restore maximum competitive FPS.
+### 🏁 FRE Contracts
 
-### ⚡ Performance & Stutter Reduction
-* **Tire Water Scan Fast-Path**: Slashes tire water detection interop calls by over 99%, keeping frame pacing smooth during spirited driving.
-* **Zero FFB Cutoffs on Autosave**: Autosaves now wait for your vehicle to stay stopped for 10 seconds, eliminating sudden force feedback drops and 200ms freezes while cornering.
-* **Sub-Timer Throttling**: Throttles ambient career scans (heat, stamina, bus/taxi loops) to 1–4 Hz instead of per-frame ticks.
+#### [📱 Contract Notification Filters](docs/TWEAKS_FRE_CONTRACT_NOTIFICATION_FILTERS.md)
+* **Contract Notification Filters**: Added phone settings to filter contract notifications by car ownership (owned vs. loaner), difficulty, and race type.
 
-### 🏁 FRE Contract Improvements
-* **Customizable Notification Filters**: Adds a dedicated filter in Phone Notification Settings allowing you to filter Contract Ready alerts based on **cars** (models you own vs. loaners), **difficulty tiers** (Easy, Medium, Hard), and active **disciplines** (Rally, Road Racing, Drift, etc.), while keeping all contracts accessible inside the app.
-* **Multi-Stage Rally Tours**: Point-to-point stages across the map are now combined into a single unified rally contract with live progress tracking (`Stage 2/4`) and a **1.25x completion payout bonus**, replacing disjointed single-stage contracts.
-* **New 50-Level "Dirt" Career Tree**: Features its own progression tree and unlockable licenses for **Rally**, **Dirt**, and **Rallycross**.
-* **Fair Payouts for Single-Stage Runs**: Fixed an RLS bug that slashed 1-lap and 1-stage race rewards to 33%, restoring full 100% base payouts.
-* **Rebalanced Target Times**: Rebalanced contract target times so players aren't forced to beat their all-time Personal Best just to clear Easy or Medium contracts.
+#### [🚩 Multi-Stage Rallies & Dirt Progression](docs/TWEAKS_DIRT_AND_RALLY_EVENTS.md)
+* **Multi-Stage Rallies**: Point-to-point stages are grouped into full rally events with progress tracking (`Stage 2/4`) and a 25% bonus payout.
+* **Dirt Career Tree**: Added a 50-level progression branch with Rally, Dirt, and Rallycross licenses.
+* **Fair Race Payouts & Target Times**: Restored 100% payouts on single-stage events and rebalanced target times so you don't need all-time personal records to beat normal contracts.
 
-### 🔧 Business Management Improvements
+### 💼 Business Management Improvements
 
-#### Tuning Shop
-* **Deadlock Resolution**: Completely fixes the *"No active jobs available"* bug when the manager doesn't assign jobs to technicians.
-* **Profit-First Automation**: Managers now sort incoming contracts by payout descending, ensuring technicians are always assigned the most profitable work first.
-* **Player Project Protection**: Pulling a car out of the shop marks it with a cyan **`Player Assigned`** badge, preventing the automated manager from shipping your personal project offsite with a technician.
-* **Ghost Fleet Fix**: Eliminates duplicate ghost vehicles appearing in garage storage while customer cars are offsite.
+#### [🧩 Business Parts Customization & Inventory](docs/TWEAKS_BUSINESS_PARTS_CUSTOMIZATION_TREE.md)
+* **Parts Menu Tree View**: The vehicle parts menu now uses an expandable folder tree like the main garage, instead of opening each category in a separate window.
+* **Disappearing Parts Fix**: Fixed spare parts vanishing from inventory after saving/reloading. Stock parts removed from cars now go to your inventory instead of being deleted.
+* **Persistent Car State**: Putting a car into garage storage no longer magically repairs damage or refills gas. Damaged cars must be repaired before taking them out.
+
+#### [🏎️ Racing Team Operations & Background Race Sim](docs/TWEAKS_RACING_TEAM.md)
+* **Background Races**: Hired drivers can run scheduled races in the background while you explore, tune cars, or do deliveries. They earn prize money, gain driver XP, put real miles on the car, and have normal cooldowns.
+* **Realistic Race Simulation**: Race results are calculated from car power-to-weight, driver skill, track type, starting position, and chance of driver mistakes — no boring spectator grinds required.
+* **Manager Automation**:
+  - **Level 1**: Allows manually dispatching drivers with the manager (to start the background race), and automatically books idle drivers every 20 minutes.
+  - **Level 2**: Adds selectable booking intervals (5–60 min) and an option to automatically start background races as soon as they are ready.
+* **Driver XP Fix**: Leveling up your driver now makes them faster, braver, and cleaner through corners.
+* **Finishing XP**: Drivers now earn experience points for finishing a race even if they don't make the podium.
+* **Fairer Economics & Payouts**: Slashed the heavy 75% player-driving cut down to 15%; rebalanced hired driver cuts from 35–60% to a more realistic 15–35% of prize money based on their tier.
+* **Dyno Certification**: Cars must now be certified on a dyno before racing (free and instant at your own shop, or paid via third-party testing). Changing performance parts requires re-certification.
+
+#### [🔧 Tuning Shop Business Fixes](docs/TWEAKS_TUNING_SHOP.md)
+* **Deadlock Resolution**: Fixed the bug where managers stopped assigning jobs to technicians ("No active jobs available").
+* **Better Job Sorting**: Managers automatically prioritize high-paying jobs first.
+* **Project Car Protection**: Added a cyan `Player Assigned` badge to prevent managers from sending your personal project cars off with technicians.
+
+### [🚗 Vehicle Rotation Pool (High-Immersion Traffic)](docs/TWEAKS_VEHICLE_ROTATION_POOL.md)
+* **Dynamic Fleet Variety**: Continuously cycles fresh traffic and parked cars from a background reserve so you stop seeing the same few models on repeat.
+* **Smooth Car Swapping**: Reserve cars stay frozen until needed, avoiding lag spikes or disk hitches when switching models.
+* **Police Chase Fix**: Police cars chasing you will no longer despawn mid-pursuit if they crash or fall behind.
+
+### [⚡ Performance & Stutter Reduction](docs/TWEAKS_PERFORMANCE_OPTIMIZATIONS_P1.md)
+* **Autosave Stutter Guard**: Autosaves wait until your car is fully stopped for 10 seconds, preventing force feedback loss and freezes mid-corner.
+* **Background Loop Optimization**: Slowed down background career checks (heat, stamina, bus/taxi loops) to 1–4 Hz so they don't eat CPU every frame.
+* **Tire Water Check Optimization**: Greatly reduced CPU load from tire wetness checks while driving.
 
 
 ## 🚧 Work in Progress (Sneak Peek)
 
 ### 🚓 Faster & More Aggressive Police Pursuits
-* Tweaking police pursuit AI to make cruisers noticeably faster, more tactically aggressive, and harder to shake off for high-stakes getaways.
-
-### 🏎️ Race Team Business Improvements
-* **Background Race Simulation**: Run race team events in the background while you continue driving, exploring, or managing other career businesses.
-* Additional enterprise management features and race team logistics currently in active development.
+* Tweaking police pursuit AI to make cruisers noticeably faster, more aggressive, and harder to shake off during chases.
 
 
 ## 🐛 Bug Reports & Troubleshooting
@@ -73,11 +85,13 @@ If you encounter a bug, please follow these steps before submitting a report:
 ## 📖 In-Depth Feature Documentation
 
 For detailed architectural breakdowns, math formulas, and technical change logs, check out the dedicated guides:
+* [🏁 FRE Contract Notification Filters](docs/TWEAKS_FRE_CONTRACT_NOTIFICATION_FILTERS.md)
+* [🚩 Dirt & Rally Career Events](docs/TWEAKS_DIRT_AND_RALLY_EVENTS.md)
+* [🧩 Business Parts Customization Tree](docs/TWEAKS_BUSINESS_PARTS_CUSTOMIZATION_TREE.md)
+* [🏎️ Racing Team Operations & Background Race Sim](docs/TWEAKS_RACING_TEAM.md)
+* [🔧 Tuning Shop Business Fixes](docs/TWEAKS_TUNING_SHOP.md)
 * [🚗 Vehicle Rotation Pool](docs/TWEAKS_VEHICLE_ROTATION_POOL.md)
 * [⚡ Performance Optimizations](docs/TWEAKS_PERFORMANCE_OPTIMIZATIONS_P1.md)
-* [🏁 FRE Contract Notification Filters](docs/TWEAKS_FRE_CONTRACT_NOTIFICATION_FILTERS.md)
-* [🌲 Dirt & Rally Career Events](docs/TWEAKS_DIRT_AND_RALLY_EVENTS.md)
-* [🔧 Tuning Shop Business Fixes](docs/TWEAKS_TUNING_SHOP.md)
 
 
 ## 🤝 Project Philosophy & Credits

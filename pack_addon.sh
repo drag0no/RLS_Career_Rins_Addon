@@ -35,16 +35,15 @@ for arg in "$@"; do
 done
 
 if [ -n "$BUMP_TYPE" ]; then
-  # Ensure working directory is clean before releasing
   if [ -n "$(git status --porcelain)" ]; then
     echo "Error: Working directory has uncommitted changes. Commit or stash them before releasing." >&2
     exit 1
   fi
 
-  NEW_VERSION="$("$PYTHON_BIN" pack_addon.py --bump "$BUMP_TYPE")"
-  echo "==> Bumped version to v$NEW_VERSION"
+  NEW_VERSION="$("$PYTHON_BIN" pack_addon.py --release "$BUMP_TYPE")"
+  echo "==> Prepared release v$NEW_VERSION"
 
-  git add pack_addon.json
+  git add pack_addon.json CHANGELOG.md
   git commit -m "chore(release): v$NEW_VERSION"
   git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
   echo "==> Created Git commit and tag 'v$NEW_VERSION'"
