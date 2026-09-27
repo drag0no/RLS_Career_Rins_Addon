@@ -94,6 +94,13 @@ For detailed architectural breakdowns, math formulas, and technical change logs,
 * [⚡ Performance Optimizations](docs/TWEAKS_PERFORMANCE_OPTIMIZATIONS_P1.md)
 
 
+## ☕ Support
+
+This addon is 100% free and open source. If you enjoy the mod and want to support ongoing updates, optimizations, and new features, consider buying me a coffee!
+
+[![Support on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/rinskillite)
+
+
 ## 🤝 Project Philosophy & Credits
 
 * **Author**: Solo passion project by **Rinskillite** (`drag0no`), an experienced software engineer and community modder.
